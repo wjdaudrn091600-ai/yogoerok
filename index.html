@@ -3990,7 +3990,7 @@ const UI = {
     const cur = CHAR[SAVE.sel] && SAVE.chars[SAVE.sel] ? SAVE.sel : "musa"; SAVE.sel = cur;
     const mc = unclaimed();
     $("#screens").innerHTML = `<div class="screen" id="menu"><div class="hero-bg" style="background-image:url(${imgSrc(ASSETS.img.ui_menu_bg ? "ui_menu_bg" : "cg_open")})"></div>
-      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${isWebPlay() ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
+      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>' : ""}${isWebPlay() ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
       <div class="body">
         ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold" id="resume" style="width:min(1100px,100%);margin-bottom:8px;font-size:1.1rem">▶ 이어하기 · ${CHAR[SAVE.resume.char].name} · 스토리 ${SAVE.resume.floor}층 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
         <div class="modes">
