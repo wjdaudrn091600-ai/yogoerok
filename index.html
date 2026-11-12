@@ -978,7 +978,7 @@ const BOON_SPECIAL = { burn: (n) => `불태움 ${3 + 1.5 * (n - 1)}초`, chill: 
 function boonShow(k, n) {
   if (BOON_SPECIAL[k]) return BOON_SPECIAL[k](n);
   const m = BOONS[k].m, parts = [];
-  for (const key in m) { const L = BOON_LBL[key]; if (!L) continue; const v = Math.round(Math.abs(m[key]) * n * 1000) / 10; parts.push(L[0] + v + L[1]); }
+  for (const key in m) { const L = BOON_LBL[key]; if (!L) continue; const v = Math.round(Math.abs(m[key]) * n * 1000) / 10; const cap = typeof STAT_CAP !== "undefined" && STAT_CAP[key] && m[key] > 0 ? ` (최대 ${Math.round(STAT_CAP[key] * 1000) / 10}${L[1].trim() || "%"})` : ""; parts.push(L[0] + v + L[1] + cap); }
   return parts.join(", ") || BOONS[k].desc;
 }
 function boonChange(k, n) { return n ? `<p class="lvchg"><span>${boonShow(k, n)}</span> → <b>${boonShow(k, n + 1)}</b></p>` : ""; }
@@ -1139,7 +1139,12 @@ const JOB_TRAITS = {
 };
 // 전직하면 스킬이 바뀜: 1~4차는 1·2·3·4번 칸 하나씩, 5차(초월)는 모든 스킬. 공격 갈래 = 위력, 수비 갈래 = 대기 시간
 const JOB_SK_SLOT = ["Q", "W", "E", "R", "ALL"], JOB_SK_TAG = ["날선", "깊은", "극(極)", "각성", "초월"];
-const JOB_K = [1, 1.35, 1.7, 2.05, 2.4];
+const JOB_K = [1, 1.15, 1.3, 1.45, 1.6]; // 11-13 밸런스: 5차까지 같은 갈래면 합 6.5배 (예전 8.5배)
+// ===== 밸런스 상한 (사용자 요청 11-13: "궁극기 쿨타임 감소가 강화를 끝까지 하면 너무 자주 사용 가능" 같은 무너짐 막기) =====
+// 패시브는 같은 것을 Lv.3까지. 능력치는 패시브·아티팩트·펫·칭호·전직·상점을 다 합쳐도 아래 값을 넘지 않는다.
+const BOON_MAX = 3;
+const STAT_CAP = { cdr: 0.40, ultcd: 0.30, echo: 0.25, crit: 0.80, critdmg: 2.0, as: 1.2, spd: 0.6, area: 0.8, dr: 0.6, ls: 0.10, regen: 0.01, thorns: 1.5, shieldRoom: 0.35, execute: 0.3 };
+const ULT_MIN = 0.45; // 궁극기 대기는 모든 감소를 합쳐도 원래의 45% 아래로 내려가지 않는다
 function jobSkillText(cid, tier, kind) {
   const slot = JOB_SK_SLOT[tier], lab = slot === "ALL" ? "모든 스킬" : `${{ Q: 1, W: 2, E: 3, R: 4 }[slot]}번 스킬`;
   return kind === "atk" ? `${lab}이 '${JOB_SK_TAG[tier]}'으로 바뀜 · 위력 +${slot === "ALL" ? 15 : 30}%` : `${lab}이 '${JOB_SK_TAG[tier]}'으로 바뀜 · 대기 -${slot === "ALL" ? 12 : 22}% · 위력 +10%`;
@@ -1439,6 +1444,7 @@ function buffSum(u, k) { let s = 0; for (const b of u.buffs) if (b[k]) s += b[k]
 function hasBuff(u, k) { return u.buffs.some((b) => b[k]); }
 function recalc(u) {
   const m = sumMods([...u.baseMods, ...u.boons.map((k) => BOONS[k].m), ...(u.jobs || []).map((j) => j.m)]);
+  for (const k in STAT_CAP) if (m[k] > STAT_CAP[k]) { (u.capped = u.capped || {})[k] = 1; m[k] = STAT_CAP[k]; }
   u.m = m;
   const lvG = u.lvl - 1, star = (1 + 0.05 * (u.enh || 0)) * ((GRADE_INFO[CHAR_GRADE[u.id]] || GRADE_INFO.C).mul);
   const ratio = u.maxHp ? u.hp / u.maxHp : 1;
@@ -1447,7 +1453,7 @@ function recalc(u) {
   u.atkBase = u.def.atk * (1 + 0.075 * lvG) * (1 + (m.atk || 0)) * star * (u.atkMul || 1);
   u.spdBase = u.def.spd * (1 + (m.spd || 0));
   u.crit = 0.05 + (m.crit || 0); u.critdmg = 1.6 + (m.critdmg || 0);
-  u.drBase = clamp(m.dr || 0, -0.5, 0.7); u.cdr = clamp(m.cdr || 0, 0, 0.45); u.as = m.as || 0; u.ls = m.ls || 0;
+  u.drBase = clamp(m.dr || 0, -0.5, STAT_CAP.dr); u.cdr = clamp(m.cdr || 0, 0, STAT_CAP.cdr); u.as = m.as || 0; u.ls = m.ls || 0;
   u.light = m.light || 0;
 }
 const atkOf = (u) => (u.kind === "hero" ? u.atkBase * (1 + buffSum(u, "atk")) : u.owner ? atkOf(u.owner) : u.dmg);
@@ -1765,7 +1771,7 @@ function populate(r) {
     r.cleared = true;
     const pm = 1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.3;
     const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
-    const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, { what: "boon", k: rollBoons(1, G.p.lvl)[0], price: 140 }, { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
+    const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(rollBoons(1, G.p.lvl)[0] ? [{ what: "boon", k: rollBoons(1, G.p.lvl)[0], price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
     list.forEach((it, i) => { const x = RW / 2 + ((i % 3) - 1) * 260, y = RH / 2 - 60 + Math.floor(i / 3) * 210;
       const base = it.price || (it.what === "herb" ? SHOP_ITEMS.herb.price : SHOP_ITEMS[it.k].price);
       G.drops.push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
@@ -2256,7 +2262,7 @@ function gainExp(u, v) {
 // 전직 적용 (11-13): 능력 + 스킬 변화 + 연출. 방장·친구·이어하기 모두 여기로
 function jobSkills(u, tier, kind) {
   const slots = JOB_SK_SLOT[tier] === "ALL" ? ["Q", "W", "E", "R"] : [JOB_SK_SLOT[tier]];
-  for (const sl of slots) { const s0 = u.sk[sl]; if (!s0) continue; const s = { ...s0 }; s.base = s.base || s0.name;
+  for (const sl of slots) { const s0 = u.sk[sl]; if (!s0) continue; const s = { ...s0 }; s.base = s.base || s0.name; s.cd0 = s.cd0 || s0.cd;
     if (kind === "atk") s.pow = (s.pow || 1) * (JOB_SK_SLOT[tier] === "ALL" ? 1.15 : 1.3); else { s.cd = s.cd * (JOB_SK_SLOT[tier] === "ALL" ? 0.88 : 0.78); s.pow = (s.pow || 1) * 1.1; }
     s.jobTag = JOB_SK_TAG[tier]; s.name = `${JOB_SK_TAG[tier]} ${s.base}`; u.sk[sl] = s; }
 }
@@ -2354,17 +2360,19 @@ function rollActive(exclude = [], minRar = 1) {
 }
 // 레벨이 오를수록 희귀·영웅·전설 확률이 오른다 (낮은 레벨에도 낮은 확률로 나옴)
 function boonWeights(lvl) { lvl = lvl || 1; return { 1: Math.max(3, 10 - lvl * 0.25), 2: 3.5 + lvl * 0.22, 3: 0.8 + lvl * 0.14, 4: 0.12 + lvl * 0.05 }; }
-function rollBoons(n, lvl) {
-  const W = boonWeights(lvl != null ? lvl : G && G.p ? G.p.lvl : 1), out = [];
-  const lvOf = (k) => G.p.boons.filter((x) => x === k).length;
-  const pool = BOON_KEYS.filter((k) => !(k === "phoenixPerk" && lvOf(k) >= 1) && !(k === "multi" && lvOf(k) >= 3) && lvOf(k) < 5); // 같은 패시브는 겹쳐 Lv.5까지 (사용자 요청 11-11)
-  while (out.length < n) {
+function rollBoons(n, lvl, who) {
+  const u = who || (G && G.p), W = boonWeights(lvl != null ? lvl : u ? u.lvl : 1), out = [];
+  const lvOf = (k) => (u ? u.boons.filter((x) => x === k).length : 0);
+  const full = (k) => { const m = BOONS[k].m || {}, ks = Object.keys(m).filter((x) => STAT_CAP[x] != null && m[x] > 0); return ks.length > 0 && ks.every((x) => u && u.m && (u.m[x] || 0) >= STAT_CAP[x]); };
+  // 같은 패시브는 Lv.3까지 (사용자 요청 11-13, 예전 Lv.5), 이미 상한에 닿은 능력치만 올리는 패시브는 나오지 않음
+  const pool = BOON_KEYS.filter((k) => !(k === "phoenixPerk" && lvOf(k) >= 1) && lvOf(k) < BOON_MAX && !full(k));
+  while (out.length < n && pool.some((k) => !out.includes(k))) {
     let tot = 0; const cand = pool.filter((k) => !out.includes(k)); for (const k of cand) tot += W[BOONS[k].rar];
     let r = Math.random() * tot; for (const k of cand) { r -= W[BOONS[k].rar]; if (r <= 0) { out.push(k); break; } }
   }
   return out;
 }
-function takeBoon(u, k) { u.boons.push(k); if (k === "phoenixPerk") u.revive++; recalc(u); }
+function takeBoon(u, k) { if (!k || u.boons.filter((x) => x === k).length >= BOON_MAX) return; u.boons.push(k); if (k === "phoenixPerk") u.revive++; recalc(u); }
 
 // ---------- 갱신 ----------
 function update(dt) {
@@ -2491,7 +2499,7 @@ function useSkill(u, slot, at) {
   }
   const s = u.sk[slot]; if (!s || u.cd[slot] > 0) return false;
   castFx(u, s.fx, (s.pow || 1) * (1 + (u.jobs || []).reduce((a, j) => a + (j.skPow || 0), 0)), at || aimPoint(u), { vk: sigOf(s.fx, s.icon && s.icon.startsWith("sk_") ? "cvfx_" + s.icon : null) }); u.skillAnim = 0.4; u.atkAnim = 0; if (u === G.p) SAVE.stats.skillsUsed = (SAVE.stats.skillsUsed || 0) + 1;
-  let cd = s.cd * (1 - u.cdr) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); if (slot === "R") cd *= 1 - ((u.m && u.m.ultcd) || 0);
+  let cd = s.cd * (1 - u.cdr) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); if (slot === "R") cd = Math.max((s.cd0 || s.cd) * ULT_MIN, cd * (1 - ((u.m && u.m.ultcd) || 0)));
   if (u.m && u.m.echo && Math.random() < u.m.echo && slot !== "R") { cd = 0.3; addText(u.x, u.y - 100, "메아리!", "#9fe8ff", 18); }
   u.cd[slot] = cd;
   return true;
@@ -3597,7 +3605,7 @@ const NET = {
   },
   sendKey(s, at) { this.send(at ? { t: "k", s, x: Math.round(at.x), y: Math.round(at.y) } : { t: "k", s }); },
   reward(r) { this.send(Object.assign({ t: "rw" }, r)); },
-  guestLevelUp(u) { this.send({ t: "lv", opts: rollBoons(3, u.lvl), lvl: u.lvl }); },
+  guestLevelUp(u) { this.send({ t: "lv", opts: rollBoons(3, u.lvl, u), lvl: u.lvl }); },
 
   // ---------- 방장: 출발 ----------
   hostStart(opt) {
@@ -3751,7 +3759,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.6";
+const GAME_VERSION = "1.4.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4602,6 +4610,7 @@ const UI = {
     if ($("#mgo")) $("#mgo").onclick = () => NET.hostStart({ mode: NET.lobby.mode, char: SAVE.sel, floor: NET.lobby.floor, diff: "normal" });
   },
   guestLevelUp(opts, lvl) {
+    if (!opts || !opts.length) return;
     if (UI.modalOpen()) { setTimeout(() => UI.guestLevelUp(opts, lvl), 600); return; }
     UI.modal(`<h2>레벨 업! Lv.${lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1·2·3 키) — 게임은 계속 진행돼요</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b>${(() => { const n = ((G.p && G.p.boons) || []).filter((x) => x === k).length; return n ? `<div class="muted"><b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b></div>` + boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>`);
     const armT = UI.arm();
@@ -4808,6 +4817,8 @@ const UI = {
     }));
   },
   levelUp(opts) {
+    // 고를 패시브가 남지 않으면(모두 Lv.3이거나 상한) 엽전으로 대신 (11-13)
+    if (!opts.length) { G.p.gold = (G.p.gold || 0) + 60; addText(G.p.x, G.p.y - 120, "패시브 모두 최대! 엽전 +60", "#ffe08a", 22); return; }
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
     UI.modal(`<h2>레벨 업! Lv.${G.p.lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1·2·3 키)</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b><div class="muted">${RARITY[b.rar].name}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? ` · <b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b>` : " · 새 패시브"; })()}</div>${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>`);
     const armT = UI.arm();
