@@ -3630,7 +3630,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.2";
+const GAME_VERSION = "1.4.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -3708,45 +3708,73 @@ const cleanNick = (s) => String(s || "").replace(/[<>"'&]/g, "").trim().slice(0,
 function hashPw(id, pw) { let h = 2166136261; const s = "dbm2|" + id + "|" + pw; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + s.length; }
 function accounts() { try { return JSON.parse(ls.get("dbm2_accounts") || "{}"); } catch (e) { return {}; } }
 
-// ---------- PC·폰 기기 연동 (사용자 요청 11-12) ----------
-// 한쪽에서 6자리 코드를 만들고 다른 쪽에서 입력 → 서로 데이터(계정+저장)를 보여 주고 고른 쪽으로 맞춤. 연결이 안 되면 '연동 문자' 복사·붙여넣기.
-const LINK = {
-  peer: null, conn: null,
-  pack() { if (!ACCOUNT || !SAVE || ACCOUNT === DEV_ID) return null; return { id: ACCOUNT, hash: accounts()[ACCOUNT], save: SAVE, at: Date.now(), dev: /Android|iPhone|iPad/i.test(navigator.userAgent) ? "폰" : "PC" }; },
-  sum(pk) { if (!pk) return "데이터 없음 (로그인 안 됨)"; const sv = pk.save || {}; return `<b>${esc(pk.id)}</b> · ${pk.dev || ""}<br>캐릭터 ${Object.keys(sv.chars || {}).length}명 · 코인 ${sv.coins || 0} · 스토리 ${((sv.story || {}).maxFloor) || 1}층 · 무한 최고 ${((sv.stats || {}).endlessBest) || 0}`; },
-  apply(pk) {
-    const acc = accounts(); acc[pk.id] = pk.hash; ls.set("dbm2_accounts", JSON.stringify(acc));
-    ls.set("dbm2_save_" + pk.id, JSON.stringify(pk.save)); ls.set("dbm2_last", pk.id);
-    ACCOUNT = pk.id; SAVE = loadAccount(pk.id); sfxVol = SAVE.settings.sfx; saveGame();
-    LINK.close(); UI.toast("✅ 연동 완료 — 이 기기에 받은 데이터로 바꿨어요", 4000); UI.menu();
+// ---------- PC·폰 자동 연동 (사용자 요청 11-12): 계정 저장을 Firebase 서버에 둠 ----------
+// 같은 아이디·비밀번호로 로그인하면 어느 기기든 더 최근 저장으로 맞춰지고, 하는 동안 자동으로 서버에 올라감. 인터넷이 안 되면 이 기기 저장으로 진행.
+const CLOUD = {
+  key: "AIzaSyB_3fTrUPROs70D1B4Df8hD7PwFSZgCtDc", proj: "yogoerok",
+  uid: null, tok: null, rt: null, exp: 0, dirty: false, timer: null, busy: false, on: false,
+  email(id) { return "u" + Array.from(new TextEncoder().encode(id)).map((b) => b.toString(16).padStart(2, "0")).join("") + "@yogoerok.game"; },
+  async api(path, body) {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 8000);
+    try { const r = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:" + path + "?key=" + this.key, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal }); return await r.json(); }
+    finally { clearTimeout(tm); }
   },
-  close() { try { this.conn && this.conn.close(); } catch (e) { } try { this.peer && this.peer.destroy(); } catch (e) { } this.peer = this.conn = null; },
-  got(other) {
-    const mine = LINK.pack();
-    $("#lkres").innerHTML = `<div class="card"><h3>연결됐어요</h3><p class="muted">이 기기</p><p>${LINK.sum(mine)}</p><p class="muted">상대 기기</p><p>${LINK.sum(other)}</p>
-      <div class="center">${other ? '<button class="btn gold" id="lktake">상대 데이터를 이 기기로 받기</button>' : ""}<button class="btn" id="lkkeep">그대로 두기</button></div>
-      <p class="muted" style="font-size:.8rem">받으면 이 기기의 같은 아이디 데이터는 상대 것으로 바뀌어요. 상대 기기에서 '받기'를 누르면 반대로 이 기기 것이 그쪽으로 가요.</p></div>`;
-    if ($("#lktake")) $("#lktake").onclick = () => LINK.apply(other);
-    $("#lkkeep").onclick = () => { LINK.close(); UI.toast("연동을 마쳤어요"); };
+  setTok(j) { this.uid = j.localId; this.tok = j.idToken; this.rt = j.refreshToken; this.exp = Date.now() + (+j.expiresIn || 3600) * 1000 - 60000; this.on = true; },
+  async token() {
+    if (this.tok && Date.now() < this.exp) return this.tok;
+    const r = await fetch("https://securetoken.googleapis.com/v1/token?key=" + this.key, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(this.rt) });
+    const j = await r.json(); if (!j.id_token) throw new Error("token"); this.tok = j.id_token; this.rt = j.refresh_token; this.exp = Date.now() + (+j.expires_in || 3600) * 1000 - 60000; return this.tok;
   },
-  wire(c) { this.conn = c; c.on("open", () => c.send({ t: "link", pk: LINK.pack() })); c.on("data", (m) => { if (m && m.t === "link") LINK.got(m.pk); }); c.on("close", () => { }); },
-  host() {
-    this.close(); const code = String(Math.floor(100000 + Math.random() * 900000));
-    const peer = (this.peer = new Peer("ygrlink-" + code));
-    $("#lkres").innerHTML = `<div class="card center"><p>다른 기기에서 이 코드를 넣어 주세요</p><p style="font-family:var(--display);font-size:2.6rem;letter-spacing:.2em;color:var(--gold2)">${code}</p><p class="muted">기다리는 중…</p></div>`;
-    peer.on("connection", (c) => LINK.wire(c));
-    peer.on("error", (e) => { $("#lkres").innerHTML = `<p class="muted">연결 오류 (${esc(e.type)}) — 아래 '연동 문자'를 써 보세요</p>`; });
+  doc() { return `https://firestore.googleapis.com/v1/projects/${this.proj}/databases/(default)/documents/saves/${this.uid}`; },
+  // 로그인: 결과 { ok, cloud(서버 저장 or null), err, offline }
+  async signIn(id, pw, create, localOk) {
+    const em = this.email(id), cp = "ygr:" + pw;
+    try {
+      if (create) { const j = await this.api("signUp", { email: em, password: cp, returnSecureToken: true }); if (j.idToken) { this.setTok(j); return { ok: true, cloud: null }; } return { err: /EMAIL_EXISTS/.test(j.error && j.error.message) ? "이미 있는 아이디예요" : "계정을 만들지 못했어요 (" + ((j.error && j.error.message) || "?") + ")" }; }
+      let j = await this.api("signInWithPassword", { email: em, password: cp, returnSecureToken: true });
+      if (!j.idToken) {
+        const m = (j.error && j.error.message) || "";
+        if (/TOO_MANY/.test(m)) return { err: "잠시 뒤에 다시 해 주세요 (로그인 시도가 너무 많아요)" };
+        if (!localOk) return { err: "아이디 또는 비밀번호가 달라요" };
+        // 이 기기에만 있던 계정 → 서버에 처음 올리기
+        j = await this.api("signUp", { email: em, password: cp, returnSecureToken: true });
+        if (!j.idToken) return { err: /EMAIL_EXISTS/.test(j.error && j.error.message) ? "비밀번호가 달라요" : "로그인하지 못했어요" };
+        this.setTok(j); return { ok: true, cloud: null };
+      }
+      this.setTok(j); return { ok: true, cloud: await this.pull() };
+    } catch (e) { return { offline: true }; }
   },
-  join(code) {
-    code = String(code || "").replace(/\D/g, ""); if (code.length !== 6) { UI.toast("6자리 숫자 코드를 넣어 주세요"); return; }
-    this.close(); const peer = (this.peer = new Peer());
-    $("#lkres").innerHTML = `<p class="muted">연결 중…</p>`;
-    peer.on("open", () => LINK.wire(peer.connect("ygrlink-" + code, { reliable: true })));
-    peer.on("error", (e) => { $("#lkres").innerHTML = `<p class="muted">연결 오류 (${esc(e.type)}) — 코드를 다시 확인하거나 '연동 문자'를 써 보세요</p>`; });
+  async pull() {
+    const r = await fetch(this.doc(), { headers: { Authorization: "Bearer " + (await this.token()) } });
+    if (r.status === 404) return null; if (!r.ok) throw new Error("pull " + r.status);
+    const j = await r.json(), f = j.fields || {}; try { return { t: +((f.t && f.t.integerValue) || 0), save: JSON.parse(f.data.stringValue) }; } catch (e) { return null; }
   },
-  text() { const pk = LINK.pack(); if (!pk) return ""; return "YGR1:" + btoa(unescape(encodeURIComponent(JSON.stringify(pk)))); },
-  fromText(t) { try { t = String(t).trim(); if (!t.startsWith("YGR1:")) throw 0; return JSON.parse(decodeURIComponent(escape(atob(t.slice(5))))); } catch (e) { return null; } },
+  async push(keep) {
+    if (!this.on || !ACCOUNT || !SAVE || ACCOUNT === DEV_ID) return;
+    if (this.inflight && !keep) { this.again = true; return this.inflight; }
+    this.inflight = this._push(keep); try { await this.inflight; } finally { this.inflight = null; }
+    if (this.again) { this.again = false; return this.push(); }
+  },
+  async _push(keep) {
+    this.dirty = false;
+    try {
+      const body = JSON.stringify({ fields: { data: { stringValue: JSON.stringify(SAVE) }, t: { integerValue: String(SAVE.t || Date.now()) }, ver: { stringValue: GAME_VERSION } } });
+      const r = await fetch(this.doc(), { method: "PATCH", keepalive: !!keep && body.length < 60000, headers: { "Content-Type": "application/json", Authorization: "Bearer " + (await this.token()) }, body });
+      if (!r.ok) this.dirty = true;
+    } catch (e) { this.dirty = true; }
+    return true;
+  },
+  later() { if (!this.on) return; this.dirty = true; if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.push(); }, 6000); }, // 6초에 한 번까지만 올림
+  off() { clearTimeout(this.timer); this.timer = null; Object.assign(this, { uid: null, tok: null, rt: null, on: false, dirty: false }); },
+  // 다른 기기에서 더 최근에 했으면 (판 밖에 있을 때) 받아 오기
+  async refresh() {
+    if (!this.on || G || this.busy || !ACCOUNT) return; this.busy = true;
+    try { const c = await this.pull(); if (c && c.save && c.t > (SAVE.t || 0) + 1000 && !G) { ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(c.save)); SAVE = loadAccount(ACCOUNT); sfxVol = SAVE.settings.sfx; UI.toast("☁️ 다른 기기에서 한 진행을 받아 왔어요", 3500); UI.menu(); } } catch (e) { }
+    this.busy = false;
+  },
 };
+document.addEventListener("visibilitychange", () => { if (document.hidden) { if (CLOUD.dirty || CLOUD.timer) CLOUD.push(true); } else CLOUD.refresh(); });
+window.addEventListener("pagehide", () => { if (CLOUD.on) CLOUD.push(true); });
 function freshSave() {
   return { v: 1, coins: 5, gold: 0, chars: { musa: 1 }, stars: {}, shards: {}, enh: {}, pity: 0, skills: {}, skillEquip: {}, arts: {}, pets: {}, titles: {},
     equip: { arts: [null, null], pet: null, title: null, story: null }, stats: { kills: 0, bosses: 0, rooms: 0, maxLevel: 0, endlessBest: 0, duelWins: 0, pulls: 0 },
@@ -3774,7 +3802,9 @@ function loadAccount(id) {
   if (id === DEV_ID) devSave(s);
   return s;
 }
-function saveGame() { if (ACCOUNT && SAVE) ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(SAVE)); }
+// 내용이 바뀌었을 때만 저장 시각을 새로 찍음 (그래야 PC·폰 중 실제로 더 최근에 한 쪽이 이김)
+let _saveJs = "";
+function saveGame() { if (!(ACCOUNT && SAVE)) return; const t0 = SAVE.t; SAVE.t = 0; const js = ACCOUNT + JSON.stringify(SAVE); SAVE.t = t0; if (js === _saveJs) return; _saveJs = js; SAVE.t = Date.now(); ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(SAVE)); CLOUD.later(); }
 function login(id, pw, create, nk) {
   id = id.trim(); if (!id || !pw) return "아이디와 비밀번호를 넣어 주세요";
   if (id.length > 20) return "아이디는 20자까지";
@@ -3784,6 +3814,26 @@ function login(id, pw, create, nk) {
   else { if (!acc[id]) return "없는 아이디예요. '새 계정 만들기'를 눌러 주세요"; if (acc[id] !== hashPw(id, pw)) return "비밀번호가 달라요"; }
   ACCOUNT = id; SAVE = loadAccount(id); if (create && cleanNick(nk)) SAVE.nick = cleanNick(nk); if (id === DEV_ID && !SAVE.nick) SAVE.nick = "개발자"; if (id === DEV_ID) { SAVE.endlessHard = 1; SAVE.endlessHell = 1; } ls.set("dbm2_last", id); saveGame();
   sfxVol = SAVE.settings.sfx;
+  return null;
+}
+
+// 서버 연동 로그인 (로그인 화면에서 씀). 인터넷이 안 되면 이 기기 계정으로 진행
+async function loginCloud(id, pw, create, nk) {
+  id = String(id || "").trim(); if (!id || !pw) return "아이디와 비밀번호를 넣어 주세요";
+  if (id.length > 20) return "아이디는 20자까지";
+  if (id === DEV_ID) return login(id, pw, create, nk);
+  if (pw.length < 4) return create ? "비밀번호는 4자 이상" : "비밀번호가 달라요";
+  const acc = accounts(), localOk = !!acc[id] && acc[id] === hashPw(id, pw);
+  const r = await CLOUD.signIn(id, pw, create, localOk);
+  if (r.offline) { const e = login(id, pw, create, nk); if (!e) UI.toast("📴 인터넷이 안 돼서 이 기기 저장으로 시작해요 (연결되면 다음 로그인 때 맞춰져요)", 4500); return e; }
+  if (r.err) return r.err;
+  acc[id] = hashPw(id, pw); ls.set("dbm2_accounts", JSON.stringify(acc));
+  let local = null; try { local = JSON.parse(ls.get("dbm2_save_" + id) || "null"); } catch (e) { }
+  const fromCloud = r.cloud && r.cloud.save && (!local || (r.cloud.t || 0) >= (local.t || 0));
+  if (fromCloud) ls.set("dbm2_save_" + id, JSON.stringify(r.cloud.save));
+  ACCOUNT = id; SAVE = loadAccount(id); if (create && cleanNick(nk)) SAVE.nick = cleanNick(nk); ls.set("dbm2_last", id);
+  saveGame(); CLOUD.push(); sfxVol = SAVE.settings.sfx;
+  if (r.cloud && !fromCloud) UI.toast("☁️ 이 기기 진행이 더 최근이라 서버에 올렸어요", 3500);
   return null;
 }
 
@@ -3926,17 +3976,16 @@ const UI = {
         <div class="field"><label for="lnick">닉네임 <span class="muted">(새 계정 만들 때 · 12자까지, 나중에 설정에서 바꿀 수 있어요)</span></label><input id="lnick" maxlength="12" placeholder="게임에서 보일 이름"></div>
         <div class="err" id="lerr"></div>
         <div class="center"><button class="btn gold" type="submit">로그인</button><button class="btn" type="button" id="lnew">새 계정 만들기</button></div>
-        <div class="center"><button class="btn blue sm" type="button" id="llink">📱 다른 기기(PC·폰) 데이터 가져오기</button></div>
-        <p class="muted" style="text-align:center;margin:12px 0 0">계정은 이 기기(브라우저)에 저장돼요 · v${GAME_VERSION}</p>
+        <p class="muted" style="text-align:center;margin:12px 0 0">☁️ 같은 아이디로 로그인하면 PC·폰 어디서든 이어서 해요 · v${GAME_VERSION}</p>
       </form></div>`;
     let logoN = 0; $(".logo").style.cursor = "default";
     $(".logo").onclick = () => { if (++logoN === 7) { logoN = 0; startAudio(); const a = $("#bgm"); a.src = ASSETS.bgm.gacha; a.volume = 0.5; a.play().catch(() => { }); curTrack = "gacha";
       UI.modal(`<h2>🏮 비밀 쪽지</h2><p style="text-align:center;line-height:1.9">이 미궁은 <b>한입 미스터리</b> 채널의 국악과<br>Claude가 함께 지었어요.<br>찢어진 요괴록을 다시 묶어 줘서 고마워요.<br><span class="muted">로그인하면 첫 한 번, 코인 3개를 드려요.</span></p><div class="center"><button class="btn gold" id="eggok">고마워요</button></div>`);
       window._logoEgg = true; $("#eggok").onclick = () => UI.closeModal(); } };
-    const go = (create) => { const e = login($("#lid").value, $("#lpw").value, create, $("#lnick").value); if (e) { $("#lerr").textContent = e; return; } startAudio(); checkUnlocks(); if (window._logoEgg && !SAVE.eggs.logo) { SAVE.eggs.logo = 1; SAVE.coins += 3; saveGame(); setTimeout(() => UI.toast("🏮 비밀 쪽지 보상 · 코인 +3", 3500), 400); } UI.menu(); if (!SAVE.nick) UI.askNick(); else UI.daily(); if (ACCOUNT === DEV_ID) UI.toast("개발자 계정 · 모든 것이 해금되어 있어요", 3500); if (SAVE.resetNotice) { delete SAVE.resetNotice; saveGame(); setTimeout(() => UI.modal(`<h2>📖 요괴록 정식판 시작</h2><p style="text-align:center">그동안의 진행은 시험판 기록이라 모든 계정이 처음 상태로 돌아갔어요.<br>닉네임과 소리·키 설정은 그대로예요. 새로 시작하는 토벌, 잘 부탁해요!</p><div class="center"><button class="btn gold" id="rsok">확인</button></div>`) || ($("#rsok").onclick = () => UI.closeModal()), 300); } };
+    let busy = false;
+    const go = async (create) => { if (busy) return; busy = true; $("#lerr").textContent = "☁️ 접속 중…"; const e = await loginCloud($("#lid").value, $("#lpw").value, create, $("#lnick").value); busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; } startAudio(); checkUnlocks(); if (window._logoEgg && !SAVE.eggs.logo) { SAVE.eggs.logo = 1; SAVE.coins += 3; saveGame(); setTimeout(() => UI.toast("🏮 비밀 쪽지 보상 · 코인 +3", 3500), 400); } UI.menu(); if (!SAVE.nick) UI.askNick(); else UI.daily(); if (ACCOUNT === DEV_ID) UI.toast("개발자 계정 · 모든 것이 해금되어 있어요", 3500); if (SAVE.resetNotice) { delete SAVE.resetNotice; saveGame(); setTimeout(() => UI.modal(`<h2>📖 요괴록 정식판 시작</h2><p style="text-align:center">그동안의 진행은 시험판 기록이라 모든 계정이 처음 상태로 돌아갔어요.<br>닉네임과 소리·키 설정은 그대로예요. 새로 시작하는 토벌, 잘 부탁해요!</p><div class="center"><button class="btn gold" id="rsok">확인</button></div>`) || ($("#rsok").onclick = () => UI.closeModal()), 300); } };
     $("#lf").onsubmit = (e) => { e.preventDefault(); go(false); };
     $("#lnew").onclick = () => go(true);
-    $("#llink").onclick = () => UI.link(() => UI.login());
     setTimeout(() => { const el = last ? $("#lpw") : $("#lid"); if (el) el.focus(); }, 50);
   },
 
@@ -4052,7 +4101,7 @@ const UI = {
     if (ASSETS.packs) setTimeout(() => { needPack(charPack(SAVE.sel)).then(() => needPack("f1")).then(() => needPack("g")); }, 1500);
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
-    $("#logout").onclick = () => { saveGame(); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
+    $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
   },
 
   // ----- 캐릭터 -----
@@ -4260,24 +4309,6 @@ const UI = {
   },
 
   // ----- 설정 -----
-  link(back) {
-    const can = typeof Peer !== "undefined";
-    UI.frame("📱 PC·폰 연동", `<div style="max-width:560px">
-      <div class="card"><h3>1. 코드로 연결 (두 기기 모두 인터넷)</h3>
-        <div class="center"><button class="btn gold" id="lkhost" ${can ? "" : "disabled"}>연동 코드 만들기</button></div>
-        <div style="display:flex;gap:8px;margin-top:10px"><input id="lkcode" inputmode="numeric" maxlength="6" placeholder="받은 6자리 코드" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:8px;color:#fff;padding:8px;font-size:1.1rem"><button class="btn" id="lkjoin" ${can ? "" : "disabled"}>연결</button></div>
-        <div id="lkres" style="margin-top:12px"></div></div>
-      <div class="card" style="margin-top:12px"><h3>2. 연동 문자 (연결이 안 될 때)</h3>
-        <p class="muted">보내는 기기에서 복사 → 메신저 등으로 옮겨 → 받는 기기에 붙여넣기</p>
-        <div class="center"><button class="btn" id="lkcopy" ${ACCOUNT ? "" : "disabled"}>이 기기 연동 문자 복사</button></div>
-        <textarea id="lktxt" rows="3" placeholder="받은 연동 문자 붙여넣기" style="width:100%;margin-top:8px;background:#0b0a10;border:1px solid var(--line);border-radius:8px;color:#fff;padding:8px"></textarea>
-        <div class="center"><button class="btn gold" id="lkpaste">붙여넣은 데이터로 받기</button></div></div>
-      <p class="muted" style="font-size:.8rem">PC와 폰은 저장 공간이 따로라 같은 아이디라도 진행이 다를 수 있어요. 여기서 한쪽 데이터를 다른 쪽으로 옮겨 맞춰요.</p></div>`, () => { LINK.close(); (back || UI.menu)(); });
-    $("#lkhost").onclick = () => LINK.host();
-    $("#lkjoin").onclick = () => LINK.join($("#lkcode").value);
-    $("#lkcopy").onclick = () => { const t = LINK.text(); if (!t) { UI.toast("로그인한 계정만 보낼 수 있어요 (개발자 계정 제외)"); return; } (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => UI.toast("연동 문자를 복사했어요")).catch(() => { $("#lktxt").value = t; $("#lktxt").select(); UI.toast("아래 칸의 글을 복사해 주세요"); }); };
-    $("#lkpaste").onclick = () => { const pk = LINK.fromText($("#lktxt").value); if (!pk || !pk.id || !pk.save) { UI.toast("연동 문자가 올바르지 않아요"); return; } if (confirm(`'${pk.id}' 데이터를 이 기기로 받을까요? 같은 아이디의 이 기기 데이터는 바뀌어요.`)) LINK.apply(pk); };
-  },
   settings() {
     const s = SAVE.settings;
     UI.frame("설정", `<div class="card" style="max-width:480px"><h3>닉네임</h3><div style="display:flex;gap:8px"><input id="snick" maxlength="12" value="${esc(nick())}" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn gold" id="snickok">바꾸기</button></div><p class="muted">아이디: ${esc(ACCOUNT)} (로그인할 때만 써요)</p>
@@ -4290,11 +4321,10 @@ const UI = {
       <p><label><input type="checkbox" id="dmgn" ${s.dmgNum === false ? "" : "checked"}> 피해 숫자 보이기</label></p>
       <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
-      <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn blue" id="linkbtn">📱 PC·폰 연동</button></p>
+      <p><button class="btn" id="keysbtn">⌨️ 키 설정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 연주곡 (가을밤 정자, 해질녘 강가, 눈내린 산사, 새벽들판의 출정, 강렬한 국악 출정곡, 천개의 깃발, 폭풍의 바다로, 달빛 강가에서)</p>
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
-    $("#linkbtn").onclick = () => UI.link(() => UI.settings());
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
     $("#mus").onchange = (e) => { s.music = e.target.checked; saveGame(); if (!s.music) $("#bgm").pause(); else { curTrack = null; music("menu"); } };
     $("#vol").oninput = (e) => { s.vol = +e.target.value; $("#bgm").volume = s.vol; saveGame(); };
