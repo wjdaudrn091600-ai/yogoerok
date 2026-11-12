@@ -2211,7 +2211,7 @@ function heroDown(u) {
   if (G.mode === "duel") { if (G.duel.state === "fight") { G.duel.state = "roundEnd"; G.duel.t = 2.2; G.duel.wins[u === G.p ? 1 : 0]++; G.banner = { text: u === G.p ? "패배" : "승리!", sub: `${G.duel.wins[0]} : ${G.duel.wins[1]}`, t: 2, boss: u === G.p }; } return; }
   if (u === G.p) SAVE.stats.deaths = (SAVE.stats.deaths || 0) + 1;
   if (u.team === 0) { addText(u.x, u.y - 90, u === G.p ? "쓰러졌다…" : "동료가 쓰러졌다", "#ff8a8a", 22);
-    if (!heroesOf(0).some((h) => h.alive)) { G.over = true; G.overT = 1.6; sfx("dead"); } }
+    if (!heroesOf(0).some((h) => h.alive)) { G.over = true; G.overT = 1.6; sfx("dead"); if (G.mode === "story" && SAVE.resume) { delete SAVE.resume; saveGame(); } } }
 }
 function bossDown(b) {
   G.slowT = 0.9; // 처치 순간 잠깐 느리게
@@ -2308,7 +2308,7 @@ function update(dt) {
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
   if (G.levelQueue > 0 && !UI.modalOpen()) { G.levelQueue--; UI.levelUp(rollBoons(3, G.p.lvl)); return; }
   if (G.jobQueue && G.jobQueue.length && !UI.modalOpen()) { UI.jobPick(G.jobQueue.shift()); return; }
-  if (G.over) { G.overT -= dt; if (G.overT <= 0) { G.over = false; if (G.mode === "story" && !G.opt.multi && SAVE.resume) UI.storyDown(); else endRun(false); } }
+  if (G.over) { G.overT -= dt; if (G.overT <= 0) { G.over = false; endRun(false); } } // 쓰러지면 원정 끝 + 스토리 저장 지움 (사용자 11-13: 쓰러지면 초기화)
   if (G.mode === "duel") updateDuel(dt);
   for (const u of G.units) if (u.alive) updateUnit(u, dt);
   G.units = G.units.filter((u) => u.alive || u.kind === "hero");
@@ -3675,7 +3675,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.4";
+const GAME_VERSION = "1.4.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4642,14 +4642,6 @@ const UI = {
     $("#pr").onclick = () => UI.togglePause();
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
     if ($("#psave")) $("#psave").onclick = () => { SAVE.resume = storySnap(); saveGame(); CLOUD.push(); UI._paused = false; UI.toast(`💾 저장했어요 · ${G.floor}층 ${G.stage}스테이지`, 3000); UI.menu(); };
-  },
-  // 스토리에서 쓰러짐: 이 스테이지 처음부터(마지막 자동 저장) 다시 / 원정 끝내기
-  storyDown() {
-    const R = SAVE.resume; G.paused = true;
-    UI.modal(`<h2>쓰러졌어요</h2><p style="text-align:center"><b>${R.floor}층 ${R.stage}스테이지</b> 처음부터 다시 할 수 있어요<br><span class="muted">Lv.${R.lvl} · 패시브 ${R.boons.length}개 · 전직 ${(R.jobs || []).length}차${R.active ? " · 액티브 " + ACTIVES[R.active.k].name : ""} 그대로</span></p>
-      <div class="center"><button class="btn gold" id="sdre">다시 하기</button><button class="btn" id="sdend">끝내기 · 코인 받기</button></div>`);
-    $("#sdre").onclick = () => { UI.closeModal(); UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
-    $("#sdend").onclick = () => { UI.closeModal(); endRun(false); };
   },
   capturing: false,
   keys(after) {
