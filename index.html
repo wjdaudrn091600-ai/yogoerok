@@ -117,6 +117,8 @@ h3 { font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin: 
 /* 보관함 */
 .item { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); position: relative; min-height: 150px; }
 .item img { width: 64px; height: 64px; object-fit: contain; }
+.item .hdc { width: 100%; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid; background: #120e18 center / cover no-repeat; position: relative; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.item.off .hdc { filter: grayscale(.85) brightness(.6); }
 .item .ico { font-size: 2.4rem; line-height: 64px; }
 .item.off { opacity: 0.35; }
 .item.eq { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 181, 71, 0.35); }
@@ -1071,7 +1073,16 @@ const CURSES = {
   blood: { name: "피의 저주", ic: "🩸", desc: "받는 피해 +25%" },
   wither: { name: "메마름의 저주", ic: "🥀", desc: "회복 효과 절반" },
   haste: { name: "질주의 저주", ic: "💨", desc: "몬스터가 20% 빨라져요" },
+  // 11-12 추가
+  swarm: { name: "무리의 저주", ic: "💀", desc: "방마다 몬스터 +40%" },
+  armor: { name: "강철의 저주", ic: "🛡️", desc: "몬스터가 받는 피해 -20%" },
+  grudge: { name: "원한의 저주", ic: "💥", desc: "쓰러진 몬스터가 잠시 뒤 터져요" },
+  seal: { name: "봉인의 저주", ic: "🔒", desc: "스킬·액티브 대기 시간 +30%" },
 };
+// 저주 확률 (사용자 요청 11-12: 너무 자주도, 너무 드물지도 않게)
+// 스테이지마다 15% · 바로 앞 스테이지가 저주였으면 안 걸림 · 8스테이지 연속 없으면 45% · 10스테이지 연속 없으면 꼭 걸림 · 층 최종보스 스테이지와 첫 스테이지는 저주 없음
+// → 평균 약 6~7스테이지에 1번 (스토리 50스테이지 중 약 7번)
+const CURSE_P = 0.15, CURSE_PITY_N = 8, CURSE_PITY_P = 0.45, CURSE_SURE_N = 10;
 
 // ===== 원정 상점 (엽전으로 사기, 효과는 그 원정 동안) — 사용자 요청 11-10 =====
 const SHOP_ITEMS = {
@@ -1447,6 +1458,15 @@ const theme = () => FLOORS[(G.mode === "endless" ? (G.eFloor || 1) - 1 : G.floor
 const DIRS = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }, OPP = { N: "S", S: "N", W: "E", E: "W" };
 const keyOf = (x, y) => x + "," + y;
 function newRoom(x, y, type) { return { x, y, type, links: {}, visited: false, cleared: false, spawned: false, obs: [], haz: [], decor: [], cache: null, bg: rint(1, 2), seed: Math.random() }; }
+// 저주 굴리기 (스토리·무한의 방 공통, 스테이지마다)
+function rollCurse(none) {
+  const prev = G.curse; let c = null;
+  if (!none && !prev) { const gp = G.curseGap || 0, p = gp >= CURSE_SURE_N ? 1 : gp >= CURSE_PITY_N ? CURSE_PITY_P : CURSE_P; if (Math.random() < p) c = pick(Object.keys(CURSES).filter((k) => k !== G.lastCurse)); }
+  G.curse = c; G.curseGap = c ? 0 : (G.curseGap || 0) + 1;
+  if (c) { G.lastCurse = c; SAVE.stats.curses = (SAVE.stats.curses || 0) + 1; }
+  return c;
+}
+const curseSub = () => `${CURSES[G.curse].name} — ${CURSES[G.curse].desc} · 대신 경험치·엽전 1.5배`;
 function startStage() {
   if (G.mode === "story" && !G.opt.multi) { SAVE.resume = { char: G.opt.char, floor: G.floor, stage: G.stage, diff: G.opt.diff || "normal", lvl: G.p.lvl, exp: G.p.exp, boons: G.p.boons.slice(), jobs: G.p.jobs || [], gold: G.p.gold || 0, active: G.p.active || null, at: Date.now() }; saveGame(); }
   needPack("f" + G.floor); if (G.floor < 5) needPack("f" + (G.floor + 1));
@@ -1475,11 +1495,10 @@ function startStage() {
   if (Math.random() < 0.5 + G.floor * 0.05) { const rr = take(rest.slice().sort(() => Math.random() - 0.5)); if (rr) rr.type = "rest"; }
   for (const r of rest) if (r.type === "fight" && Math.random() < 0.06 + G.floor * 0.05) r.type = "elite";
   if (G.stage >= 2 && Math.random() < 0.5) { const t2 = take(rest.slice().sort(() => Math.random() - 0.5)); if (t2) t2.type = "treasure"; }
-  G.curse = (G.floor > 1 || G.stage >= 2) && Math.random() < 0.22 ? pick(Object.keys(CURSES)) : null;
+  rollCurse((G.floor === 1 && G.stage === 1) || G.stage === STAGES_PER_FLOOR);
   enterRoom("0,0", null);
   UI.music(theme().bgm);
-  G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: `${CURSES[G.curse].name} — ${CURSES[G.curse].desc} · 대신 경험치·엽전 1.5배`, t: 3.5, boss: true } : { text: `${G.floor}층 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 층 최종보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
-  if (G.curse) SAVE.stats.curses = (SAVE.stats.curses || 0) + 1;
+  G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: curseSub(), t: 3.5, boss: true } : { text: `${G.floor}층 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 층 최종보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
   if (!G.opt.multi) setTimeout(() => { if (G && !G.over) UI.tip("elem"); }, 3800);
   const sc = G.stage === 5 ? `f${G.floor}_mid` : G.stage === STAGES_PER_FLOOR ? `f${G.floor}_boss` : null;
   if (sc && STORY[sc] && !G.opt.multi && !(SAVE.story.seen || {})[sc]) { SAVE.story.seen = SAVE.story.seen || {}; SAVE.story.seen[sc] = 1; saveGame(); setTimeout(() => { if (G && !G.over) UI.story(sc, () => { if (G) G.paused = false; }); }, 600); }
@@ -1629,7 +1648,7 @@ function populate(r) {
   if (r.type === "fight" || r.type === "elite" || r.type === "exit") {
     if (r.cleared) { if (r.type === "exit" && !r.stairsTaken) G.drops.push(portalDrop()); return; }
     // 방당 몬스터 5~10마리 랜덤 (사용자 요청 11-10). 정예 방은 정예 2마리 포함
-    const n = Math.round((rint(5, 10) - (r.type === "elite" ? 2 : 0)) * (1 + PARTY_CNT * (partyN() - 1)));
+    const n = Math.round((rint(5, 10) - (r.type === "elite" ? 2 : 0)) * (1 + PARTY_CNT * (partyN() - 1)) * (G.curse === "swarm" ? 1.4 : 1));
     const pool = G.mode === "endless" ? Object.keys(ENEMIES).slice(0, Math.min(6, 3 + Math.floor(G.endlessN / 5))) : th.enemies;
     const eliteP = G.mode === "endless" ? Math.min(0.3, 0.03 + G.endlessN * 0.006) : 0.02 + 0.04 * (G.floor - 1) + 0.01 * G.stage;
     r.wave2 = n >= 7 && (G.mode === "endless" ? G.endlessN > 6 : G.floor + G.stage >= 4);
@@ -2091,6 +2110,7 @@ function damage(t, d, src, crit, o = {}) {
     }
     return d;
   }
+  if (G.curse === "armor" && t.team === 1) d *= 0.8;
   t.hp -= d; t.hitT = 0.12;
   if (t.kind === "mob") t.hurtT = 0.2; else if (t.kind === "boss" && (d > t.maxHp * 0.025 || !(t.hurtCd > G.time)) && t.st !== "charge") { t.hurtT = 0.22; t.hurtCd = G.time + 1.4; }
   if (!o.quiet && !(SAVE && SAVE.settings.dmgNum === false)) addText(t.x + rnd(-16, 16), t.y - t.r - 26, Math.round(d) + "", crit ? "#ffd84a" : o.dot ? "#ff9a5a" : "#ffffff", crit ? 26 : 19, crit);
@@ -2105,6 +2125,7 @@ function killUnit(t, src) {
   G.fx.push({ k: "death", x: t.x, y: t.y, r: t.r, t: 0, max: 0.5, img: t.img, flip: t.flip });
   if (t.dummy) { SAVE.stats.dummyKills = (SAVE.stats.dummyKills || 0) + 1; const x = t.x, y = t.y; schedule(1.2, () => G && G.cur && G.cur.type === "devskill" && spawnDummy(x, y)); return; }
   for (let i = 0; i < 12; i++) spark(t.x, t.y - t.r * 0.5, "#b9a8ff", 1);
+  if (G.curse === "grudge" && t.kind === "mob" && t.team === 1) G.tele.push({ t: 0, team: 1, src: t, shape: "circle", x: t.x, y: t.y, r: 95 + t.r, max: 0.9, dmg: t.dmg * 1.3, bcol: "#ff5a3c" }); // 원한의 저주: 0.9초 뒤 폭발
   const p = G.p;
   if (t.kind === "mob" || t.kind === "boss") {
     G.kills++; SAVE.stats.kills = (SAVE.stats.kills || 0) + 1;
@@ -2352,11 +2373,11 @@ function useSkill(u, slot, at) {
   if (!u.alive || u.stunT > 0 || !G || G.paused) return false;
   if (slot === "A") {
     if (!u.active || u.cd.A > 0) return false;
-    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5); return true;
+    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); return true;
   }
   const s = u.sk[slot]; if (!s || u.cd[slot] > 0) return false;
   castFx(u, s.fx, (s.pow || 1) * (1 + (u.jobs || []).reduce((a, j) => a + (j.skPow || 0), 0)), at || aimPoint(u), { vk: sigOf(s.fx, s.icon && s.icon.startsWith("sk_") ? "cvfx_" + s.icon : null) }); u.skillAnim = 0.4; u.atkAnim = 0; if (u === G.p) SAVE.stats.skillsUsed = (SAVE.stats.skillsUsed || 0) + 1;
-  let cd = s.cd * (1 - u.cdr); if (slot === "R") cd *= 1 - ((u.m && u.m.ultcd) || 0);
+  let cd = s.cd * (1 - u.cdr) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); if (slot === "R") cd *= 1 - ((u.m && u.m.ultcd) || 0);
   if (u.m && u.m.echo && Math.random() < u.m.echo && slot !== "R") { cd = 0.3; addText(u.x, u.y - 100, "메아리!", "#9fe8ff", 18); }
   u.cd[slot] = cd;
   return true;
@@ -2715,9 +2736,9 @@ function endlessNextStage() {
     if (G.eNext === "floor") {
       if (G.eFloor === 5) { const d = (G.opt && G.opt.diff) || "normal"; const un = (d === "normal" || d === "hard" || d === "hell") && !SAVE.endlessHard ? "endlessHard" : d === "hard" && !SAVE.endlessHell ? "endlessHell" : null; if (un) { SAVE[un] = 1; saveGame(); UI.toast(`🔓 무한의 방 '${un === "endlessHard" ? "어려움" : "매우 어려움"}' 난이도가 열렸어요! (보상 ${un === "endlessHard" ? "1.5" : "2"}배)`, 6000); } }
       G.eFloor++; G.eStage = 1; gainCoin(2, "무한의 방 층 돌파");
-      G.curse = Math.random() < 0.25 ? pick(Object.keys(CURSES)) : null;
-      G.banner = { text: G.eFloor > 5 ? `${Math.floor((G.eFloor - 1) / 5) + 1}회차 ${(G.eFloor - 1) % 5 + 1}층 도착!` : `${G.eFloor}층 도착!`, sub: G.curse ? `${CURSES[G.curse].ic} 저주: ${CURSES[G.curse].name} — ${CURSES[G.curse].desc}` : `요괴 속성: ${YOKAI_EL[(G.eFloor - 1) % 5].n} (약점 ${YOKAI_EL[(G.eFloor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")}) · 체력 25% 회복`, t: 3.4 };
-    } else { G.eStage++; G.banner = { text: `${G.eFloor}층 ${G.eStage}스테이지`, sub: G.eStage >= STAGES_PER_FLOOR ? "이번 스테이지 끝에는 층보스!" : "체력 25% 회복", t: 2.4 }; }
+      rollCurse(false);
+      G.banner = { text: G.eFloor > 5 ? `${Math.floor((G.eFloor - 1) / 5) + 1}회차 ${(G.eFloor - 1) % 5 + 1}층 도착!` : `${G.eFloor}층 도착!`, sub: G.curse ? `${CURSES[G.curse].ic} ${curseSub()}` : `요괴 속성: ${YOKAI_EL[(G.eFloor - 1) % 5].n} (약점 ${YOKAI_EL[(G.eFloor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")}) · 체력 25% 회복`, t: 3.4 };
+    } else { G.eStage++; rollCurse(G.eStage >= STAGES_PER_FLOOR); G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: `${G.eFloor}층 ${G.eStage}스테이지 · ${curseSub()}`, t: 3.5, boss: true } : { text: `${G.eFloor}층 ${G.eStage}스테이지`, sub: G.eStage >= STAGES_PER_FLOOR ? "이번 스테이지 끝에는 층보스!" : "체력 25% 회복", t: 2.4 }; }
     const nf = ((G.eFloor || 1) - 1) % 5 + 1; needPack("f" + nf); needPack("f" + (nf % 5 + 1));
     G.rooms = new Map(); const s = newRoom(0, 0, "start"); G.rooms.set("0,0", s); makeEndlessExits(s, null); enterRoom("0,0", null); UI.music("endless");
   } };
@@ -3609,7 +3630,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.1";
+const GAME_VERSION = "1.4.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4164,6 +4185,7 @@ const UI = {
       else if (r.kind === "shard") { col = "#9fb0c8"; inner = animCard(charArt(r.id, CHAR[r.id].forms ? "wolf" : null)) + `<span class="t" style="margin-top:auto">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${inner}</div>`; }
       else if (r.kind === "pet" && ASSETS.img["pcard_" + PETS[r.id].img.slice(3)]) { col = RARITY[r.rar].col; const pk = PETS[r.id].img.slice(3); inner = `<div class="kb" style="background-image:url(${imgSrc("pcard_" + pk)})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
       else if (r.kind === "art" && ASSETS.img["acard_" + ARTIFACTS[r.id].img.slice(3)]) { col = RARITY[r.rar].col; inner = `<div class="kb" style="background-image:url(${imgSrc("acard_" + ARTIFACTS[r.id].img.slice(3))})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
+      else if (r.kind === "title" && ASSETS.img["tcard_" + r.id]) { col = RARITY[r.rar].col; inner = `<div class="kb" style="background-image:url(${imgSrc("tcard_" + r.id)})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
       else if (r.kind === "misc") { col = RARITY[r.rar].col; inner = `<span class="ico">${r.ico}</span><span class="t">${r.label}</span>`; }
       else { col = RARITY[r.rar].col; const def = { art: ARTIFACTS, pet: PETS, title: TITLES }[r.kind][r.id]; inner = (def.img ? `<img src="${imgSrc(def.img)}" alt="">` : `<span class="ico">🏷️</span>`) + `<span class="t" style="color:${col}">${r.label}</span>`; }
       return `<div class="rv" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s;${bg}">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`;
@@ -4176,6 +4198,7 @@ const UI = {
   // ----- 보관함 -----
   bag(opt) {
     const tab = opt.tab || "art", T = { art: [ARTIFACTS, ART_KEYS, "arts"], pet: [PETS, PET_KEYS, "pets"], title: [TITLES, TITLE_KEYS, "titles"] }[tab];
+    if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "아티팩트 · 펫 · 칭호") UI.bag(opt); });
     const cnt = (k) => { const t = { art: [ARTIFACTS, "arts"], pet: [PETS, "pets"], title: [TITLES, "titles"] }[k]; return `${Object.keys(SAVE[t[1]]).filter((x) => t[0][x]).length}/${Object.keys(t[0]).filter((x) => t[0][x].how !== "secret" || SAVE[t[1]][x]).length}`; };
     const tabs = [["art", "🔮 아티팩트"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} ${cnt(k)}</button>`).join("");
     const E = SAVE.equip;
@@ -4619,15 +4642,18 @@ setInterval(() => {
 }, 110);
 
 // 칭호마다 전용 엠블럼 그림 (11-11)
-for (const k in TITLES) if (!TITLES[k].img && ASSETS.img["ic_" + k]) TITLES[k].img = "ic_" + k;
+for (const k in TITLES) { TITLES[k]._k = k; if (!TITLES[k].img && ASSETS.img["ic_" + k]) TITLES[k].img = "ic_" + k; }
 function gCard(bg, tag, name, sub, own, tip) { return `<div class="ch anim-card ${own ? "" : "lock"}" title="${esc(tip || "")}">${bg}<span class="tag" style="z-index:2">${tag}</span><span class="nm" style="z-index:2">${name}<small>${sub}</small></span></div>`; }
 function gBg(kind, d) {
   const col = RARITY[d.rar].col, glow = `<div class="kb" style="background:radial-gradient(circle at 50% 42%, ${col}55, #120e18 68%)"></div>`;
   if (kind === "pet" && d.img && ASSETS.img["pcard_" + d.img.slice(3)]) return `<div class="kb" style="background-image:url(${imgSrc("pcard_" + d.img.slice(3))})"></div><i class="shine"></i>`;
   if (kind === "art" && d.img && ASSETS.img["acard_" + d.img.slice(3)]) return `<div class="kb" style="background-image:url(${imgSrc("acard_" + d.img.slice(3))})"></div><i class="shine"></i>`;
+  if (kind === "title" && d._k && ASSETS.img["tcard_" + d._k]) return `<div class="kb" style="background-image:url(${imgSrc("tcard_" + d._k)})"></div><i class="shine"></i>`;
   if (d.img && ASSETS.img[d.img]) return glow + `<img class="aspr" src="${imgSrc(d.img)}" alt="" style="bottom:22%;width:58%"><i class="shine"></i>`;
   return glow + (ASSETS.img.emo_tag ? `<img class="aspr" src="${imgSrc("emo_tag")}" alt="" style="bottom:24%;width:52%">` : "") + `<i class="shine"></i>`;
 }
+// 고화질 카드 일러 (사용자 요청 11-12: 아티팩트·펫·칭호 선택창도 고화질)
+function hdCardKey(kind, k, def) { const key = kind === "pet" && def.img ? "pcard_" + def.img.slice(3) : kind === "art" && def.img ? "acard_" + def.img.slice(3) : kind === "title" ? "tcard_" + k : null; return key && ASSETS.img[key] ? key : null; }
 function itemCard(kind, k, def, lv, equipable) {
   const E = SAVE.equip, on = kind === "art" ? E.arts.includes(k) : kind === "pet" ? E.pet === k : E.title === k;
   const col = RARITY[def.rar].col, tag = equipable && lv ? "button" : "div";
@@ -4635,7 +4661,7 @@ function itemCard(kind, k, def, lv, equipable) {
   let prog = "";
   if (def.c) { const v = Math.min(statVal(def.c.stat), def.c.n); how += " · " + def.c.text; if (!lv) prog = `<div class="prog" style="width:100%"><i style="width:${(v / def.c.n) * 100}%"></i></div><span class="muted" style="font-size:.72rem">${v}/${def.c.n}</span>`; }
   return `<${tag} class="item ${lv ? "" : "off"} ${on ? "eq" : ""}" ${equipable && lv ? `data-eq="${k}"` : ""} style="border-color:${on ? "" : col + "66"}">
-    ${def.img ? `<img src="${imgSrc(def.img)}" alt="">` : `<span class="ico">🏷️</span>`}<b style="color:${col}">${def.name}</b>
+    ${(() => { const hd = hdCardKey(kind, k, def); return hd ? `<div class="hdc" style="background-image:url(${imgSrc(hd)});border-color:${col}"><i class="shine"></i></div>` : def.img ? `<img src="${imgSrc(def.img)}" alt="">` : `<span class="ico">🏷️</span>`; })()}<b style="color:${col}">${def.name}</b>
     <span class="muted">${RARITY[def.rar].name}${lv && kind !== "title" ? " · +" + (lv - 1) : ""}</span><span class="muted" style="font-size:.8rem">${def.desc}</span>
     ${lv && kind !== "title" ? (() => { const sh = ((SAVE.ishards || {})[kind + ":" + k]) || 0, el = lv - 1; if (el >= ITEM_SHARD.max) return `<span class="muted" style="font-size:.75rem">조각 ${sh} · 최대 강화</span>`; const c = ITEM_SHARD.cost(el); return `<span class="muted" style="font-size:.75rem">조각 ${sh}/${c} · 성공 ${Math.round(SHARD.enhRate(el) * 100)}%</span><span class="btn sm gold" role="button" data-enh="${kind}:${k}" style="${sh >= c ? "" : "opacity:.45;pointer-events:none"}">강화</span>`; })() : ""}
     <span class="muted" style="font-size:.72rem">얻는 법: ${how}</span>${prog}${on ? '<span style="color:var(--gold)">착용 중</span>' : ""}</${tag}>`;
