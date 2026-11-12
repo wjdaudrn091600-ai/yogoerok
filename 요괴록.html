@@ -117,6 +117,14 @@ h3 { font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin: 
 /* 보관함 */
 .item { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); position: relative; min-height: 150px; }
 .item img { width: 64px; height: 64px; object-fit: contain; }
+.gcount { display: flex; align-items: baseline; justify-content: center; gap: 6px; margin: 4px 0 8px; font-family: var(--display); }
+.gcount b { font-size: 2.2rem; color: var(--gold2); } .gcount span { font-size: 1.3rem; color: #cbbfa8; } .gcount small { font-family: inherit; font-size: .95rem; color: #9fd4a0; margin-left: 8px; }
+.grcount { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 10px; } .grcount span { border: 1px solid; border-radius: 999px; padding: 2px 10px; font-size: .85rem; background: rgba(0,0,0,.3); }
+.tab small { opacity: .8; font-size: .78em; margin-left: 3px; margin-right: 6px; white-space: nowrap; }
+.skin .tab:has(small) { padding-right: 12px; }
+.jobtree { display: grid; gap: 6px; margin: 6px 0; } .jobrow { display: grid; grid-template-columns: 64px 1fr 1fr; gap: 6px; align-items: stretch; }
+.jobrow .lv { display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 8px; background: rgba(255,181,71,.08); border: 1px solid rgba(255,181,71,.3); font-size: .78rem; color: #cbbfa8; } .jobrow .lv b { color: var(--gold2); font-family: var(--display); font-size: 1rem; }
+.jobrow .jb { border-radius: 8px; padding: 5px 7px; background: rgba(0,0,0,.28); border: 1px solid; font-size: .74rem; line-height: 1.35; color: #cbbfa8; } .jobrow .jb b { display: block; font-size: .9rem; }
 .item .hdc { width: 100%; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid; background: #120e18 center / cover no-repeat; position: relative; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
 .item.off .hdc { filter: grayscale(.85) brightness(.6); }
 .item .ico { font-size: 2.4rem; line-height: 64px; }
@@ -1059,9 +1067,31 @@ const JOB_NAMES = {
   cheonrang: [["백호검", "백호방패"], ["백호대장", "백호수호신"], ["백호천신", "서방수호신"]],
   hwaryeon: [["불꽃무녀", "치유무녀"], ["주작사제", "불사무녀"], ["주작천녀", "남방수호신"]],
 };
-const JOB_LEVELS = [10, 20, 30];
+// 4차(각성, Lv.40)·5차(초월, Lv.50) 전직 (사용자 요청 11-13)
+const JOB_NAMES_EX = {
+  musa: [["검선", "금강대장군"], ["검제", "만고대장군"]], archer: [["신궁선", "풍백궁주"], ["천궁제", "천풍신궁"]],
+  spear: [["용창선", "철옹대장"], ["창제", "만세수호장"]], monk: [["권선", "금강역사"], ["무극권제", "금강불괴신"]],
+  gunner: [["신포수", "천둥포대장"], ["포신", "벽력신포장"]], priest: [["천무녀", "생명신모"], ["삼신할미", "천신모"]],
+  necro: [["명계군주", "불사대군"], ["저승왕", "불멸군주"]], assassin: [["무영야차", "그림자 군주"], ["무형살신", "어둠의 왕"]],
+  dosa: [["태을진인", "천라결계사"], ["옥황진인", "만겁결계주"]], yinyang: [["태극천사", "십이식신주"], ["음양천존", "만신령주"]],
+  summoner: [["사신수왕", "천상계약자"], ["사신천주", "만수계약주"]], berserker: [["광천신장", "철갑천장"], ["파천부신", "불괴천신"]],
+  moon: [["월하검선", "월광선녀"], ["월신검제", "항아"]], thunder: [["뇌공", "뇌전수호신"], ["뇌신", "천둥천왕"]],
+  fox: [["천년구미", "천호선녀"], ["구미천신", "만년천호"]], reaper: [["저승대사자", "명부시왕"], ["저승왕 차사", "염라대왕"]],
+  bong: [["야수왕", "강철수왕"], ["백수신", "만수수호신"]], haerang: [["해룡장", "거북선 제독"], ["사해용왕장", "삼도수군통제사"]],
+  danbi: [["해동청", "숲의 왕"], ["천응신", "산군 사냥왕"]], cheonrang: [["백호천장", "서방천왕"], ["백호대신", "서방대수호신"]],
+  hwaryeon: [["주작선녀", "불사조무녀"], ["주작천신", "남방대수호신"]],
+  dolsoe: [["의병대원수", "풍년대신"], ["홍의장군", "농신"]], pojol: [["포도대장군", "의금부 판사"], ["좌포청 대장군", "금부대신"]],
+  yakcho: [["어의", "백독술사"], ["의성", "백초신선"]], namu: [["산군", "금도끼 신선"], ["산신대왕", "은도끼 산신"]],
+  geommu: [["검무 명인", "칼춤 대가"], ["의기 논개", "검무 성인"]], mudang: [["나라만신", "대신어미"], ["바리공주", "천신어미"]],
+  hwarang: [["호국풍월주", "국선대사"], ["화랑대왕", "호국대국선"]], eosa: [["팔도어사", "대제학"], ["암행대어사", "영의정 대감"]],
+  sorikun: [["가객", "판소리 명인"], ["가신", "만고가왕"]], eulji: [["살수대첩 영웅", "막리지 대장군"], ["고구려 군신", "천하대원수"]],
+  haemosu: [["천손대왕", "오룡천자"], ["천제 해모수", "일월천왕"]], jipsin: [["허수아비 대원수", "들판 대수호자"], ["허수아비 왕", "천년 허수아비"]],
+};
+for (const k in JOB_NAMES) if (JOB_NAMES_EX[k]) JOB_NAMES[k].push(...JOB_NAMES_EX[k]);
+const JOB_LEVELS = [10, 20, 30, 40, 50];
+const JOB_TIER_NAME = ["1차 전직", "2차 전직", "3차 전직", "4차 전직 · 각성", "5차 전직 · 초월"];
 function jobOptions(cid, tier) {
-  const k = [1, 1.35, 1.7][tier], nm = (JOB_NAMES[cid] || JOB_NAMES.musa)[tier];
+  const k = [1, 1.35, 1.7, 2.05, 2.4][tier], nm = (JOB_NAMES[cid] || JOB_NAMES.musa)[tier] || (JOB_NAMES[cid] || JOB_NAMES.musa)[2];
   return [
     { name: nm[0], kind: "atk", desc: `공격력 +${Math.round(12 * k)}% · 치명타 +${Math.round(4 * k)}% · 모든 스킬 위력 +${Math.round(12 * k)}%`, m: { atk: 0.12 * k, crit: 0.04 * k }, skPow: 0.12 * k },
     { name: nm[1], kind: "def", desc: `최대 체력 +${Math.round(15 * k)}% · 받는 피해 -${Math.round(6 * k)}% · 스킬 대기 -${Math.round(7 * k)}%`, m: { hp: 0.15 * k, dr: 0.06 * k, cdr: 0.07 * k }, skPow: 0 },
@@ -1421,7 +1451,9 @@ function newRun(opt) {
   if (opt.mode !== "duel" && S.equip.pet && PETS[S.equip.pet]) addPet(p, S.equip.pet, S.pets[S.equip.pet] || 1);
   if (opt.multi) { NET.makeGuestHero(opt, startLv); NET.roomSent = null; NET.send({ t: "start", mode: opt.mode, floor: opt.floor || 1 }); SAVE.stats.multiPlays = (SAVE.stats.multiPlays || 0) + 1; }
   G.midnight = new Date().getHours() === 0 && opt.mode !== "duel"; // 이스터 에그: 자정의 미궁
-  if (opt.resume) { const R = opt.resume; G.stage = R.stage || 1; p.lvl = R.lvl || p.lvl; p.exp = R.exp || 0; p.boons = (R.boons || []).slice(); p.jobs = R.jobs || []; p.gold = R.gold || 0; if (R.active) p.active = R.active; recalc(p); p.hp = p.maxHp; }
+  if (opt.resume) { const R = opt.resume; G.stage = R.stage || 1; p.lvl = R.lvl || p.lvl; p.exp = R.exp || 0; p.boons = (R.boons || []).slice(); p.jobs = R.jobs || []; p.gold = R.gold || 0; if (R.active) p.active = R.active; p.shopItems = (R.shop || []).filter((k) => SHOP_ITEMS[k]); for (const k of p.shopItems) p.baseMods.push(SHOP_ITEMS[k].m); recalc(p); p.hp = p.maxHp;
+    if (R.run) { G.kills = R.run.kills || 0; G.roomsCleared = R.run.rooms || 0; G.bossKills = R.run.bossKills || 0; G.coinGot = R.run.coinGot || 0; } G.resumed = true; }
+  if (opt.mode !== "duel") { jobCatchUp(p); if (G.p2 && G.p2.remote) jobCatchUp(G.p2); }
   if (opt.mode === "story") { S.stats.story_start = 1; startStage(); }
   else if (opt.mode === "endless") { G.floor = 1; startEndless(); }
   else if (opt.mode === "raid") startRaid();
@@ -1467,8 +1499,15 @@ function rollCurse(none) {
   return c;
 }
 const curseSub = () => `${CURSES[G.curse].name} — ${CURSES[G.curse].desc} · 대신 경험치·엽전 1.5배`;
+// 스토리 저장 (사용자 요청 11-13): 스테이지 시작마다 자동 저장 + 멈춤 메뉴 '저장하고 나가기'. 레벨·경험치·패시브·전직·엽전·액티브·상점 물건·성적까지
+function storySnap() {
+  const p = G.p;
+  return { char: G.opt.char, floor: G.floor, stage: G.stage, diff: G.opt.diff || "normal", lvl: p.lvl, exp: p.exp, boons: p.boons.slice(), jobs: p.jobs || [], gold: p.gold || 0,
+    active: p.active ? { k: p.active.k, lv: p.active.lv } : null, shop: (p.shopItems || []).slice(), hpR: p.maxHp ? Math.max(0.3, p.hp / p.maxHp) : 1,
+    run: { kills: G.kills, rooms: G.roomsCleared, bossKills: G.bossKills || 0, coinGot: G.coinGot || 0 }, at: Date.now() };
+}
 function startStage() {
-  if (G.mode === "story" && !G.opt.multi) { SAVE.resume = { char: G.opt.char, floor: G.floor, stage: G.stage, diff: G.opt.diff || "normal", lvl: G.p.lvl, exp: G.p.exp, boons: G.p.boons.slice(), jobs: G.p.jobs || [], gold: G.p.gold || 0, active: G.p.active || null, at: Date.now() }; saveGame(); }
+  if (G.mode === "story" && !G.opt.multi) { SAVE.resume = storySnap(); saveGame(); }
   needPack("f" + G.floor); if (G.floor < 5) needPack("f" + (G.floor + 1));
   G.rooms = new Map(); G.stageHit = false;
   const n = Math.min(12, 5 + G.floor + Math.ceil(G.stage / 2));
@@ -2158,9 +2197,15 @@ function gainExp(u, v) {
     u.exp -= expNeed(u.lvl); u.lvl++; recalc(u); healUnit(u, u.maxHp * 0.1, true);
     addText(u.x, u.y - 100, "레벨 업!  Lv." + u.lvl, "#c9a0ff", 28); G.fx.push({ k: "ring", x: u.x, y: u.y, r: 160, t: 0, max: 0.6, col: "#c9a0ff" });
     if (u === G.p) { SAVE.stats.maxLevel = Math.max(SAVE.stats.maxLevel || 0, u.lvl); G.levelQueue++; sfx("level"); }
-    const ti = JOB_LEVELS.indexOf(u.lvl); if (ti >= 0 && (u.jobs || []).length === ti) { if (u === G.p) (G.jobQueue = G.jobQueue || []).push(ti); else if (u.remote) NET.send({ t: "job", tier: ti, cid: u.id, lvl: u.lvl }); }
-    else if (u.remote) NET.guestLevelUp(u);
+    if (!jobCatchUp(u) && u.remote) NET.guestLevelUp(u);
   }
+}
+// 받아야 할 전직 차수를 빠짐없이 (높은 층에서 시작해 10레벨을 넘겨 시작해도 1차부터 차례로)
+function jobCatchUp(u) {
+  const owed = JOB_LEVELS.filter((l) => l <= u.lvl).length, have = (u.jobs || []).length;
+  if (u === G.p) { G.jobQueue = G.jobQueue || []; const next = have + G.jobQueue.length; for (let t = next; t < owed; t++) G.jobQueue.push(t); return owed > next; }
+  if (u.remote && owed > have && u._jobAsk !== have) { u._jobAsk = have; NET.send({ t: "job", tier: have, cid: u.id, lvl: JOB_LEVELS[have] }); return true; }
+  return false;
 }
 function heroDown(u) {
   if (G.mode === "duel") { if (G.duel.state === "fight") { G.duel.state = "roundEnd"; G.duel.t = 2.2; G.duel.wins[u === G.p ? 1 : 0]++; G.banner = { text: u === G.p ? "패배" : "승리!", sub: `${G.duel.wins[0]} : ${G.duel.wins[1]}`, t: 2, boss: u === G.p }; } return; }
@@ -2263,7 +2308,7 @@ function update(dt) {
   for (let i = G.timers.length - 1; i >= 0; i--) { const tm = G.timers[i]; tm.t -= dt; if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); } }
   if (G.levelQueue > 0 && !UI.modalOpen()) { G.levelQueue--; UI.levelUp(rollBoons(3, G.p.lvl)); return; }
   if (G.jobQueue && G.jobQueue.length && !UI.modalOpen()) { UI.jobPick(G.jobQueue.shift()); return; }
-  if (G.over) { G.overT -= dt; if (G.overT <= 0) { G.over = false; endRun(false); } }
+  if (G.over) { G.overT -= dt; if (G.overT <= 0) { G.over = false; if (G.mode === "story" && !G.opt.multi && SAVE.resume) UI.storyDown(); else endRun(false); } }
   if (G.mode === "duel") updateDuel(dt);
   for (const u of G.units) if (u.alive) updateUnit(u, dt);
   G.units = G.units.filter((u) => u.alive || u.kind === "hero");
@@ -2412,7 +2457,7 @@ function pickups(u, dt = 1 / 60) {
       u.gold -= d.price; d.sold = true; sfx("coin");
       if (d.what === "herb") healUnit(u, u.maxHp * 0.4);
       else if (d.what === "item" && d.k === "coin") { if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "원정 상점"); }
-      else if (d.what === "item") { u.baseMods.push(SHOP_ITEMS[d.k].m); recalc(u); addText(u.x, u.y - 100, SHOP_ITEMS[d.k].name + "!", "#ffe08a", 22); }
+      else if (d.what === "item") { u.baseMods.push(SHOP_ITEMS[d.k].m); (u.shopItems = u.shopItems || []).push(d.k); recalc(u); addText(u.x, u.y - 100, SHOP_ITEMS[d.k].name + "!", "#ffe08a", 22); }
       else if (d.what === "act") { G.drops.push({ type: "act", k: d.k, x: d.x, y: d.y + 80 }); }
       else { takeBoon(u, d.k); addText(u.x, u.y - 100, BOONS[d.k].name + "!", "#c9a0ff", 22); }
       saveGame();
@@ -3461,7 +3506,7 @@ const NET = {
     else if (m.t === "i") { this.rin = Object.assign(this.rin || { keys: {} }, m); this.rin.mouseT = m.mt ? performance.now() : -1e9; const h = this.guestHero; if (h && m.tseq && m.tseq !== h._tseq) { h._tseq = m.tseq; h.tx = clamp(m.tx, 0, RW); h.ty = clamp(m.ty, 0, RH); } }
     else if (m.t === "k") { const h = this.guestHero; if (h && G && !G.paused) useSkill(h, m.s, m.x != null ? aimClamp(h, m.x, m.y, placeInfo(h, m.s).range) : undefined); }
     else if (m.t === "boon") { const h = this.guestHero; if (h && BOONS[m.k]) takeBoon(h, m.k); }
-    else if (m.t === "jobpick") { const h = this.guestHero; if (h && (h.jobs || []).length === m.tier) { (h.jobs = h.jobs || []).push(jobOptions(h.id, m.tier)[m.i]); h.jobName = h.jobs[h.jobs.length - 1].name; recalc(h); } }
+    else if (m.t === "jobpick") { const h = this.guestHero; if (h && (h.jobs || []).length === m.tier) { (h.jobs = h.jobs || []).push(jobOptions(h.id, m.tier)[m.i]); h.jobName = h.jobs[h.jobs.length - 1].name; recalc(h); jobCatchUp(h); } }
   },
   onGuest(m) {
     if (m.t === "full") { UI.toast("방이 가득 찼어요"); this.leave(); UI.multi(); }
@@ -3630,7 +3675,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.3";
+const GAME_VERSION = "1.4.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4060,7 +4105,7 @@ const UI = {
       <b style="color:${d.mid ? "#c9a0ff" : "#ff8a6a"}">${n ? d.name : "???"}</b><span class="muted" style="font-size:.75rem">${d.mid ? "중간보스" : "층보스"} · ${d.style === "ranged" ? "원거리" : "근거리"} · <b style="color:${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].col}">${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].n}</b>${n >= 10 ? ' · <b style="color:#7fe08a">피해 +5%</b>' : n ? ` · ${n}/10` : ""}${n ? " · " + n + "번 토벌" : ""}</span></div>`; };
     const floors = [1, 2, 3, 4, 5].map((f) => { const th = FLOORS[f - 1], boss = th.boss, mids = MID_BY_FLOOR[f - 1];
       return `<h3 style="margin-top:14px">${f}층 · ${th.name} <span class="muted">${[boss, ...mids].filter((k) => kb[k]).length}/${mids.length + 1}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${card(boss)}${mids.map(card).join("")}</div>`; }).join("");
-    UI.frame("📖 요괴록 도감", `<p class="muted">토벌한 요괴가 요괴록에 다시 묶여요. 아직 만나지 못한 요괴는 그림자로 보여요. (${got}/${all})</p>${floors}`);
+    UI.frame("📖 요괴록 도감", `<p class="muted">${got}/${all}</p>${floors}`);
   },
 
   // ----- 메인 메뉴 -----
@@ -4093,7 +4138,7 @@ const UI = {
         </div>
         ${UI.bountyCard()}
         <p class="muted" style="font-size:.75rem;opacity:.7">버전 v${GAME_VERSION}${location.href.startsWith(UPDATE_URL) ? " · 온라인 자동 업데이트" : ""}</p>
-        <p class="muted">선택한 캐릭터: <b style="color:var(--gold2)">${CHAR[cur].name} · ${CHAR[cur].job}</b> — 모드를 누르면 캐릭터를 고르고 출발해요</p>
+        <p class="muted">선택한 캐릭터: <b style="color:var(--gold2)">${CHAR[cur].name} · ${CHAR[cur].job}</b></p>
       </div></div>`;
     document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => UI.chars({ mode: b.dataset.m })));
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
@@ -4106,7 +4151,7 @@ const UI = {
 
   // ----- 캐릭터 -----
   chars(opt) {
-    const mode = opt.mode, sel = opt.sel || SAVE.sel;
+    const mode = opt.mode, sel = opt.sel || SAVE.sel; UI._ctab = UI._ctab || "sk";
     const title = mode ? { story: "📖 스토리 모드 · 캐릭터 선택", endless: "♾️ 무한의 방 · 캐릭터 선택", duel: "⚔️ 1대1 대전 · 캐릭터 선택", raid: "🐉 보스 레이드 · 캐릭터 선택", dev: "🛠 개발자 맵 · 캐릭터 선택", practice: "🎯 연습장 · 모든 캐릭터 체험" }[mode] : "캐릭터";
     // 등급별로 묶어서 (사용자 요청 11-12): SS → S → A → B → C, 등급 안에서는 가진 캐릭터 먼저
     const GR = ["SS", "S", "A", "B", "C"], vis = CHARS.filter((c) => !c.unlock.secret || SAVE.chars[c.id]);
@@ -4143,14 +4188,23 @@ const UI = {
         ${c.forms ? `<p class="muted">🎲 출발할 때마다 <b>늑대인간(남)</b> 또는 <b>구미호(여)</b> 모습이 랜덤으로 정해져요. 늑대인간은 근접 발톱, 구미호는 여우 구슬(원거리)</p>` : ""}
         <p><span class="grade" style="background:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</span> <span class="muted">체력 ${Math.round(def.hp * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.05 * ((SAVE.enh || {})[id] || 0)))} · 공격 ${Math.round(def.atk * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.05 * ((SAVE.enh || {})[id] || 0)))} · 이동 ${def.spd} · ${def.range} · 사거리 ${CHAR_RANGE[art] || CHAR_RANGE[id] || "-"} · 속성 <b style="color:${(ACT_EL.find((e) => e.k === nearEl(def.col)) || {}).col}">${EL_NAME[nearEl(def.col)] || "-"}</b></span></p>
         ${own ? `<div class="card" style="padding:8px;margin:6px 0;display:flex;gap:10px;align-items:center"><b style="font-family:var(--display);font-size:1.2rem;color:var(--gold2)">강화 +${(SAVE.enh || {})[id] || 0}</b><span class="muted" style="flex:1">조각 ${(SAVE.shards || {})[id] || 0}${((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? " / 다음 강화 " + SHARD.enhCost((SAVE.enh || {})[id] || 0) + " · 성공 " + Math.round(SHARD.enhRate((SAVE.enh || {})[id] || 0) * 100) + "%" : " · 최대"} · 단계마다 공격·체력 +5%</span><button class="btn sm gold" id="enhbtn" ${((SAVE.shards || {})[id] || 0) >= SHARD.enhCost((SAVE.enh || {})[id] || 0) && ((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? "" : "disabled"}>강화</button></div>` : ""}
-        <div class="skl"><span class="k">${abIc("sk_" + id + "_b", "🖱️", 30)}<small>좌클릭</small></span><div><b>${def.basic.name}</b> <span class="muted">기본 공격 · ${def.basic.cd}초</span></div></div>
-        ${skills}${lockInfo}<div style="margin-top:12px">${start}</div>
+        <div class="tabs" id="ctabs" style="margin:8px 0 4px">${[["sk", "📜 스킬"], ["job", "⚔️ 전직"], ["info", "📋 정보"]].map(([k, n]) => `<button class="tab ${k === UI._ctab ? "on" : ""}" data-ct="${k}">${n}</button>`).join("")}</div>
+        <div id="ctsk" ${UI._ctab === "sk" ? "" : "hidden"}><div class="skl"><span class="k">${abIc("sk_" + id + "_b", "🖱️", 30)}<small>좌클릭</small></span><div><b>${def.basic.name}</b> <span class="muted">기본 공격 · ${def.basic.cd}초</span></div></div>${skills}</div>
+        <div id="ctjob" ${UI._ctab === "job" ? "" : "hidden"}><p class="muted" style="font-size:.8rem;margin:4px 0">원정 중 레벨이 되면 둘 중 하나를 골라요 (그 원정 동안)</p><div class="jobtree">${JOB_LEVELS.map((lv, t) => { const o = jobOptions(id, t); return `<div class="jobrow"><div class="lv"><b>Lv.${lv}</b>${t + 1}차${t >= 3 ? (t === 3 ? " 각성" : " 초월") : ""}</div>${o.map((x) => `<div class="jb" style="border-color:${x.kind === "atk" ? "#ff6a5a66" : "#5fc8ff66"}"><b style="color:${x.kind === "atk" ? "#ff9a8a" : "#8fd8ff"}">${x.kind === "atk" ? "🗡️" : "🛡️"} ${x.name}</b>${x.desc}</div>`).join("")}</div>`; }).join("")}</div></div>
+        <div id="ctinfo" ${UI._ctab === "info" ? "" : "hidden"}><div class="card" style="padding:8px;line-height:1.8;font-size:.88rem">
+          <div>등급 <b style="color:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</b> <span class="muted">(기본 능력 ×${GRADE_INFO[CHAR_GRADE[id]].mul})</span></div>
+          <div>얻는 법 <b>${UNLOCK_TYPE[c.unlock.type]}</b> <span class="muted">${c.unlock.type === "gacha" ? "캐릭터 뽑기 · 조각 " + shardNeed(id) + "개" : esc(c.unlock.text || "")}</span></div>
+          <div>속성 <b>${EL_NAME[nearEl(def.col)] || "-"}</b> · 공격 방식 <b>${def.range}</b> · 사거리 <b>${CHAR_RANGE[art] || CHAR_RANGE[id] || "-"}</b></div>
+          <div>조각 <b>${(SAVE.shards || {})[id] || 0}</b> · 강화 <b>+${(SAVE.enh || {})[id] || 0}</b> / ${SHARD.maxEnh}</div>
+          ${own ? `<div>장착 스킬 <b>${["Q", "W", "E", "R"].filter((s) => eq[s]).length}</b>/4 칸 바꿈</div>` : ""}</div></div>
+        ${lockInfo}<div style="margin-top:12px">${start}</div>
         ${own ? `<button class="btn sm" id="toSk" style="margin-top:8px">📜 이 캐릭터 스킬 바꾸기</button>` : ""}`;
       let floor = 1, diff = "normal";
       document.querySelectorAll("#fsel button").forEach((b) => (b.onclick = () => { floor = +b.dataset.f; document.querySelectorAll("#fsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       document.querySelectorAll("#dsel button").forEach((b) => (b.onclick = () => { diff = b.dataset.d; document.querySelectorAll("#dsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff }); };
       if ($("#toSk")) $("#toSk").onclick = () => UI.skills({ char: id });
+      document.querySelectorAll("[data-ct]").forEach((b) => (b.onclick = () => { UI._ctab = b.dataset.ct; for (const k of ["sk", "job", "info"]) $("#ct" + k).hidden = k !== UI._ctab; document.querySelectorAll("[data-ct]").forEach((x) => x.classList.toggle("on", x === b)); }));
       if ($("#enhbtn")) $("#enhbtn").onclick = () => { SAVE.enh = SAVE.enh || {}; const lv = SAVE.enh[id] || 0, cost = SHARD.enhCost(lv); if ((SAVE.shards[id] || 0) < cost || lv >= SHARD.maxEnh) return; SAVE.shards[id] -= cost; if (Math.random() < SHARD.enhRate(lv)) { SAVE.enh[id] = lv + 1; UI.toast(`⬆️ ${CHAR[id].name} 강화 성공! +${lv + 1}`); } else { UI.toast(`💥 강화 실패 (+${lv} 유지)`); } saveGame(); show(id); };
       if (own) { SAVE.sel = id; saveGame(); }
     };
@@ -4158,6 +4212,14 @@ const UI = {
     show(sel);
   },
   startRun(opt) {
+    if (opt.mode === "story" && !opt.resume && !opt.multi && !opt._newOk && SAVE.resume && CHAR[SAVE.resume.char]) {
+      const R = SAVE.resume;
+      UI.modal(`<h2>💾 저장된 스토리가 있어요</h2><p style="text-align:center">${CHAR[R.char].name} · ${R.floor}층 ${R.stage}스테이지 · Lv.${R.lvl}</p>
+        <div class="center"><button class="btn gold" id="svcont">▶ 이어하기</button><button class="btn" id="svnew">새로 시작 (저장 지움)</button></div>`);
+      $("#svcont").onclick = () => { UI.closeModal(); UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
+      $("#svnew").onclick = () => { UI.closeModal(); delete SAVE.resume; saveGame(); UI.startRun(Object.assign({}, opt, { _newOk: true })); };
+      return;
+    }
     if (ASSETS.packs && !opt._ready) {
       const t0 = Date.now(); UI.toast("📦 그림 받는 중…", 1500);
       Promise.race([needRunPacks(opt), new Promise((r) => setTimeout(r, 6000))]).then(() => UI.startRun(Object.assign({}, opt, { _ready: true })));
@@ -4165,7 +4227,7 @@ const UI = {
     }
     $("#screens").innerHTML = ""; $("#hud").hidden = false;
     if (opt.mode === "story" && !SAVE.story.seen.open) { SAVE.story.seen.open = 1; saveGame(); UI.story("open", () => { UI.story(opt.floor, () => newRun(opt)); }); return; }
-    if (opt.mode === "story") { UI.story(opt.floor, () => newRun(opt)); return; }
+    if (opt.mode === "story" && !(opt.resume && opt.resume.stage > 1)) { UI.story(opt.floor, () => newRun(opt)); return; }
     newRun(opt);
   },
 
@@ -4183,7 +4245,7 @@ const UI = {
       return `<div class="card"><h3>${{ Q: "1번", W: "2번", E: "3번", R: "4번" }[s]} 칸 ${s === "R" ? "· 궁극기" : ""}</h3><div style="display:flex;flex-direction:column;gap:6px">${row("", base, !eq[s])}${list.map((k) => row(k, SKILLS[k], eq[s] === k, SAVE.skills[k])).join("")}</div>
         ${list.length ? "" : '<p class="muted">가챠에서 이 칸 스킬을 뽑으면 여기에 나와요</p>'}</div>`;
     }).join("");
-    UI.frame("스킬 장착", `<div class="tabs">${tabs}</div><p class="muted">가챠로 얻은 스킬을 1·2·3·4번 칸마다 바꿔 낄 수 있어요. 공용 스킬은 누구나, 고유 스킬은 그 캐릭터만. 같은 스킬을 또 뽑으면 레벨이 올라 피해 +10%씩 (최대 Lv.5)</p>
+    UI.frame("스킬 장착", `<div class="tabs">${tabs}</div><p class="muted">같은 스킬을 또 뽑으면 Lv.업 (피해 +10%, 최대 Lv.5)</p>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${cols}</div>`);
     document.querySelectorAll(".tab").forEach((b) => (b.onclick = () => UI.skills({ char: b.dataset.c })));
     document.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { if (b.dataset.k) eq[b.dataset.s] = b.dataset.k; else delete eq[b.dataset.s]; saveGame(); UI.skills({ char: cid }); }));
@@ -4194,19 +4256,23 @@ const UI = {
     if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "가챠") UI.gacha(opt); });
     const tab = opt.tab || "char", slot = opt.slot || "Q";
     music("gacha");
-    const tabs = [["char", "🧑 캐릭터"], ["skill", "📜 스킬"], ["art", "🔮 아티팩트"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n}</button>`).join("");
+    // 보유 개수 (사용자 요청 11-13: 0/30처럼 남은 개수 보기 쉽게)
+    const gcnt = (k) => { if (k === "char") { const hs = CHARS.filter((c) => c.unlock.type === "gacha"); return [hs.filter((c) => SAVE.chars[c.id]).length, hs.length]; } if (k === "skill") return [SKILL_KEYS.filter((x) => SAVE.skills[x]).length, SKILL_KEYS.length];
+      const T = { art: [ARTIFACTS, "arts"], pet: [PETS, "pets"], title: [TITLES, "titles"] }[k], pool = gachaPool(T[0]); return [pool.filter((x) => SAVE[T[1]][x]).length, pool.length]; };
+    const cntPill = (k) => { const [a, b] = gcnt(k); return `<div class="gcount"><b>${a}</b><span>/ ${b}</span><small>${a >= b ? "모두 모았어요!" : "남은 " + (b - a) + "개"}</small></div>`; };
+    const tabs = [["char", "🧑 캐릭터"], ["skill", "📜 스킬"], ["art", "🔮 아티팩트"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => { const [a, b] = gcnt(k); return `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} <small>${a}/${b}</small></button>`; }).join("");
     let body = "";
     const pctRow = (rates) => Object.entries(rates).sort((a, b) => b[0] - a[0]).map(([r, p]) => `<span class="pill" style="border-color:${RARITY[r].col}"><b style="color:${RARITY[r].col}">${RARITY[r].name}</b> ${(p * 100).toFixed(1)}%</span>`).join("");
     if (tab === "char") {
       const heroes = CHARS.filter((c) => c.unlock.type === "gacha");
-      body = `<div class="banner"><h3>🧑 캐릭터 뽑기 — 가챠 전용 전설 영웅</h3><p class="muted">${"가챠 전용 영웅 (C·B·A·S·SS급). 높은 등급일수록 잘 안 나와요. 등급별 조각(C 20·B 25·A 30·S 40·SS 50개)을 모으면 해금, 아주 낮은 확률로 바로 획득. 이후 조각은 강화에 써요."}</p>
+      body = `<div class="banner"><h3>🧑 캐릭터 뽑기</h3>${cntPill("char")}<div class="grcount">${["SS", "S", "A", "B", "C"].map((g) => { const hs = heroes.filter((c) => CHAR_GRADE[c.id] === g); return `<span style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}</b> ${hs.filter((c) => SAVE.chars[c.id]).length}/${hs.length}</span>`; }).join("")}</div>
         <div class="chars" style="grid-template-columns:repeat(auto-fill,minmax(110px,140px))">${heroes.sort((a, b) => ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[a.id]) - ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[b.id])).map((c) => `<div class="ch anim-card ${SAVE.chars[c.id] ? "" : "lock"}">${animCard(c.id)}<span class="tag" style="z-index:2"><b style="color:${GRADE_INFO[CHAR_GRADE[c.id]].col}">${CHAR_GRADE[c.id]}급</b></span><span class="nm" style="z-index:2">${c.name}<small>${c.job} · ${SAVE.chars[c.id] ? "보유" : "조각 " + ((SAVE.shards || {})[c.id] || 0) + "/" + shardNeed(c.id)}</small></span></div>`).join("")}</div>
         <div class="rates">${["SS", "S", "A", "B", "C"].map((g) => `<span class="pill" style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> ${(GACHA_GRADE_RATE[g] * 100).toFixed(2)}% · 조각 ${SHARD.per[g][0]}~${SHARD.per[g][1]}개 (해금 ${SHARD.need[g]}개) · 바로 획득 ${(GACHA_GRADE_RATE[g] * SHARD.direct[g] * 100).toFixed(3)}%</span>`).join("")}<span class="pill">나머지: 가진 캐릭터 조각 2~5개 (강화용)</span><span class="pill">천장 ${SHARD.pity}회 · 지금 <b>${SAVE.pity || 0}</b>회째</span></div>
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${GACHA.char.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${GACHA.char.cost10}</button></div></div>`;
     } else if (tab === "skill") {
       const st = ["Q", "W", "E", "R"].map((s) => `<button class="tab ${s === slot ? "on" : ""}" data-sl="${s}">${{ Q: "1", W: "2", E: "3", R: "4" }[s]}번 칸${s === "R" ? " (궁극기)" : ""}</button>`).join("");
       const list = SKILL_KEYS.filter((k) => SKILLS[k].slot === slot).sort((a, b) => SK_GRADES.indexOf(SKILLS[b].grade) - SK_GRADES.indexOf(SKILLS[a].grade));
-      body = `<div class="banner"><h3>📜 스킬 뽑기 — ${{ Q: "1", W: "2", E: "3", R: "4" }[slot]}번 칸</h3><p class="muted">기본 스킬 말고 새 스킬을 얻어요. 공용 스킬(모든 캐릭터) + 캐릭터 고유 스킬. 얻은 뒤 '스킬 장착'에서 끼워요.</p>
+      body = `<div class="banner"><h3>📜 스킬 뽑기 — ${{ Q: "1", W: "2", E: "3", R: "4" }[slot]}번 칸</h3>${cntPill("skill")}
         <div class="tabs">${st}</div>
         <div class="chars" style="grid-template-columns:repeat(auto-fill,minmax(110px,140px))">${list.map((k) => { const s = SKILLS[k]; return gCard(`<div class="kb" style="background-image:url(${imgSrc("gs_" + k)})"></div><i class="shine"></i>`, `<b style="color:${SK_GRADE[s.grade].col}">${s.grade}급</b>`, s.name, (s.owner ? CHAR[s.owner].name + " 고유" : "공용") + (SAVE.skills[k] ? " · Lv." + SAVE.skills[k] : ""), !!SAVE.skills[k], s.desc); }).join("")}</div>
         <div class="rates">${SK_GRADES.slice().reverse().map((g) => `<span class="pill" style="border-color:${SK_GRADE[g].col}"><b style="color:${SK_GRADE[g].col}">${g}급</b> ${(SK_GRADE[g].p * 100).toFixed(1)}%</span>`).join("")}</div>
@@ -4214,13 +4280,13 @@ const UI = {
     } else {
       const g = GACHA[tab], T = { art: [ARTIFACTS, ART_KEYS, "arts"], pet: [PETS, PET_KEYS, "pets"], title: [TITLES, TITLE_KEYS, "titles"] }[tab];
       const pool = gachaPool(T[0]).sort((a, b) => T[0][b].rar - T[0][a].rar);
-      body = `<div class="banner"><h3>${g.name}</h3><p class="muted">${g.desc} · 10회 뽑기는 희귀 이상 1개 보장</p>
+      body = `<div class="banner"><h3>${g.name}</h3>${cntPill(tab)}<p class="muted">10회 뽑기는 희귀 이상 1개 보장</p>
         <div class="chars" style="grid-template-columns:repeat(auto-fill,minmax(110px,140px))">${pool.map((k) => { const d = T[0][k], col = RARITY[d.rar].col; return gCard(gBg(tab, d), `<b style="color:${col}">${RARITY[d.rar].name}</b>`, d.name, SAVE[T[2]][k] ? "보유" + (SAVE[T[2]][k] > 1 ? " +" + (SAVE[T[2]][k] - 1) : "") : "미보유", !!SAVE[T[2]][k], d.desc); }).join("")}</div>
         <div class="rates">${pctRow(g.rates)}</div>
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${g.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${g.cost10}</button></div></div>
-        <p class="muted" style="margin-top:10px">미션·특수 미션·스토리·랜덤 획득 수집품은 '아티팩트·펫·칭호' 화면에서 조건을 볼 수 있어요</p>`;
+`;
     }
-    UI.frame("가챠", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인 얻는 법: 원정이 끝날 때 성적만큼 · 몬스터·상자·보스에서 랜덤 · 원정 상점(가끔) · 스토리 새 층 첫 도달 · 무한의 방 기록 · 미션 · 출석</p>`);
+    UI.frame("가챠", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인: 원정 성적 · 몬스터·상자·보스 · 미션 · 출석</p>`);
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.gacha({ tab: b.dataset.t, slot })));
     document.querySelectorAll("[data-sl]").forEach((b) => (b.onclick = () => UI.gacha({ tab: "skill", slot: b.dataset.sl })));
     document.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.p, slot)));
@@ -4255,7 +4321,7 @@ const UI = {
     const slots = `<div class="slots">${slotHtml(E.arts[0], ARTIFACTS[E.arts[0]], "아티팩트 1")}${slotHtml(E.arts[1], ARTIFACTS[E.arts[1]], "아티팩트 2")}${slotHtml(E.pet, PETS[E.pet], "펫")}${slotHtml(E.title, TITLES[E.title], "칭호")}</div>`;
     const groups = ["gacha", "mission", "special", "drop", "story", "secret"].map((h) => { const ks = T[1].filter((k) => T[0][k].how === h && (h !== "secret" || SAVE[T[2]][k])); if (!ks.length) return "";
       return `<h3 style="margin-top:14px">${HOW_NAME[h]}${h === "story" ? " (스토리를 진행해야만 얻어요)" : ""} <span class="muted">${ks.filter((k) => SAVE[T[2]][k]).length}/${ks.length}</span></h3><div class="grid">${ks.map((k) => itemCard(tab, k, T[0][k], SAVE[T[2]][k], true)).join("")}</div>`; }).join("");
-    UI.frame("아티팩트 · 펫 · 칭호", `${slots}<p class="muted">눌러서 끼우고 빼요. 아티팩트 2칸 · 펫 1칸 · 칭호 1칸. 1대1 대전에서는 적용되지 않아요.</p><div class="tabs">${tabs}</div>${groups}`);
+    UI.frame("아티팩트 · 펫 · 칭호", `${slots}<p class="muted">눌러서 끼우고 빼요 · 대전에서는 적용 안 돼요</p><div class="tabs">${tabs}</div>${groups}`);
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.bag({ tab: b.dataset.t })));
     document.querySelectorAll("[data-enh]").forEach((b) => (b.onclick = (e) => {
       e.stopPropagation(); const [kind, k] = b.dataset.enh.split(":"), store = SAVE[kind === "art" ? "arts" : "pets"], lv = store[k] || 1, el = lv - 1, c = ITEM_SHARD.cost(el), sk = kind + ":" + k;
@@ -4304,7 +4370,7 @@ const UI = {
     UI.frame("상점", `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
       <div class="card"><h3>🪙 코인 1개</h3><p>엽전 ${SHOP_COIN.price}</p><p class="muted">오늘 남은 구매: ${left}개</p><button class="btn gold" data-b="1" ${left < 1 || SAVE.gold < SHOP_COIN.price ? "disabled" : ""}>사기</button></div>
       <div class="card"><h3>🪙 코인 3개 묶음</h3><p>엽전 ${SHOP_COIN.price * 3 - 100} <span class="muted">(100 할인)</span></p><p class="muted">오늘 남은 구매: ${left}개</p><button class="btn gold" data-b="3" ${left < 3 || SAVE.gold < SHOP_COIN.price * 3 - 100 ? "disabled" : ""}>사기</button></div>
-      </div><p class="muted" style="margin-top:14px">💰 엽전은 원정이 끝날 때 성적(처치·방·보스·진행도 + 남은 금화 절반)만큼 받아요. 🟡 금화는 원정 중에만 쓰는 돈이라, 미궁 안 상인 방에서 회복약·액티브·강화를 사요.</p>`);
+      </div><p class="muted" style="margin-top:14px">🟡 금화는 원정 안 상점에서만 써요</p>`);
     document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => { const n = +b.dataset.b, price = n === 3 ? SHOP_COIN.price * 3 - 100 : SHOP_COIN.price; if (SAVE.gold < price || SAVE.shop.bought + n > SHOP_COIN.daily) return; SAVE.gold -= price; SAVE.coins += n; SAVE.shop.bought += n; saveGame(); UI.toast(`🪙 코인 +${n}`); UI.shop(); }));
   },
 
@@ -4322,7 +4388,7 @@ const UI = {
       <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><button class="btn" id="keysbtn">⌨️ 키 설정</button></p>
-      <p class="muted">음악: 한입 미스터리 채널 국악 연주곡 (가을밤 정자, 해질녘 강가, 눈내린 산사, 새벽들판의 출정, 강렬한 국악 출정곡, 천개의 깃발, 폭풍의 바다로, 달빛 강가에서)</p>
+      <p class="muted">음악: 한입 미스터리 채널 국악</p>
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
@@ -4568,12 +4634,22 @@ const UI = {
     if (UI._paused) { UI._paused = false; G.paused = false; UI.closeModal(); return; }
     if (NET.client) { UI.modal(`<h2>메뉴</h2><div class="center"><button class="btn gold" id="pr">계속하기</button><button class="btn" id="pq">방에서 나가기</button></div><div class="card" style="margin-top:12px"><h3>🔊 소리</h3><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p></div>`); UI.bindSound(); $("#pr").onclick = () => UI.closeModal(); $("#pq").onclick = () => { UI.closeModal(); NET.leave(); NET.client = false; G = null; UI.menu(); }; return; }
     UI._paused = true; G.paused = true; input.atkHeld = false; input.moveHeld = false;
-    UI.modal(`<h2>멈춤</h2><div class="center"><button class="btn gold" id="pr">계속하기</button><button class="btn" id="pq">원정 그만두기</button></div>
-      <p class="muted" style="text-align:center">원정을 그만두면 그때까지의 성적만큼 코인을 받아요</p><div class="center"><button class="btn" id="pkeys">⌨️ 키 설정</button></div><div class="card" style="margin-top:12px"><h3>🔊 소리</h3><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p></div>`);
+    const canSave = G.mode === "story" && !G.opt.multi;
+    UI.modal(`<h2>멈춤</h2><div class="center"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
+      <p class="muted" style="text-align:center">${canSave ? `저장하면 <b>${G.floor}층 ${G.stage}스테이지</b>부터 레벨·아이템 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p><div class="center"><button class="btn" id="pkeys">⌨️ 키 설정</button></div><div class="card" style="margin-top:12px"><h3>🔊 소리</h3><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p></div>`);
     UI.bindSound();
     $("#pkeys").onclick = () => UI.keys(() => { UI._paused = false; UI.closeModal(); UI.buildHud(); UI.togglePause(); });
     $("#pr").onclick = () => UI.togglePause();
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
+    if ($("#psave")) $("#psave").onclick = () => { SAVE.resume = storySnap(); saveGame(); CLOUD.push(); UI._paused = false; UI.toast(`💾 저장했어요 · ${G.floor}층 ${G.stage}스테이지`, 3000); UI.menu(); };
+  },
+  // 스토리에서 쓰러짐: 이 스테이지 처음부터(마지막 자동 저장) 다시 / 원정 끝내기
+  storyDown() {
+    const R = SAVE.resume; G.paused = true;
+    UI.modal(`<h2>쓰러졌어요</h2><p style="text-align:center"><b>${R.floor}층 ${R.stage}스테이지</b> 처음부터 다시 할 수 있어요<br><span class="muted">Lv.${R.lvl} · 패시브 ${R.boons.length}개 · 전직 ${(R.jobs || []).length}차${R.active ? " · 액티브 " + ACTIVES[R.active.k].name : ""} 그대로</span></p>
+      <div class="center"><button class="btn gold" id="sdre">다시 하기</button><button class="btn" id="sdend">끝내기 · 코인 받기</button></div>`);
+    $("#sdre").onclick = () => { UI.closeModal(); UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
+    $("#sdend").onclick = () => { UI.closeModal(); endRun(false); };
   },
   capturing: false,
   keys(after) {
@@ -4619,7 +4695,7 @@ const UI = {
     const local = !send, p = G && G.p; cid = cid || (p && p.id);
     const opts = jobOptions(cid, tier), multi = G && G.opt && G.opt.multi;
     if (local && !multi) G.paused = true;
-    UI.modal(`<h2>⚔️ ${JOB_LEVELS[tier]}레벨 전직</h2><p class="muted" style="text-align:center">${CHAR[cid].name} · ${(p && p.jobName) || CHAR[cid].job} — 한 갈래를 골라요 (이번 원정 동안)</p>
+    UI.modal(`<h2>⚔️ ${JOB_TIER_NAME[tier] || ""} · Lv.${JOB_LEVELS[tier]}</h2><p class="muted" style="text-align:center">${CHAR[cid].name} · ${(p && p.jobName) || CHAR[cid].job} — 한 갈래를 골라요 (이번 원정 동안)</p>
       <div class="picks" style="grid-template-columns:1fr 1fr">${opts.map((o, i) => `<button class="pk" data-j="${i}" style="border-color:${o.kind === "atk" ? "#ff6a5a" : "#5fc8ff"}"><div class="ico">${o.kind === "atk" ? "🗡️" : "🛡️"}</div><b style="color:${o.kind === "atk" ? "#ff9a8a" : "#9fd8ff"}">${o.name}</b><div class="muted">${o.kind === "atk" ? "공격의 길" : "수호·기술의 길"}</div><p>${o.desc}</p></button>`).join("")}</div>`);
     const armT = UI.arm();
     document.querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => {
@@ -4655,7 +4731,7 @@ const UI = {
       <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="home">처음 화면</button></div>`);
     const opt = G.opt, multi = opt.multi || NET.client;
     if (multi) $("#again").textContent = "대기실로 (다시 함께)";
-    $("#again").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; G = null; NET.roomSent = null; UI.multi(); return; } if (opt.mode === "story") opt.floor = Math.min(opt.floor, SAVE.story.maxFloor); UI.startRun(opt); };
+    $("#again").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; G = null; NET.roomSent = null; UI.multi(); return; } if (opt.mode === "story") { opt.floor = Math.min(opt.floor, SAVE.story.maxFloor); delete opt.resume; delete opt._newOk; } UI.startRun(opt); };
     $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
   },
 };
