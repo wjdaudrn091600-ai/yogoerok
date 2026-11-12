@@ -1428,8 +1428,12 @@ function scaleMods(m, k) { const o = {}; for (const x in m) o[x] = x === "revive
 function diffMul() {
   const m = diffBase(), D = (G.mode === "story" || G.mode === "endless") && DIFF[(G.opt && G.opt.diff) || "normal"];
   if (D && D !== DIFF.normal) { m.hp *= D.hp; m.dmg *= D.dmg; }
+  const n = partyN(); if (n > 1) { m.hp *= 1 + PARTY_HP * (n - 1); m.dmg *= 1 + PARTY_DMG * (n - 1); m.party = n; } // 사용자 요청 11-12: 인원수만큼 강해짐
   return m;
 }
+// 협동 인원수 (대전 제외): 같은 편 플레이어 영웅 중 나가지 않은 수
+const PARTY_HP = 0.7, PARTY_DMG = 0.15, PARTY_CNT = 0.3;
+function partyN() { if (!G || G.mode === "duel" || !G.opt || !G.opt.multi) return 1; return Math.max(1, G.units.filter((u) => u.kind === "hero" && u.team === 0 && !u.left && (u === G.p || u.remote)).length); }
 const diffRw = () => (G && (G.mode === "story" || G.mode === "endless") && DIFF[(G.opt && G.opt.diff) || "normal"] ? DIFF[(G.opt && G.opt.diff) || "normal"].rw : 1);
 function diffBase() {
   if (G.mode === "endless") { const n = G.endlessN; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02), dmg: Math.pow(1.28, n / 8), spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
@@ -1625,7 +1629,7 @@ function populate(r) {
   if (r.type === "fight" || r.type === "elite" || r.type === "exit") {
     if (r.cleared) { if (r.type === "exit" && !r.stairsTaken) G.drops.push(portalDrop()); return; }
     // 방당 몬스터 5~10마리 랜덤 (사용자 요청 11-10). 정예 방은 정예 2마리 포함
-    const n = rint(5, 10) - (r.type === "elite" ? 2 : 0);
+    const n = Math.round((rint(5, 10) - (r.type === "elite" ? 2 : 0)) * (1 + PARTY_CNT * (partyN() - 1)));
     const pool = G.mode === "endless" ? Object.keys(ENEMIES).slice(0, Math.min(6, 3 + Math.floor(G.endlessN / 5))) : th.enemies;
     const eliteP = G.mode === "endless" ? Math.min(0.3, 0.03 + G.endlessN * 0.006) : 0.02 + 0.04 * (G.floor - 1) + 0.01 * G.stage;
     r.wave2 = n >= 7 && (G.mode === "endless" ? G.endlessN > 6 : G.floor + G.stage >= 4);
@@ -2790,7 +2794,7 @@ function render() {
   for (const pr of G.projs) drawProj(g, pr);
   for (const f of G.fx) drawFx(g, f);
   for (const pt of G.parts) { g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
-  if (!(SAVE && SAVE.settings.low)) drawLight(g, r);
+  if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (G.curse === "dark") drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
   for (const t of G.texts) { g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${t.size}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,0.8)"; g.strokeText(t.s, t.x, t.y); g.fillStyle = t.col; g.fillText(t.s, t.x, t.y); } g.globalAlpha = 1;
   // 클릭 표시
   drawAim(g); drawItemInfo(g); if (G.mode !== "dev" && G.mode !== "practice") drawGuide(g);
@@ -3212,6 +3216,10 @@ function drawFx(g, f) {
   }
   g.restore();
 }
+function drawDarkLow(g) {
+  const p = G.p, R = 520 * (1 + (p.light || 0)) * 0.72, gr = g.createRadialGradient(p.x, p.y - 30, R * 0.35, p.x, p.y - 30, R);
+  gr.addColorStop(0, "rgba(4,3,10,0)"); gr.addColorStop(1, "rgba(4,3,10,0.82)"); g.save(); g.fillStyle = gr; g.fillRect(0, 0, RW, RH); g.restore();
+}
 function drawLight(g, r) {
   const th0 = r.th || FLOORS[0], th = G.midnight ? Object.assign({}, th0, { light: "#7f9fff" }) : th0, p = G.p;
   const W2 = lightCv.width, H2 = lightCv.height, sc = W2 / RW;
@@ -3386,7 +3394,7 @@ const NET = {
   lastSnap: 0, roomSent: null, bannerSent: null, uid: 0, cmap: new Map(), sendT: 0,
 
   available() { return typeof Peer !== "undefined"; },
-  idFor(code) { return "dbm2act-" + code.toLowerCase(); },
+  idFor(code) { return "ygr1-" + code.toLowerCase(); }, // 요괴록 전용 (예전 등불미궁 방과 섞이지 않게)
   newCode() { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = ""; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return s; },
   send(m) { if (this.conn && this.conn.open) try { this.conn.send(m); } catch (e) { } },
   leave() { try { this.conn && this.conn.close(); } catch (e) { } try { this.peer && this.peer.destroy(); } catch (e) { } Object.assign(this, { role: null, client: false, peer: null, conn: null, lobby: null, rin: null, guestHero: null }); },
@@ -3456,6 +3464,7 @@ const NET = {
     opt.multi = true; opt.guest = L;
     this.rin = { keys: {}, mouseT: -1e9 };
     UI.startRun(opt);
+    if (!duel) { const msg = "👥 2인 협동 — 요괴 체력 +" + Math.round(PARTY_HP * 100) + "% · 공격력 +" + Math.round(PARTY_DMG * 100) + "% · 수 +" + Math.round(PARTY_CNT * 100) + "%"; setTimeout(() => { UI.toast(msg, 4000); this.send({ t: "toast", s: msg }); }, 1500); }
   },
   // newRun 안에서 불림: 친구 영웅 만들기
   makeGuestHero(opt, startLv) {
@@ -3600,7 +3609,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.0";
+const GAME_VERSION = "1.4.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -3702,7 +3711,7 @@ const LINK = {
   wire(c) { this.conn = c; c.on("open", () => c.send({ t: "link", pk: LINK.pack() })); c.on("data", (m) => { if (m && m.t === "link") LINK.got(m.pk); }); c.on("close", () => { }); },
   host() {
     this.close(); const code = String(Math.floor(100000 + Math.random() * 900000));
-    const peer = (this.peer = new Peer("dbmlink-" + code));
+    const peer = (this.peer = new Peer("ygrlink-" + code));
     $("#lkres").innerHTML = `<div class="card center"><p>다른 기기에서 이 코드를 넣어 주세요</p><p style="font-family:var(--display);font-size:2.6rem;letter-spacing:.2em;color:var(--gold2)">${code}</p><p class="muted">기다리는 중…</p></div>`;
     peer.on("connection", (c) => LINK.wire(c));
     peer.on("error", (e) => { $("#lkres").innerHTML = `<p class="muted">연결 오류 (${esc(e.type)}) — 아래 '연동 문자'를 써 보세요</p>`; });
@@ -3711,11 +3720,11 @@ const LINK = {
     code = String(code || "").replace(/\D/g, ""); if (code.length !== 6) { UI.toast("6자리 숫자 코드를 넣어 주세요"); return; }
     this.close(); const peer = (this.peer = new Peer());
     $("#lkres").innerHTML = `<p class="muted">연결 중…</p>`;
-    peer.on("open", () => LINK.wire(peer.connect("dbmlink-" + code, { reliable: true })));
+    peer.on("open", () => LINK.wire(peer.connect("ygrlink-" + code, { reliable: true })));
     peer.on("error", (e) => { $("#lkres").innerHTML = `<p class="muted">연결 오류 (${esc(e.type)}) — 코드를 다시 확인하거나 '연동 문자'를 써 보세요</p>`; });
   },
-  text() { const pk = LINK.pack(); if (!pk) return ""; return "DBM1:" + btoa(unescape(encodeURIComponent(JSON.stringify(pk)))); },
-  fromText(t) { try { t = String(t).trim(); if (!t.startsWith("DBM1:")) throw 0; return JSON.parse(decodeURIComponent(escape(atob(t.slice(5))))); } catch (e) { return null; } },
+  text() { const pk = LINK.pack(); if (!pk) return ""; return "YGR1:" + btoa(unescape(encodeURIComponent(JSON.stringify(pk)))); },
+  fromText(t) { try { t = String(t).trim(); if (!t.startsWith("YGR1:")) throw 0; return JSON.parse(decodeURIComponent(escape(atob(t.slice(5))))); } catch (e) { return null; } },
 };
 function freshSave() {
   return { v: 1, coins: 5, gold: 0, chars: { musa: 1 }, stars: {}, shards: {}, enh: {}, pity: 0, skills: {}, skillEquip: {}, arts: {}, pets: {}, titles: {},
