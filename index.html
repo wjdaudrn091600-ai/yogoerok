@@ -3822,7 +3822,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.9";
+const GAME_VERSION = "1.4.10";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4799,7 +4799,7 @@ const UI = {
       let ic = "", cd = p.cd[s], max = 1, lv = "";
       let key = null;
       if (s === "A") { if (p.active) { const A = ACTIVES[p.active.k]; ic = A.ic; key = A.img || "ic_" + p.active.k; max = (p.cdMax && p.cdMax.A) || A.cd; lv = ACT_TIER[A.rar].name + " " + p.active.lv; el.style.borderColor = ACT_TIER[A.rar].col; } else { ic = "·"; el.style.borderColor = ""; }
-        el.classList.toggle("locked", !!p.actLock); const lb = el.querySelector(".alock"); if (lb) { const t = p.actLock ? "🔒" : "🔓"; if (lb.textContent !== t) lb.textContent = t; } }
+        el.classList.toggle("locked", !!p.actLock); const lb = el.querySelector(".alock"); if (lb) { const st = p.actLock ? "on" : "off"; if (lb.dataset.st !== st) { lb.dataset.st = st; const k = p.actLock ? "emo_lock" : "emo_unlock"; lb.innerHTML = ASSETS.img[k] ? `<img src="${imgSrc(k)}" alt="" style="width:18px;height:18px;vertical-align:middle">` : (p.actLock ? "🔒" : "🔓"); } } } // 상태가 바뀔 때만 (11-14 자물쇠 깜빡임: 이모지→그림 바꾸기와 매번 다시 쓰기가 반복됐음)
       else { const sk = p.sk[s]; ic = sk.ic; key = sk.icon; max = (p.cdMax && p.cdMax[s]) || sk.cd; if (sk.id) lv = sk.grade;
         const jt = el.querySelector(".jtag"), tag = sk.jobTag || ""; if (jt && jt.textContent !== tag) jt.textContent = tag; el.classList.toggle("jobsk", !!tag); }
       const icEl = el.querySelector(".ic"), want = key && ASSETS.img[key] ? key : "e:" + ic;
