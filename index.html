@@ -2484,12 +2484,20 @@ function update(dt) {
       } else h.ticks.set(u, tk);
     }
   }
-  // 문 통과
+  // 문 통과 — 멀티는 살아 있는 일행이 모두 같은 문 앞에 모여야 넘어간다 (11-15 사용자 요청)
+  const party = heroesOf(0).filter((h) => h.alive && !h.left);
   for (const h of heroesOf(0)) {
   const dz = h.alive && doorZone(h);
   if (dz && !G.trans) {
     const L = r.links, k = L[dz];
     if ((dz === "N" && h.y < 40) || (dz === "S" && h.y > RH - 40) || (dz === "W" && h.x < 30) || (dz === "E" && h.x > RW - 30)) {
+      const here = party.filter((o) => doorZone(o) === dz).length;
+      if (party.length > 1 && here < party.length) {
+        // 아직 다 모이지 않음: 문턱에서 멈춰 세우고 기다림 표시
+        if (dz === "N") h.y = 41; else if (dz === "S") h.y = RH - 41; else if (dz === "W") h.x = 31; else h.x = RW - 31;
+        if (!h._waitT || G.time - h._waitT > 1.6) { h._waitT = G.time; addText(h.x, h.y - 90, `일행을 기다려요 (${here}/${party.length})`, "#9fe8ff", 18); }
+        continue;
+      }
       G.trans = { t: 0.25, max: 0.25, mode: "out", then: () => enterRoom(k, dz) }; sfx("door");
     }
   }
@@ -2603,7 +2611,12 @@ function pickups(u, dt = 1 / 60) {
       else { takeBoon(u, d.k); addText(u.x, u.y - 100, BOONS[d.k].name + "!", "#c9a0ff", 22); }
       saveGame();
     } else if (d.type === "stairs" && !G.trans) {
-      if (dd < 70) { d.hold = (d.hold || 0) + dt; if (d.hold >= 1) { d.gone = true; G.cur.stairsTaken = true; if (G.mode === "endless") endlessNextStage(); else stageClear(); } }
+      // 멀티는 살아 있는 일행이 모두 포탈 안에 들어와야 1초가 찬다 (11-15). 한 프레임에 한 번만 세려고 일행 첫 사람 차례에만
+      const party = heroesOf(0).filter((o) => o.alive && !o.left), first = party[0] === u;
+      const inside = party.filter((o) => Math.hypot(d.x - o.x, d.y - o.y) < 70).length;
+      if (dd < 70 && party.length > 1 && inside < party.length && (!u._waitT || G.time - u._waitT > 1.6)) { u._waitT = G.time; addText(u.x, u.y - 90, `일행을 기다려요 (${inside}/${party.length})`, "#9fe8ff", 18); }
+      if (!first) continue;
+      if (inside >= party.length && inside > 0) { d.hold = (d.hold || 0) + dt; if (d.hold >= 1) { d.gone = true; G.cur.stairsTaken = true; if (G.mode === "endless") endlessNextStage(); else stageClear(); } }
       else d.hold = Math.max(0, (d.hold || 0) - dt * 2);
     }
   }
@@ -3837,7 +3850,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.13";
+const GAME_VERSION = "1.4.14";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
