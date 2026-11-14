@@ -3576,7 +3576,7 @@ function bindInput() {
     if (G.paused || UI.modalOpen()) return;
     const sl = Object.keys(SLOT_OF).find((x) => K[x] === code); if (sl) { if (!startAim(SLOT_OF[sl])) useSlot(SLOT_OF[sl]); }
     if (K.target === code) { e.preventDefault(); cycleTarget(); }
-    if (K.lock === code) { e.preventDefault(); if (NET.client) NET.send({ t: "lock" }); toggleActLock(G.p); }
+    if (K.lock === code) { e.preventDefault(); if (NET.client) NET.send({ t: "lock", on: !G.p.actLock }); toggleActLock(G.p); }
   });
 }
 // 대상 고르기: 다음으로 가까운 적 / 지정한 자리 근처의 적
@@ -3679,7 +3679,7 @@ const NET = {
     else if (m.t === "load") { if (this.lobby && this.lobby.guest) { this.lobby.guest.load = m.load; this.lobby.onUpdate && this.lobby.onUpdate(); } }
     else if (m.t === "i") { this.rin = Object.assign(this.rin || { keys: {} }, m); this.rin.mouseT = m.mt ? performance.now() : -1e9; const h = this.guestHero; if (h && m.tseq && m.tseq !== h._tseq) { h._tseq = m.tseq; h.tx = clamp(m.tx, 0, RW); h.ty = clamp(m.ty, 0, RH); } }
     else if (m.t === "k") { const h = this.guestHero; if (h && G && !G.paused) useSkill(h, m.s, m.x != null ? aimClamp(h, m.x, m.y, placeInfo(h, m.s).range) : undefined); }
-    else if (m.t === "lock") { const h = this.guestHero; if (h) toggleActLock(h); }
+    else if (m.t === "lock") { const h = this.guestHero; if (h) { if (m.on == null) toggleActLock(h); else h.actLock = !!m.on; } } // 11-15 방 이동 뒤 풀리던 버그: 켜기·끄기 값으로
     else if (m.t === "boon") { const h = this.guestHero; if (h && BOONS[m.k]) takeBoon(h, m.k); }
     else if (m.t === "jobpick") { const h = this.guestHero; if (h && (h.jobs || []).length === m.tier) { applyJob(h, jobOptions(h.id, m.tier)[m.i]); jobCatchUp(h); } }
   },
@@ -3746,7 +3746,7 @@ const NET = {
     const tx = []; for (const t of G.texts) if (!this.sentTx.has(t)) { this.sentTx.add(t); tx.push([Math.round(t.x), Math.round(t.y), t.s, t.col, t.size, t.big ? 1 : 0]); } snap.tx = tx;
     if (G.banner && this.bannerSent !== G.banner) { this.bannerSent = G.banner; snap.bn = { text: G.banner.text, sub: G.banner.sub, t: G.banner.t, boss: G.banner.boss }; }
     const me = this.guestHero;
-    if (me) snap.me = { id: id(me), gold: me.gold || 0, lvl: me.lvl, exp: me.exp, cd: me.cd, act: me.active, boons: me.boons, sk: Object.fromEntries(Object.entries(me.sk).map(([k, v]) => [k, { ic: v.ic, icon: v.icon, cd: v.cd, name: v.name, desc: v.desc, grade: v.grade, id: v.id }])), basic: me.def.basic.name, alive: me.alive };
+    if (me) snap.me = { id: id(me), lock: me.actLock ? 1 : 0, gold: me.gold || 0, lvl: me.lvl, exp: me.exp, cd: me.cd, act: me.active, boons: me.boons, sk: Object.fromEntries(Object.entries(me.sk).map(([k, v]) => [k, { ic: v.ic, icon: v.icon, cd: v.cd, name: v.name, desc: v.desc, grade: v.grade, id: v.id }])), basic: me.def.basic.name, alive: me.alive };
     snap.host = id(G.p); snap.hn = nick(); snap.cu = G.curse || null; snap.rn = G.raidN || 0; snap.hu = r.haz.map((h) => (h.up ? 1 : 0));
     if (G.mode === "duel") snap.duel = { round: G.duel.round, wins: G.duel.wins };
     if (G.bossUnit && G.bossUnit.alive) snap.boss = id(G.bossUnit);
@@ -3794,7 +3794,7 @@ const NET = {
     G.units = list;
     const me = m.me && this.cmap.get(m.me.id);
     if (me) {
-      G.p = me; me.gold = m.me.gold; me.lvl = m.me.lvl; me.exp = m.me.exp; me.cd = m.me.cd; me.active = m.me.act; me.boons = m.me.boons; me.sk = m.me.sk; me.def.basic = { name: m.me.basic }; me.def.name = (me.name || "").replace(/\(.*\)/, "").split(" · ")[0]; me.def.job = (me.name || "").replace(/\(.*\)/, "").split(" · ")[1]; me.formName = (me.name.match(/\((.*)\)/) || [])[1];
+      G.p = me; me.actLock = !!m.me.lock; me.gold = m.me.gold; me.lvl = m.me.lvl; me.exp = m.me.exp; me.cd = m.me.cd; me.active = m.me.act; me.boons = m.me.boons; me.sk = m.me.sk; me.def.basic = { name: m.me.basic }; me.def.name = (me.name || "").replace(/\(.*\)/, "").split(" · ")[0]; me.def.job = (me.name || "").replace(/\(.*\)/, "").split(" · ")[1]; me.formName = (me.name.match(/\((.*)\)/) || [])[1];
       if (!me.ctrl) me.ctrl = input;
       if (!G.hudBuilt) { G.hudBuilt = true; UI.buildHud(); }
     }
@@ -3850,7 +3850,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.14";
+const GAME_VERSION = "1.4.15";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4762,7 +4762,7 @@ const UI = {
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
     $("#hp").onclick = () => UI.togglePause();
-    const al = $("#alock"); if (al) { al.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (!G || !G.p) return; if (NET.client) NET.send({ t: "lock" }); toggleActLock(G.p); }; }
+    const al = $("#alock"); if (al) { al.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (!G || !G.p) return; if (NET.client) NET.send({ t: "lock", on: !G.p.actLock }); toggleActLock(G.p); }; }
     // 가상 패드: 엄지로 끌면 그 방향으로 이동
     const joy = $("#joy");
     if (joy) {
