@@ -3822,7 +3822,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.10";
+const GAME_VERSION = "1.4.11";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4648,7 +4648,9 @@ const UI = {
         <div style="display:flex;gap:6px;flex-wrap:wrap">${c.sk.map((k, i) => `<span class="pill" title="${k.desc}">${i + 1} ${abIc("sk_" + c.id + "_" + i, k.ic, 22)} ${k.name}</span>`).join("")}</div></div>`;
     };
     const myPick = `<h3 style="margin-top:16px">내 캐릭터 고르기 <span class="muted">(눌러서 바꾸기 · 아티팩트·펫·칭호·스킬 장착도 그대로 가져가요)</span></h3>
-      <div class="chars">${owned.map((id) => `<button class="ch ${id === SAVE.sel ? "on" : ""}" data-mc="${id}" style="background-image:url(${imgSrc("card_" + charArt(id, CHAR[id].forms ? "wolf" : null))})"><span class="nm">${CHAR[id].name}<small>${CHAR[id].job}</small></span></button>`).join("")}</div>`;
+      <div class="chars">${["SS", "S", "A", "B", "C"].map((g) => { const ids = owned.filter((id) => CHAR[id] && (CHAR_GRADE[id] || "C") === g); if (!ids.length) return "";
+        // 등급별로 묶어 보기 (11-14 사용자: 멀티 캐릭터 선택도 등급별로) — 캐릭터 화면과 같은 머리줄
+        return `<div class="grhead" style="grid-column:1/-1;border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> <span class="muted">${ids.length}명</span></div>` + ids.map((id) => `<button class="ch ${id === SAVE.sel ? "on" : ""}" data-mc="${id}" style="background-image:url(${imgSrc("card_" + charArt(id, CHAR[id].forms ? "wolf" : null))})"><span class="tag"><b style="color:${GRADE_INFO[g].col}">${g}</b></span><span class="nm">${CHAR[id].name}<small>${CHAR[id].job}${(SAVE.enh || {})[id] ? " +" + SAVE.enh[id] : ""}</small></span></button>`).join(""); }).join("")}</div>`;
     const MODE = { story: "📖 스토리 협동", endless: "♾️ 무한의 방 협동", raid: "🐉 보스 레이드 협동", duel: "⚔️ 1대1 대전" };
     let body = "";
     if (NET.role === "host") {
