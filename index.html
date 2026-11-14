@@ -189,6 +189,10 @@ h3 { font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin: 
 .sk .cdv { position: absolute; inset: 0; border-radius: 12px; background: conic-gradient(rgba(0, 0, 0, 0.72) var(--p), transparent 0); }
 .sk .cdt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 1.3rem; text-shadow: 0 1px 3px #000; }
 .sk .lv { position: absolute; right: 4px; bottom: 2px; font-size: 0.65rem; color: var(--gem); }
+.sk .alock { position: absolute; right: -9px; top: -9px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #b8873a; background: #1a1220; font-size: 13px; line-height: 22px; padding: 0; cursor: pointer; z-index: 3; box-shadow: 0 2px 6px #000a; pointer-events: auto; }
+.sk.locked { box-shadow: 0 0 0 2px #ffd27a, 0 0 14px #ffd27a88 !important; } .sk.locked .alock { background: #ffd27a; border-color: #fff3c4; }
+.sk .jtag { position: absolute; left: 50%; top: -11px; transform: translateX(-50%); padding: 0 6px; border-radius: 8px; font-size: .62rem; line-height: 15px; white-space: nowrap; color: #2a1404; background: linear-gradient(180deg, #ffe7a8, #e0a13e); box-shadow: 0 1px 4px #000a; font-family: var(--display); }
+.sk .jtag:empty { display: none; } .sk.jobsk { box-shadow: 0 0 0 1px #ffd98a88, 0 0 12px #ffb54755; }
 .sk.flash { animation: shake 0.25s; border-color: #ff4d4d; }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 .sk.basic { width: 52px; height: 52px; font-size: 1.4rem; align-self: flex-end; }
@@ -1510,7 +1514,7 @@ function newRun(opt) {
   if (opt.mode !== "duel" && S.equip.pet && PETS[S.equip.pet]) addPet(p, S.equip.pet, S.pets[S.equip.pet] || 1);
   if (opt.multi) { NET.makeGuestHero(opt, startLv); NET.roomSent = null; NET.send({ t: "start", mode: opt.mode, floor: opt.floor || 1 }); SAVE.stats.multiPlays = (SAVE.stats.multiPlays || 0) + 1; }
   G.midnight = new Date().getHours() === 0 && opt.mode !== "duel"; // 이스터 에그: 자정의 미궁
-  if (opt.resume) { const R = opt.resume; G.stage = R.stage || 1; p.lvl = R.lvl || p.lvl; p.exp = R.exp || 0; p.boons = (R.boons || []).slice(); p.jobs = []; for (const j of R.jobs || []) applyJob(p, Object.assign({}, j, { tier: j.tier != null ? j.tier : p.jobs.length }), true); p.gold = R.gold || 0; if (R.active) p.active = R.active; p.shopItems = (R.shop || []).filter((k) => SHOP_ITEMS[k]); for (const k of p.shopItems) p.baseMods.push(SHOP_ITEMS[k].m); recalc(p); p.hp = p.maxHp;
+  if (opt.resume) { const R = opt.resume; G.stage = R.stage || 1; p.lvl = R.lvl || p.lvl; p.exp = R.exp || 0; p.boons = (R.boons || []).slice(); p.jobs = []; for (const j of R.jobs || []) applyJob(p, Object.assign({}, j, { tier: j.tier != null ? j.tier : p.jobs.length }), true); p.gold = R.gold || 0; if (R.active) p.active = R.active; p.actLock = !!R.actLock; p.shopItems = (R.shop || []).filter((k) => SHOP_ITEMS[k]); for (const k of p.shopItems) p.baseMods.push(SHOP_ITEMS[k].m); recalc(p); p.hp = p.maxHp;
     if (R.run) { G.kills = R.run.kills || 0; G.roomsCleared = R.run.rooms || 0; G.bossKills = R.run.bossKills || 0; G.coinGot = R.run.coinGot || 0; } G.resumed = true; }
   if (opt.mode !== "duel") { jobCatchUp(p); if (G.p2 && G.p2.remote) jobCatchUp(G.p2); }
   if (opt.mode === "story") { S.stats.story_start = 1; startStage(); }
@@ -1562,7 +1566,7 @@ const curseSub = () => `${CURSES[G.curse].name} — ${CURSES[G.curse].desc} · �
 function storySnap() {
   const p = G.p;
   return { char: G.opt.char, floor: G.floor, stage: G.stage, diff: G.opt.diff || "normal", lvl: p.lvl, exp: p.exp, boons: p.boons.slice(), jobs: p.jobs || [], gold: p.gold || 0,
-    active: p.active ? { k: p.active.k, lv: p.active.lv } : null, shop: (p.shopItems || []).slice(), hpR: p.maxHp ? Math.max(0.3, p.hp / p.maxHp) : 1,
+    active: p.active ? { k: p.active.k, lv: p.active.lv } : null, actLock: !!p.actLock, shop: (p.shopItems || []).slice(), hpR: p.maxHp ? Math.max(0.3, p.hp / p.maxHp) : 1,
     run: { kills: G.kills, rooms: G.roomsCleared, bossKills: G.bossKills || 0, coinGot: G.coinGot || 0 }, at: Date.now() };
 }
 function startStage() {
@@ -2260,6 +2264,11 @@ function gainExp(u, v) {
   }
 }
 // 전직 적용 (11-13): 능력 + 스킬 변화 + 연출. 방장·친구·이어하기 모두 여기로
+// 액티브 잠금 (사용자 요청 11-14): 잠그면 바닥의 다른 액티브를 밟아도 바뀌지 않는다. 같은 액티브(레벨 업)는 주울 수 있음
+function toggleActLock(u) {
+  u = u || G.p; if (!u) return; u.actLock = !u.actLock;
+  if (u === G.p) { addText(u.x, u.y - 110, u.actLock ? "🔒 액티브 잠금" : "🔓 액티브 잠금 풀림", u.actLock ? "#ffd27a" : "#9fe8ff", 22); sfx("pick"); }
+}
 function jobSkills(u, tier, kind) {
   const slots = JOB_SK_SLOT[tier] === "ALL" ? ["Q", "W", "E", "R"] : [JOB_SK_SLOT[tier]];
   for (const sl of slots) { const s0 = u.sk[sl]; if (!s0) continue; const s = { ...s0 }; s.base = s.base || s0.name; s.cd0 = s.cd0 || s0.cd;
@@ -2495,13 +2504,13 @@ function useSkill(u, slot, at) {
   if (!u.alive || u.stunT > 0 || !G || G.paused) return false;
   if (slot === "A") {
     if (!u.active || u.cd.A > 0) return false;
-    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); return true;
+    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); (u.cdMax = u.cdMax || {}).A = u.cd.A; return true;
   }
   const s = u.sk[slot]; if (!s || u.cd[slot] > 0) return false;
   castFx(u, s.fx, (s.pow || 1) * (1 + (u.jobs || []).reduce((a, j) => a + (j.skPow || 0), 0)), at || aimPoint(u), { vk: sigOf(s.fx, s.icon && s.icon.startsWith("sk_") ? "cvfx_" + s.icon : null) }); u.skillAnim = 0.4; u.atkAnim = 0; if (u === G.p) SAVE.stats.skillsUsed = (SAVE.stats.skillsUsed || 0) + 1;
   let cd = s.cd * (1 - u.cdr) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); if (slot === "R") cd = Math.max((s.cd0 || s.cd) * ULT_MIN, cd * (1 - ((u.m && u.m.ultcd) || 0)));
   if (u.m && u.m.echo && Math.random() < u.m.echo && slot !== "R") { cd = 0.3; addText(u.x, u.y - 100, "메아리!", "#9fe8ff", 18); }
-  u.cd[slot] = cd;
+  u.cd[slot] = cd; (u.cdMax = u.cdMax || {})[slot] = cd;
   return true;
 }
 function pickups(u, dt = 1 / 60) {
@@ -2514,7 +2523,9 @@ function pickups(u, dt = 1 / 60) {
       if (dd < 30) { d.gone = true; if (d.type === "gold") { u.gold = (u.gold || 0) + d.v; if (u === G.p) sfx("coin"); } else if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "몬스터 드롭"); }
     } else if (d.type === "herb" && dd < 40) { d.gone = true; healUnit(u, u.maxHp * 0.2); sfx("heal"); }
     else if (d.type === "act" && d.waitLeave) { if (dd > 75) d.waitLeave = false; }
-    else if (d.type === "act" && dd < 58 && !d.cool) {
+    else if (d.type === "act" && dd < 58 && !d.cool && u.actLock && u.active && u.active.k !== d.k) {
+      if (!d.lockMsg || G.time - d.lockMsg > 2.5) { d.lockMsg = G.time; if (u === G.p) addText(d.x, d.y - 70, `🔒 잠금 중 — ${keyLabel(keyMap().lock)} 키로 풀어요`, "#ffd27a", 18); }
+    } else if (d.type === "act" && dd < 58 && !d.cool) {
       d.gone = true;
       if (d.grp) for (const o of G.drops) if (o.grp === d.grp && o !== d) { o.gone = true; G.fx.push({ k: "puff", x: o.x, y: o.y, t: 0, max: 0.4, col: "#fff" }); }
       const had = u.active;
@@ -3169,7 +3180,7 @@ function drawItemInfo(g) {
   const d = best; let title = "", col = "#ffe08a", lines = [];
   if (d.type === "act" || (d.type === "shop" && d.what === "act")) {
     const A = ACTIVES[d.k]; title = `[${ACT_TIER[A.rar].name}] ${A.name}${d.lv > 1 ? " Lv." + d.lv : ""}`; col = ACT_TIER[A.rar].col;
-    lines = [A.desc, `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`, p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
+    lines = [A.desc, `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`, p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : p.actLock ? `🔒 잠금 중이라 줍지 않아요 (${keyLabel(keyMap().lock)} 키로 풀기)` : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
   } else if (d.type === "shop" && d.what === "boon") { const B = BOONS[d.k]; title = B.name; col = RARITY[B.rar].col; lines = [B.desc, `강화 (${RARITY[B.rar].name}) · 이번 원정 동안 계속 적용`]; }
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
@@ -3436,8 +3447,8 @@ function sfx(kind) {
 
 // ---------- 입력 ----------
 // 조작: 기본 WASD 이동, 왼쪽 클릭 공격(커서 조준), 1~4 스킬, 스페이스 액티브, Esc 멈춤. 설정에서 키를 바꿀 수 있음 (사용자 요청 11-10)
-const DEFAULT_KEYS = { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", atk: "Mouse0", atk2: "ShiftLeft", target: "Tab", s1: "Digit1", s2: "Digit2", s3: "Digit3", s4: "Digit4", act: "Space", pause: "Escape" };
-const KEY_ACTIONS = [["up", "위로 이동"], ["down", "아래로 이동"], ["left", "왼쪽 이동"], ["right", "오른쪽 이동"], ["atk", "기본 공격"], ["atk2", "기본 공격 (보조키)"], ["s1", "스킬 1"], ["s2", "스킬 2"], ["s3", "스킬 3"], ["s4", "스킬 4 (궁극기)"], ["act", "액티브"], ["target", "대상 고정 (타겟팅)"], ["pause", "멈춤 메뉴"]];
+const DEFAULT_KEYS = { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", atk: "Mouse0", atk2: "ShiftLeft", target: "Tab", s1: "Digit1", s2: "Digit2", s3: "Digit3", s4: "Digit4", act: "Space", lock: "KeyL", pause: "Escape" };
+const KEY_ACTIONS = [["up", "위로 이동"], ["down", "아래로 이동"], ["left", "왼쪽 이동"], ["right", "오른쪽 이동"], ["atk", "기본 공격"], ["atk2", "기본 공격 (보조키)"], ["s1", "스킬 1"], ["s2", "스킬 2"], ["s3", "스킬 3"], ["s4", "스킬 4 (궁극기)"], ["act", "액티브"], ["lock", "액티브 잠금 / 풀기"], ["target", "대상 고정 (타겟팅)"], ["pause", "멈춤 메뉴"]];
 const keyMap = () => Object.assign({}, DEFAULT_KEYS, (typeof SAVE !== "undefined" && SAVE && SAVE.settings && SAVE.settings.keys) || {});
 function keyLabel(code) {
   if (!code) return "-";
@@ -3497,6 +3508,7 @@ function bindInput() {
     if (G.paused || UI.modalOpen()) return;
     const sl = Object.keys(SLOT_OF).find((x) => K[x] === code); if (sl) { if (!startAim(SLOT_OF[sl])) useSlot(SLOT_OF[sl]); }
     if (K.target === code) { e.preventDefault(); cycleTarget(); }
+    if (K.lock === code) { e.preventDefault(); if (NET.client) NET.send({ t: "lock" }); toggleActLock(G.p); }
   });
 }
 // 대상 고르기: 다음으로 가까운 적 / 지정한 자리 근처의 적
@@ -3589,6 +3601,7 @@ const NET = {
     else if (m.t === "load") { if (this.lobby && this.lobby.guest) { this.lobby.guest.load = m.load; this.lobby.onUpdate && this.lobby.onUpdate(); } }
     else if (m.t === "i") { this.rin = Object.assign(this.rin || { keys: {} }, m); this.rin.mouseT = m.mt ? performance.now() : -1e9; const h = this.guestHero; if (h && m.tseq && m.tseq !== h._tseq) { h._tseq = m.tseq; h.tx = clamp(m.tx, 0, RW); h.ty = clamp(m.ty, 0, RH); } }
     else if (m.t === "k") { const h = this.guestHero; if (h && G && !G.paused) useSkill(h, m.s, m.x != null ? aimClamp(h, m.x, m.y, placeInfo(h, m.s).range) : undefined); }
+    else if (m.t === "lock") { const h = this.guestHero; if (h) toggleActLock(h); }
     else if (m.t === "boon") { const h = this.guestHero; if (h && BOONS[m.k]) takeBoon(h, m.k); }
     else if (m.t === "jobpick") { const h = this.guestHero; if (h && (h.jobs || []).length === m.tier) { applyJob(h, jobOptions(h.id, m.tier)[m.i]); jobCatchUp(h); } }
   },
@@ -3759,7 +3772,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.7";
+const GAME_VERSION = "1.4.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4518,7 +4531,7 @@ const UI = {
   // ----- 플레이 방법 -----
   howto() {
     UI.frame("플레이 방법", `<div class="howto card" style="max-width:920px">
-      <h3>🎮 조작 (PC) — 지금 키: 이동 ${["up", "left", "down", "right"].map((x) => keyLabel(keyMap()[x])).join("")} · 공격 ${keyLabel(keyMap().atk)} · 스킬 ${["s1", "s2", "s3", "s4"].map((x) => keyLabel(keyMap()[x])).join("/")} · 액티브 ${keyLabel(keyMap().act)} (설정 › 키 설정에서 바꿀 수 있어요)</h3><ul>
+      <h3>🎮 조작 (PC) — 지금 키: 이동 ${["up", "left", "down", "right"].map((x) => keyLabel(keyMap()[x])).join("")} · 공격 ${keyLabel(keyMap().atk)} · 스킬 ${["s1", "s2", "s3", "s4"].map((x) => keyLabel(keyMap()[x])).join("/")} · 액티브 ${keyLabel(keyMap().act)} (설정 › 키 설정에서 바꿀 수 있어요) · 액티브 잠금 ${keyLabel(keyMap().lock)}</h3><ul>
         <li><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> 이동 (방향키도 돼요)</li>
         <li><span class="kbd">마우스 왼쪽 클릭</span> 기본 공격 — 마우스 커서 쪽으로 공격, 누르고 있으면 계속 공격</li>
         <li><span class="kbd">1</span> 스킬1 · <span class="kbd">2</span> 스킬2 · <span class="kbd">3</span> 스킬3 · <span class="kbd">4</span> 궁극기 — 모두 마우스 커서 쪽으로 나가요</li>
@@ -4646,7 +4659,7 @@ const UI = {
   buildHud() {
     const p = G.p, touch = matchMedia("(pointer: coarse)").matches;
     input.touch = touch;
-    const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span></div>`;
+    const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span>${s === "A" ? `<button class="alock" id="alock" title="액티브 잠금 (${keyLabel(keyMap().lock)})">🔓</button>` : ""}<span class="jtag"></span></div>`;
     $("#hud").innerHTML = `<div class="hp-box"><div class="face" style="background-image:url(${imgSrc("card_" + p.art)})"></div><div class="meta">
         <div class="nm" id="hnm"></div><div class="bar"><s id="hsh"></s><i id="hhp"></i><span id="hhpt"></span></div><div class="bar xp"><i id="hxp"></i></div></div></div>
       <div class="hp-box" id="fbox" hidden style="top:86px;min-width:260px;border-color:#7fe08a"><div class="face" id="fface" style="width:44px;height:44px"></div><div class="meta"><div class="nm" id="fnm"></div><div class="bar" style="height:10px"><s id="fsh"></s><i id="fhp" style="background:linear-gradient(#9fffb0,#3a9a4a)"></i></div></div></div>
@@ -4657,6 +4670,7 @@ const UI = {
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
     $("#hp").onclick = () => UI.togglePause();
+    const al = $("#alock"); if (al) { al.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (!G || !G.p) return; if (NET.client) NET.send({ t: "lock" }); toggleActLock(G.p); }; }
     // 가상 패드: 엄지로 끌면 그 방향으로 이동
     const joy = $("#joy");
     if (joy) {
@@ -4723,8 +4737,10 @@ const UI = {
       const s = el.dataset.s; if (s === "B") return;
       let ic = "", cd = p.cd[s], max = 1, lv = "";
       let key = null;
-      if (s === "A") { if (p.active) { const A = ACTIVES[p.active.k]; ic = A.ic; key = A.img || "ic_" + p.active.k; max = A.cd; lv = ACT_TIER[A.rar].name + " " + p.active.lv; el.style.borderColor = ACT_TIER[A.rar].col; } else { ic = "·"; el.style.borderColor = ""; } }
-      else { const sk = p.sk[s]; ic = sk.ic; key = sk.icon; max = sk.cd; if (sk.id) lv = sk.grade; }
+      if (s === "A") { if (p.active) { const A = ACTIVES[p.active.k]; ic = A.ic; key = A.img || "ic_" + p.active.k; max = (p.cdMax && p.cdMax.A) || A.cd; lv = ACT_TIER[A.rar].name + " " + p.active.lv; el.style.borderColor = ACT_TIER[A.rar].col; } else { ic = "·"; el.style.borderColor = ""; }
+        el.classList.toggle("locked", !!p.actLock); const lb = el.querySelector(".alock"); if (lb) { const t = p.actLock ? "🔒" : "🔓"; if (lb.textContent !== t) lb.textContent = t; } }
+      else { const sk = p.sk[s]; ic = sk.ic; key = sk.icon; max = (p.cdMax && p.cdMax[s]) || sk.cd; if (sk.id) lv = sk.grade;
+        const jt = el.querySelector(".jtag"), tag = sk.jobTag || ""; if (jt && jt.textContent !== tag) jt.textContent = tag; el.classList.toggle("jobsk", !!tag); }
       const icEl = el.querySelector(".ic"), want = key && ASSETS.img[key] ? key : "e:" + ic;
       if (icEl.dataset.k !== want) { icEl.dataset.k = want; icEl.innerHTML = key && ASSETS.img[key] ? abIc(key, ic, 58) : ic; } el.querySelector(".lv").textContent = lv;
       el.querySelector(".cdv").style.setProperty("--p", cd > 0 ? (cd / max) * 100 + "%" : "0%");
@@ -4734,8 +4750,10 @@ const UI = {
     if (UI._tipSlot) {
       const s = UI._tipSlot, tip = $("#tip"); let h = "";
       if (s === "B") h = `<b>${p.def.basic.name}</b><br>기본 공격 · 마우스 왼쪽 클릭 (누르고 있으면 연속, 커서 쪽으로)`;
-      else if (s === "A") h = p.active ? `<b style="color:${ACT_TIER[ACTIVES[p.active.k].rar].col}">[${ACT_TIER[ACTIVES[p.active.k].rar].name}] ${ACTIVES[p.active.k].name}</b> Lv.${p.active.lv}<br>${ACTIVES[p.active.k].desc}<br><span class="muted">대기 ${ACTIVES[p.active.k].cd}초 · 스페이스바</span>` : "<b>액티브 없음</b><br>보물 방·보스·상인에게서 얻어요";
-      else { const sk = p.sk[s]; h = `<b>${sk.name}</b>${sk.grade ? ` <span class="grade" style="background:${SK_GRADE[sk.grade].col}">${sk.grade}</span>` : ""}<br>${sk.desc}<br><span class="muted">대기 ${sk.cd}초 · ${{ Q: "1", W: "2", E: "3", R: "4" }[s]} 키</span>`; }
+      else if (s === "A") h = p.active ? `<b style="color:${ACT_TIER[ACTIVES[p.active.k].rar].col}">[${ACT_TIER[ACTIVES[p.active.k].rar].name}] ${ACTIVES[p.active.k].name}</b> Lv.${p.active.lv}<br>${ACTIVES[p.active.k].desc}<br><span class="muted">대기 ${ACTIVES[p.active.k].cd}초 · ${keyLabel(keyMap().act)} 키</span><br>${p.actLock ? `<span style="color:#ffd27a">🔒 잠금 중 — 다른 액티브를 밟아도 바뀌지 않아요 (${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 풀기)</span>` : `<span class="muted">🔓 ${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 잠그면 다른 액티브를 밟아도 바뀌지 않아요</span>`}` : "<b>액티브 없음</b><br>보물 방·보스·상인에게서 얻어요";
+      else { const sk = p.sk[s], real = (p.cdMax && p.cdMax[s]) || sk.cd * (1 - (p.cdr || 0)), base = sk.cd0 || sk.cd;
+        const jobLine = sk.jobTag ? `<br><span style="color:#ffd98a">✨ 전직 변화 '${sk.jobTag}' · 위력 ×${(sk.pow || 1).toFixed(2)}${sk.cd0 && sk.cd0 !== sk.cd ? ` · 기본 대기 ${base}초 → ${+sk.cd.toFixed(1)}초` : ""}</span>` : "";
+        h = `<b>${sk.name}</b>${sk.grade ? ` <span class="grade" style="background:${SK_GRADE[sk.grade].col}">${sk.grade}</span>` : ""}<br>${sk.desc}${jobLine}<br><span class="muted">대기 ${+real.toFixed(1)}초${real < sk.cd - 0.05 ? ` (기본 ${+sk.cd.toFixed(1)}초)` : ""} · ${keyLabel(keyMap()["s" + ({ Q: 1, W: 2, E: 3, R: 4 }[s])])} 키</span>`; }
       if (s !== "B" && isPlaceFx(slotFx(p, s))) h += `<br><span style="color:#ffd27a">📍 위치 지정 — 키를 누른 채 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)</span>`;
       tip.innerHTML = h; tip.hidden = false;
     }
@@ -4812,7 +4830,7 @@ const UI = {
     document.querySelectorAll("[data-j]").forEach((b) => (b.onclick = () => {
       if (performance.now() < armT) return;
       const i = +b.dataset.j; UI.closeModal();
-      if (send) { send(i); if (G && G.p) G.p.jobName = opts[i].name; return; }
+      if (send) { send(i); if (G && G.p) { G.p.jobName = opts[i].name; if (G.p.sk) jobSkills(G.p, tier, opts[i].kind); } return; }
       applyJob(p, opts[i]); if (!multi) G.paused = false;
     }));
   },
