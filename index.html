@@ -1540,7 +1540,7 @@ function makeMob(type, mul, elite) {
 }
 function makeBoss(key, mul, mini) {
   const d = BOSSES[key], hp = d.hp * mul.hp * (mini ? 0.42 : 1);
-  const own = ASSETS.meta && ASSETS.meta[key];
+  const own = ASSETS.meta && ASSETS.meta[key]; if (!own && ASSETS.packs && d.fl) needPack("f" + d.fl);
   return { kind: "boss", team: 1, type: key, def: d, img: own || !d.art ? key : d.art, fx: d.art || key, name: mini ? "중간보스 · " + d.name : d.name, x: RW / 2, y: BT + 200, r: d.r * (mini ? 0.85 : 1),
     hp, maxHp: hp, dmg: d.dmg * mul.dmg * (mini ? 0.8 : 1), spd: d.spd, alive: true, buffs: [], st: "move", t: 1.6, pi: 0, mini: !!mini,
     stunT: 0, slowT: 0, slow: 0, kx: 0, ky: 0, hitT: 0, markT: 0, mark: 0, burn: null, flip: false, ph: 0, exp: mini ? 40 : 90, spawnT: 1.0 };
@@ -2691,6 +2691,7 @@ function eShot(m, a, spd, dmg, o = {}) { const pr = { home: o.home || 0, bimg: m
 
 // ---------- 보스 패턴 ----------
 function updateBoss(b, dt) {
+  if (b.img !== b.type && ASSETS.meta && ASSETS.meta[b.type]) b.img = b.type; // 층 그림 묶음이 뒤늦게 와도 전용 그림으로 (11-15)
   const tg = mobTarget(b) || heroesOf(0).find((h) => h.alive); b.tg = tg; if (!tg) return;
   const ph2 = b.hp < b.maxHp * 0.5, sp = ph2 ? 1.35 : 1;
   if (ph2 && !b.ph2) { b.ph2 = true; G.banner = { text: "분노!", sub: b.name + "의 공격이 빨라집니다", t: 1.6, boss: true }; G.shake = 12; }
@@ -3723,7 +3724,7 @@ const NET = {
     if (this.role !== "host" || !G || !G.opt.multi || !this.conn) return;
     this.sendT -= dt; if (this.sendT > 0) return; this.sendT = 0.05;
     const id = (u) => u._id || (u._id = ++this.uid);
-    const r = G.cur, snap = { t: "s", mode: G.mode, fl: G.floor, stg: G.stage, en: G.endlessN, paused: !!G.paused, locked: roomLocked(), trans: G.trans ? [G.trans.mode, G.trans.t, G.trans.max] : null, sh: G.shake };
+    const r = G.cur, snap = { t: "s", mode: G.mode, fl: G.floor, ef: G.eFloor || 0, stg: G.stage, en: G.endlessN, paused: !!G.paused, locked: roomLocked(), trans: G.trans ? [G.trans.mode, G.trans.t, G.trans.max] : null, sh: G.shake };
     if (this.roomSent !== r) { this.roomSent = r; snap.room = { key: G.curKey, type: r.type, bg: r.bg, obs: r.obs.map((o) => ({ x: o.x, y: o.y, r: o.r, kind: o.kind, prop: o.prop })), haz: r.haz.map((h) => ({ x: h.x, y: h.y, rx: h.rx, ry: h.ry, kind: h.kind, ph: h.ph })), decor: r.decor }; snap.map = [...G.rooms.values()].filter((x) => x.visited || true).map((x) => [x.x, x.y, x.type, x.visited ? 1 : 0, x.cleared ? 1 : 0, Object.keys(x.links).join("")]); }
     else if (Math.random() < 0.1) snap.map = [...G.rooms.values()].map((x) => [x.x, x.y, x.type, x.visited ? 1 : 0, x.cleared ? 1 : 0, Object.keys(x.links).join("")]);
     snap.ln = Object.fromEntries(Object.entries(r.links).map(([d, k]) => { const t = G.rooms.get(k); return [d, [t.type, t.visited ? 1 : 0, t.x, t.y]]; }));
@@ -3755,6 +3756,7 @@ const NET = {
 
   // ---------- 친구: 화면 상태 받아 그리기 ----------
   startClient(m) {
+    this._packF = null; this._raidPacks = 0;
     this.client = true; this.cmap = new Map();
     $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.closeModal();
     G = { client: true, mode: m.mode, floor: m.floor, stage: 1, endlessN: 0, units: [], projs: [], zones: [], tele: [], fx: [], parts: [], texts: [], drops: [], orbs: [], timers: [], rooms: new Map(), cur: null,
@@ -3765,7 +3767,11 @@ const NET = {
   applySnap(m) {
     if (!G || !G.client) return;
     if (G.cur && m.hu) G.cur.haz.forEach((h, i) => (h.up = !!m.hu[i]));
-    Object.assign(G, { raidN: m.rn, curse: m.cu, mode: m.mode, floor: m.fl, stage: m.stg, endlessN: m.en, locked: m.locked, paused: false, shake: Math.max(G.shake, m.sh || 0) });
+    Object.assign(G, { raidN: m.rn, curse: m.cu, mode: m.mode, floor: m.fl, eFloor: m.ef || G.eFloor, stage: m.stg, endlessN: m.en, locked: m.locked, paused: false, shake: Math.max(G.shake, m.sh || 0) });
+    // 친구 화면: 층이 바뀌면 그 층 그림 묶음(보스·바닥·벽)을 받는다 (11-15 사용자: 친구 화면에 보스가 안 보이고 바닥이 늘 기본)
+    { const f = ((G.mode === "endless" ? (G.eFloor || 1) : (G.floor || 1)) - 1) % 5 + 1;
+      if (G.mode === "raid" && !this._raidPacks) { this._raidPacks = 1; for (let i = 1; i <= 5; i++) needPack("f" + i).then(() => { if (G && G.cur) G.cur.needBg = true; }); }
+      if (this._packF !== f) { this._packF = f; needPack("f" + f).then(() => { if (G && G.cur) { G.cur.needBg = true; if (typeof warmRun === "function") warmRun(); } }); needPack("f" + (f % 5 + 1)); } }
     if (m.duel) G.duel = m.duel;
     if (m.room) {
       const R = { x: 0, y: 0, type: m.room.type, links: {}, visited: true, cleared: !m.locked, obs: m.room.obs, haz: m.room.haz, decor: m.room.decor, bg: m.room.bg, laid: true, cache: null };
@@ -3850,7 +3856,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.15";
+const GAME_VERSION = "1.4.17";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4313,6 +4319,8 @@ const UI = {
   },
   // 요괴록 도감 (11-12): 처치한 보스·중간보스 모음 — 층별, 처치 전엔 그림자
   bestiary() {
+    // 중간보스 전용 그림은 층별 그림 묶음에 있다 → 도감을 열면 다섯 층 묶음을 받고 다시 그린다 (11-15 사용자: 도감 이미지가 다 똑같아)
+    if (ASSETS.packs) { const miss = [1, 2, 3, 4, 5].filter((f) => ASSETS.packs["f" + f] && !PACK.done["f" + f]); if (miss.length) Promise.all(miss.map((f) => needPack("f" + f))).then(() => { if (UI._frameTitle && /도감/.test(UI._frameTitle)) UI.bestiary(); }); }
     const kb = SAVE.kb || {}, all = Object.keys(BOSSES).length, got = Object.keys(kb).length;
     const card = (k) => { const d = BOSSES[k], n = kb[k] || 0, im = ASSETS.img[k] ? k : d.art; return `<div class="item ${n ? "" : "off"}" style="min-height:0;padding:8px;text-align:center">
       <div style="height:110px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(im)}" alt="" style="max-height:108px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div>
