@@ -1152,6 +1152,16 @@ const JOB_K = [1, 1.15, 1.3, 1.45, 1.6]; // 11-13 밸런스: 5차까지 같은 �
 // ===== 밸런스 상한 (사용자 요청 11-13: "궁극기 쿨타임 감소가 강화를 끝까지 하면 너무 자주 사용 가능" 같은 무너짐 막기) =====
 // 패시브는 같은 것을 Lv.3까지. 능력치는 패시브·아티팩트·펫·칭호·전직·상점을 다 합쳐도 아래 값을 넘지 않는다.
 const BOON_MAX = 3;
+// ===== 근거리·원거리 밸런스 (사용자 요청 11-14: "원거리 캐릭터가 근접에 비해 게임 난이도가 압도적으로 쉬워") =====
+// 같은 싸움 시뮬레이션(3층 보통, Lv.20 장비 없음, 원거리는 거리 벌리며 쏘기): 근거리 받은 피해 247% / 원거리 201%(정리 속도 비슷).
+// 실제 플레이어는 더 잘 피하므로 차이는 더 크다 → 근거리에 '근접 투지', 원거리는 위력 조금 줄임
+const ROLE_OF = (range) => (/원거리/.test(range) && !/근접/.test(range) ? "ranged" : /중거리|근접\/원거리/.test(range) ? "mid" : /근접\(긴\)/.test(range) ? "reach" : "melee");
+const ROLE_MODS = {
+  melee: { name: "근접 투지", m: { dr: 0.14, hp: 0.16, ls: 0.03 }, desc: "받는 피해 -14% · 최대 체력 +16% · 흡혈 3%" },
+  reach: { name: "근접 투지", m: { dr: 0.09, hp: 0.11, ls: 0.02 }, desc: "받는 피해 -9% · 최대 체력 +11% · 흡혈 2%" },
+  mid: { name: "균형", m: { dr: 0.05, hp: 0.06 }, desc: "받는 피해 -5% · 최대 체력 +6%" },
+  ranged: { name: "거리 유지", m: { atk: -0.08 }, desc: "공격력 -8% (멀리서 안전하게 싸우는 대가)" },
+};
 const STAT_CAP = { cdr: 0.40, ultcd: 0.30, echo: 0.25, crit: 0.80, critdmg: 2.0, as: 1.2, spd: 0.6, area: 0.8, dr: 0.6, ls: 0.10, regen: 0.01, thorns: 1.5, shieldRoom: 0.35, execute: 0.3 };
 const ULT_MIN = 0.45; // 궁극기 대기는 모든 감소를 합쳐도 원래의 45% 아래로 내려가지 않는다
 function jobSkillText(cid, tier, kind) {
@@ -1504,7 +1514,7 @@ function drMul(u) { let r = 1 - (u.drBase || 0); for (const b of u.buffs) if (b.
 function makeHero(cid, o) {
   const form = o.form || null, def = charDef(cid, form);
   const u = { kind: "hero", team: o.team || 0, id: cid, form, def, el: nearEl(def.col), art: charArt(cid, form), x: o.x || RW / 2, y: o.y || RH / 2, r: 22, lvl: o.lvl || 1, exp: 0,
-    hp: 1, maxHp: 0, shield: 0, buffs: [], boons: [], baseMods: o.mods || [], enh: o.enh || 0, hpMul: o.hpMul, atkMul: o.atkMul,
+    hp: 1, maxHp: 0, shield: 0, buffs: [], boons: [], baseMods: [...(o.mods || []), (ROLE_MODS[ROLE_OF(def.range)] || {}).m].filter(Boolean), enh: o.enh || 0, hpMul: o.hpMul, atkMul: o.atkMul,
     cd: { B: 0, Q: 0, W: 0, E: 0, R: 0, A: 0 }, active: null, tx: null, ty: null, vx: 0, vy: 0, face: 0, flip: false, alive: true,
     stunT: 0, slowT: 0, slow: 0, invT: 0, hitT: 0, dash: null, moveT: 0, revive: 0, nextCrit: false, bot: !!o.bot };
   u.sk = {};
@@ -3822,7 +3832,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.11";
+const GAME_VERSION = "1.4.12";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4381,6 +4391,7 @@ const UI = {
           <div>등급 <b style="color:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</b> <span class="muted">(기본 능력 ×${GRADE_INFO[CHAR_GRADE[id]].mul})</span></div>
           <div>얻는 법 <b>${UNLOCK_TYPE[c.unlock.type]}</b> <span class="muted">${c.unlock.type === "gacha" ? "캐릭터 뽑기 · 조각 " + shardNeed(id) + "개" : esc(c.unlock.text || "")}</span></div>
           <div>속성 <b>${EL_NAME[nearEl(def.col)] || "-"}</b> · 공격 방식 <b>${def.range}</b> · 사거리 <b>${CHAR_RANGE[art] || CHAR_RANGE[id] || "-"}</b></div>
+          <div>${(() => { const R = ROLE_MODS[ROLE_OF(def.range)]; return R ? `${R.m.atk < 0 ? "🏹" : "🛡️"} <b>${R.name}</b> <span class="muted">${R.desc}</span>` : ""; })()}</div>
           <div>조각 <b>${(SAVE.shards || {})[id] || 0}</b> · 강화 <b>+${(SAVE.enh || {})[id] || 0}</b> / ${SHARD.maxEnh}</div>
           ${own ? `<div>장착 스킬 <b>${["Q", "W", "E", "R"].filter((s) => eq[s]).length}</b>/4 칸 바꿈</div>` : ""}</div></div>
         ${lockInfo}<div style="margin-top:12px">${start}</div>
