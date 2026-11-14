@@ -189,6 +189,11 @@ h3 { font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin: 
 .sk .cdv { position: absolute; inset: 0; border-radius: 12px; background: conic-gradient(rgba(0, 0, 0, 0.72) var(--p), transparent 0); }
 .sk .cdt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 1.3rem; text-shadow: 0 1px 3px #000; }
 .sk .lv { position: absolute; right: 4px; bottom: 2px; font-size: 0.65rem; color: var(--gem); }
+/* 화면 버튼 크기·투명도 (키 설정, 11-14) */
+#hud .skills { transform: scale(var(--btnS, 1)); transform-origin: left bottom; opacity: var(--btnA, 1); }
+#hud .touch { transform: scale(var(--btnS, 1)); transform-origin: right bottom; opacity: var(--btnA, 1); }
+#hud .joy { transform: scale(var(--joyS, 1)); transform-origin: left bottom; opacity: var(--btnA, 1); }
+.btnset p { display: flex; align-items: center; gap: 8px; margin: 6px 0; } .btnset input[type=range] { flex: 1; } .btnset b { min-width: 44px; text-align: right; color: var(--gold2); }
 .sk .alock { position: absolute; right: -9px; top: -9px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #b8873a; background: #1a1220; font-size: 13px; line-height: 22px; padding: 0; cursor: pointer; z-index: 3; box-shadow: 0 2px 6px #000a; pointer-events: auto; }
 .sk.locked { box-shadow: 0 0 0 2px #ffd27a, 0 0 14px #ffd27a88 !important; } .sk.locked .alock { background: #ffd27a; border-color: #fff3c4; }
 .sk .jtag { position: absolute; left: 50%; top: -11px; transform: translateX(-50%); padding: 0 6px; border-radius: 8px; font-size: .62rem; line-height: 15px; white-space: nowrap; color: #2a1404; background: linear-gradient(180deg, #ffe7a8, #e0a13e); box-shadow: 0 1px 4px #000a; font-family: var(--display); }
@@ -1423,9 +1428,10 @@ const PACK = { done: {}, wait: {} };
 function needPack(name) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
   if (PACK.wait[name]) return PACK.wait[name];
-  return (PACK.wait[name] = fetch(ASSETS.packs[name]).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((j) => {
+  const url = ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : "");
+  return (PACK.wait[name] = fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((j) => {
     for (const k in j.img) { ASSETS.img[k] = j.img[k]; const im = new Image(); im.src = j.img[k]; IMG[k] = im; }
-    Object.assign(ASSETS.meta, j.meta || {}); PACK.done[name] = true;
+    Object.assign(ASSETS.meta, j.meta || {}); PACK.done[name] = true; if (G && G.p) setTimeout(warmRun, 30);
   }).catch(() => { delete PACK.wait[name]; }));
 }
 const charPack = (id) => "c_" + (/^bong/.test(id) ? "bong" : id);
@@ -1433,6 +1439,36 @@ function needRunPacks(opt) {
   const ps = [charPack(opt.char)];
   const f = opt.mode === "story" ? opt.floor || 1 : 1; ps.push("f" + f, "f" + Math.min(5, f + 1));
   return Promise.all(ps.map(needPack));
+}
+// 그림 미리 풀어 두기 (사용자 11-14: 모바일에서 렉이 살짝씩) — 그림을 처음 그리는 순간 그 자리에서 압축을 풀어서
+// 싸움 첫 10여 초에 0.05~0.13초씩 멈칫했다(폰 성능 흉내 시험, 그 뒤로는 0번). 이번 판에 쓸 그림만 미리 백그라운드에서 푼다.
+const WARMED = new Set();
+let _warmCv = null;
+function warmCtx() { if (!_warmCv) { _warmCv = document.createElement("canvas"); _warmCv.width = _warmCv.height = 512; } return _warmCv.getContext("2d"); }
+function warmKeys(prefixes) {
+  const keys = Object.keys(IMG).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
+  let i = 0;
+  const step = () => {
+    // 싸우는 중(방이 잠김)에는 쉬었다가, 조용할 때(시작 방·정리한 방·멈춤·이야기 화면) 이어서 푼다
+    if (G && !G.paused && typeof roomLocked === "function" && G.cur && roomLocked()) { setTimeout(step, 400); return; }
+    const batch = keys.slice(i, i + 6); i += 6;
+    Promise.all(batch.map((k) => { WARMED.add(k); const im = IMG[k]; return im && im.decode ? im.decode().catch(() => { }) : null; })).then(() => {
+      if (i < keys.length) requestAnimationFrame(step);
+    });
+  };
+  if (keys.length) step();
+  return keys.length;
+}
+function warmRun() {
+  if (!G || !G.p) return 0;
+  const P = ["fx_", "vfx_", "cvfx_hit", "cvfx_mob", "cvfx_pet", "cvfx_sum", "sign_", "cvfx_btel_", "obj_", "door", "trap", "sign", "lantern", "chest", "well", "prop", "ic_", "bn_", "emo_", "cur_", "ui_"];
+  for (const u of G.units) if (u.kind === "hero") { const id = u.id, art = u.art || id; P.push("spr_" + art, "cvfx_" + id + "_", "cvfx_sk_" + id + "_", "sk_" + id + "_", "pet_", "sum_"); for (const s of Object.values(u.sk || {})) if (s.icon) P.push(s.icon); }
+  const f = ((G.mode === "endless" ? G.eFloor || 1 : G.floor || 1) - 1) % 5 + 1, th = theme();
+  for (const k of (th && th.enemies) || []) { const e = ENEMIES[k]; if (e && e.img) P.push(e.img); }
+  const bosses = Object.keys(BOSSES).filter((k) => BOSSES[k].fl === f || (G.mode === "raid" && !BOSSES[k].mid));
+  for (const k of bosses) { const d = BOSSES[k]; if (!d) continue; const im = d.img || k; P.push(im, "cvfx_bfx_" + im, "cvfx_bp_" + im, "cvfx_btel_" + im); }
+  P.push("sc_f" + f + "_", "wall", "room", "f" + f);
+  return warmKeys(P);
 }
 function loadImages() { for (const k in ASSETS.img) { const im = new Image(); im.src = ASSETS.img[k]; IMG[k] = im; } }
 
@@ -1516,6 +1552,7 @@ function newRun(opt) {
   G.midnight = new Date().getHours() === 0 && opt.mode !== "duel"; // 이스터 에그: 자정의 미궁
   if (opt.resume) { const R = opt.resume; G.stage = R.stage || 1; p.lvl = R.lvl || p.lvl; p.exp = R.exp || 0; p.boons = (R.boons || []).slice(); p.jobs = []; for (const j of R.jobs || []) applyJob(p, Object.assign({}, j, { tier: j.tier != null ? j.tier : p.jobs.length }), true); p.gold = R.gold || 0; if (R.active) p.active = R.active; p.actLock = !!R.actLock; p.shopItems = (R.shop || []).filter((k) => SHOP_ITEMS[k]); for (const k of p.shopItems) p.baseMods.push(SHOP_ITEMS[k].m); recalc(p); p.hp = p.maxHp;
     if (R.run) { G.kills = R.run.kills || 0; G.roomsCleared = R.run.rooms || 0; G.bossKills = R.run.bossKills || 0; G.coinGot = R.run.coinGot || 0; } G.resumed = true; }
+  warmRun(); // 첫 화면에 그릴 그림부터 바로 풀기 시작 (11-14 렉)
   if (opt.mode !== "duel") { jobCatchUp(p); if (G.p2 && G.p2.remote) jobCatchUp(G.p2); }
   if (opt.mode === "story") { S.stats.story_start = 1; startStage(); }
   else if (opt.mode === "endless") { G.floor = 1; startEndless(); }
@@ -1524,6 +1561,7 @@ function newRun(opt) {
   else if (opt.mode === "practice") startPractice();
   else startDuel();
   UI.onRunStart();
+  setTimeout(warmRun, 50); if (typeof resize === "function") resize(); // 저사양 모드(dpr 1)가 판 시작에 바로 적용되게 (11-14)
   if (!opt.multi && ["Q", "W", "E", "R"].some((s) => isPlaceFx(slotFx(p, s)))) setTimeout(() => { if (G && !G.over) UI.tip("place"); }, 8000);
   if (!opt.multi && opt.mode !== "duel") setTimeout(() => { if (G && !G.over) UI.tip("map"); }, 20000);
   if (G.midnight) setTimeout(() => { if (G) G.banner = { text: "🌙 자정의 미궁", sub: "자정에만 열리는 푸른 등불 — 엽전 +30%", t: 3.5 }; }, 3200);
@@ -1571,7 +1609,7 @@ function storySnap() {
 }
 function startStage() {
   if (G.mode === "story" && !G.opt.multi) { SAVE.resume = storySnap(); saveGame(); }
-  needPack("f" + G.floor); if (G.floor < 5) needPack("f" + (G.floor + 1));
+  needPack("f" + G.floor); if (G.floor < 5) needPack("f" + (G.floor + 1)); if (G.stage === 1) setTimeout(warmRun, 50);
   G.rooms = new Map(); G.stageHit = false;
   const n = Math.min(12, 5 + G.floor + Math.ceil(G.stage / 2));
   const start = newRoom(0, 0, "start"); G.rooms.set("0,0", start);
@@ -2872,7 +2910,7 @@ function endlessNextStage() {
       rollCurse(false);
       G.banner = { text: G.eFloor > 5 ? `${Math.floor((G.eFloor - 1) / 5) + 1}회차 ${(G.eFloor - 1) % 5 + 1}층 도착!` : `${G.eFloor}층 도착!`, sub: G.curse ? `${CURSES[G.curse].ic} ${curseSub()}` : `요괴 속성: ${YOKAI_EL[(G.eFloor - 1) % 5].n} (약점 ${YOKAI_EL[(G.eFloor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")}) · 체력 25% 회복`, t: 3.4 };
     } else { G.eStage++; rollCurse(G.eStage >= STAGES_PER_FLOOR); G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: `${G.eFloor}층 ${G.eStage}스테이지 · ${curseSub()}`, t: 3.5, boss: true } : { text: `${G.eFloor}층 ${G.eStage}스테이지`, sub: G.eStage >= STAGES_PER_FLOOR ? "이번 스테이지 끝에는 층보스!" : "체력 25% 회복", t: 2.4 }; }
-    const nf = ((G.eFloor || 1) - 1) % 5 + 1; needPack("f" + nf); needPack("f" + (nf % 5 + 1));
+    const nf = ((G.eFloor || 1) - 1) % 5 + 1; needPack("f" + nf); needPack("f" + (nf % 5 + 1)); setTimeout(warmRun, 50);
     G.rooms = new Map(); const s = newRoom(0, 0, "start"); G.rooms.set("0,0", s); makeEndlessExits(s, null); enterRoom("0,0", null); UI.music("endless");
   } };
 }
@@ -2917,8 +2955,10 @@ function addText(x, y, s, col, size, big) { G.texts.push({ x, y, s, col, size: s
 function spark(x, y, col, n) { if (SAVE && SAVE.settings.low) { if (G.parts.length > 50) return; n = Math.ceil(n / 3); } for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-220, 220), vy: rnd(-260, 40), t: 0, max: rnd(0.25, 0.5), col, s: rnd(2, 4) }); }
 
 // ---------- 그리기 ----------
+let autoDpr = 0; // 자동 화질로 낮춘 값 (0이면 그대로)
 function resize() {
-  const dpr = SAVE && SAVE.settings && SAVE.settings.low ? 1 : Math.min(2, window.devicePixelRatio || 1); // 저사양 모드 (11-12)
+  let dpr = SAVE && SAVE.settings && SAVE.settings.low ? 1 : Math.min(2, window.devicePixelRatio || 1); // 저사양 모드 (11-12)
+  if (autoDpr && autoDpr < dpr) dpr = autoDpr;
   cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr);
   const s = Math.min(cv.width / RW, cv.height / RH); view = { s, ox: (cv.width - RW * s) / 2, oy: (cv.height - RH * s) / 2, dpr };
 }
@@ -3522,8 +3562,18 @@ function useSlot(s) { if (!G || G.paused) return; if (NET.client) { NET.sendKey(
 function setMove(w) { if (NET.client) { input.tx = w.x; input.ty = w.y; input.tseq = (input.tseq || 0) + 1; return; } const p = G.p; if (!p.alive || p.stunT > 0) return; p.tx = clamp(w.x, 0, RW); p.ty = clamp(w.y, 0, RH); }
 
 let lastT = 0;
+// 자동 화질 (11-14 사용자: 모바일에서 렉이 살짝씩) — 판 도중 4초 동안 한 장 평균이 22ms(약 45fps 아래)를 넘으면 해상도를 한 단계 낮춘다
+const perfWin = { n: 0, sum: 0, t0: 0 };
+function perfWatch(ms) {
+  if (!G || G.paused || document.hidden || ms > 250) return;
+  perfWin.n++; perfWin.sum += ms; if (!perfWin.t0) perfWin.t0 = performance.now();
+  if (performance.now() - perfWin.t0 < 4000) return;
+  const avg = perfWin.sum / perfWin.n; perfWin.n = perfWin.sum = perfWin.t0 = 0;
+  const cur = view && view.dpr ? view.dpr : 1;
+  if (avg > 22 && cur > 1) { autoDpr = cur > 1.5 ? 1.5 : 1; resize(); if (G.p) addText(G.p.x, G.p.y - 130, "⚙️ 부드럽게 하려고 화질을 조금 낮췄어요", "#9fe8ff", 18); }
+}
 function loop(t) {
-  const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); perfWatch(t - lastT); lastT = t;
   try { update(dt); NET.hostTick(dt); render(); UI.hud(); } catch (err) { console.error(err); UI.error && UI.error(err); }
   requestAnimationFrame(loop);
 }
@@ -3772,7 +3822,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.8";
+const GAME_VERSION = "1.4.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -3789,13 +3839,24 @@ function installPc() {
     <div class="center"><button class="btn" id="ipok">닫기</button></div>`);
   $("#ipok").onclick = () => UI.closeModal();
 }
+// 자동 업데이트 (11-14 사용자: 모바일에서 자동 업데이트가 안 되는 것 같음) — 켤 때 한 번만 확인하던 것을,
+// 화면이 다시 보일 때마다·10분마다 확인한다. 판 도중이면 알림만 띄우고 판이 끝나 처음 화면에 오면 새로 읽는다.
+let _updPending = null;
+function applyUpdate(ver) {
+  if (G) { if (_updPending !== ver) { _updPending = ver; UI.toast(`🆕 새 버전 v${ver} — 이번 판이 끝나면 자동으로 바뀌어요`, 5000); } return; }
+  const k = "dbm_reload_" + ver; let n = 0; try { n = +(sessionStorage.getItem(k) || 0); if (n >= 2) return; sessionStorage.setItem(k, n + 1); } catch (e) { }
+  if (typeof saveGame === "function") saveGame(); if (typeof CLOUD !== "undefined" && CLOUD.on) CLOUD.push(true);
+  setTimeout(() => location.replace(UPDATE_URL + "?v=" + encodeURIComponent(ver) + "&t=" + Date.now()), 400);
+}
+setInterval(() => { if (_updPending && !G) applyUpdate(_updPending); }, 3000);
+setInterval(() => checkUpdate(), 10 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkUpdate(); });
 function checkUpdate() {
-  // 온라인판(앱 포함)이 예전 캐시면 새 버전으로 바로 다시 읽기 — 버전마다 한 번만 (11-12: 업데이트 즉시 반영)
+  // 온라인판(앱 포함)이 예전 캐시면 새 버전으로 다시 읽기 (11-12: 업데이트 즉시 반영)
   if (UPDATE_URL && location.href.startsWith(UPDATE_URL)) {
     fetch(UPDATE_URL + "version.json?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json()).then((j) => {
       if (verNum(j.version) <= verNum(GAME_VERSION)) return;
-      const k = "dbm_reload_" + j.version; try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, 1); } catch (e) { }
-      location.replace(UPDATE_URL + "?v=" + encodeURIComponent(j.version) + "&t=" + Date.now());
+      applyUpdate(j.version);
     }).catch(() => { });
     return;
   }
@@ -4676,7 +4737,7 @@ const UI = {
     if (joy) {
       const knob = joy.querySelector("i"); let id = null;
       const setV = (e) => { const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = e.clientX - cx, dy = e.clientY - cy; const L = Math.hypot(dx, dy), M = r.width / 2 - 20; if (L > M) { dx *= M / L; dy *= M / L; }
-        knob.style.transform = `translate(${dx}px,${dy}px)`; const dead = 12; input.kx = Math.abs(dx) > dead ? dx / M : 0; input.ky = Math.abs(dy) > dead ? dy / M : 0; };
+        const sc = r.width / (joy.offsetWidth || r.width); knob.style.transform = `translate(${dx / sc}px,${dy / sc}px)`; const dead = 12; input.kx = Math.abs(dx) > dead ? dx / M : 0; input.ky = Math.abs(dy) > dead ? dy / M : 0; };
       joy.onpointerdown = (e) => { id = e.pointerId; joy.setPointerCapture(id); input.touch = true; setV(e); e.preventDefault(); };
       joy.onpointermove = (e) => { if (e.pointerId === id) setV(e); };
       joy.onpointerup = joy.onpointercancel = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ""; input.kx = input.ky = 0; };
@@ -4697,7 +4758,7 @@ const UI = {
       el.onpointermove = (e) => {
         if (!drag || e.pointerId !== drag.id || !G || !G.p) return;
         const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-        if (!drag.moved && Math.hypot(dx, dy) > 14) { drag.moved = true; if (!startAim(s)) { drag = null; return; } input.aim.drag = true; }
+        if (!drag.moved && Math.hypot(dx, dy) > 14) { drag.moved = true; if (!startAim(s) || !input.aim) { drag = null; return; } input.aim.drag = true; } // 대기 중이면 startAim이 깜빡이기만 하고 조준을 만들지 않음 → 11-14 "Cannot set properties of null (setting drag)"
         if (drag.moved && input.aim) { const pi = input.aim, k = 3.2; const p = aimClamp(G.p, G.p.x + dx * k, G.p.y + dy * k, pi.range); pi.x = p.x; pi.y = p.y; }
       };
       el.onpointerup = el.onpointercancel = (e) => {
@@ -4708,7 +4769,7 @@ const UI = {
       };
       el.onpointerleave = () => { if (s === "B") input.atkHeld = false; };
     });
-    UI._hudT = 0;
+    UI._hudT = 0; applyBtnStyle();
   },
   flashSlot(s) { const el = document.querySelector(`#hud .sk[data-s="${s}"]`); if (!el) return; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); },
   hud() {
@@ -4779,7 +4840,15 @@ const UI = {
     const K = keyMap(), wasPaused = G && G.paused;
     const rows = KEY_ACTIONS.map(([a, n]) => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)"><span style="flex:1">${n}</span><span class="kbd" style="min-width:90px;text-align:center" id="kv_${a}">${keyLabel(K[a])}</span><button class="btn sm" data-ka="${a}">바꾸기</button></div>`).join("");
     UI.modal(`<h2>⌨️ 키 설정</h2><p class="muted" style="text-align:center">'바꾸기'를 누른 뒤 원하는 키나 마우스 버튼을 누르세요. 다른 동작과 겹치면 서로 바뀌어요. (방향키는 언제나 이동으로도 쓸 수 있어요)</p>
+      <div class="card btnset" style="max-width:520px;margin:0 auto 12px"><h3>🎛 화면 버튼</h3>
+        <p>스킬 버튼 크기 <input type="range" id="bsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.btnScale || 1}"> <b id="bszv">${Math.round((SAVE.settings.btnScale || 1) * 100)}%</b></p>
+        <p>조이스틱 크기 <input type="range" id="jsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.joyScale || 1}"> <b id="jszv">${Math.round((SAVE.settings.joyScale || 1) * 100)}%</b> <span class="muted">(폰)</span></p>
+        <p>버튼 투명도 <input type="range" id="bal" min="0.3" max="1" step="0.05" value="${SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1}"> <b id="balv">${Math.round((SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1) * 100)}%</b> <span class="muted">(낮을수록 투명)</span></p>
+        <div class="center"><button class="btn sm" id="bsreset">버튼 기본값</button></div></div>
       <div style="max-width:520px;margin:0 auto">${rows}</div><div class="center"><button class="btn" id="kreset">기본값으로</button><button class="btn gold" id="kdone">완료</button></div>`);
+    const bset = (id, key, out) => { $("#" + id).oninput = (e) => { SAVE.settings[key] = +e.target.value; $("#" + out).textContent = Math.round(+e.target.value * 100) + "%"; applyBtnStyle(); saveGame(); }; };
+    bset("bsz", "btnScale", "bszv"); bset("jsz", "joyScale", "jszv"); bset("bal", "btnAlpha", "balv");
+    $("#bsreset").onclick = () => { delete SAVE.settings.btnScale; delete SAVE.settings.joyScale; delete SAVE.settings.btnAlpha; applyBtnStyle(); saveGame(); UI.keys(after); };
     const save = (k) => { SAVE.settings.keys = k; saveGame(); };
     document.querySelectorAll("[data-ka]").forEach((b) => (b.onclick = (ev) => {
       ev.stopPropagation(); const a = b.dataset.ka; $("#kv_" + a).textContent = "키를 누르세요…"; UI.capturing = true;
@@ -4883,6 +4952,11 @@ function jobArtHtml(cid, kind, tier, big) {
   const k = `job_${cid}_${kind}`, art = charArt(cid, CHAR[cid] && CHAR[cid].forms ? "wolf" : null);
   if (ASSETS.img[k]) return `<img class="jimg" src="${imgSrc(k)}" alt="">`;
   return `<div class="jfall ${kind}" style="background-image:url(${imgSrc("card_" + art)})"></div><img class="jspr" src="${imgSrc("spr_" + art + "_skill") || imgSrc("spr_" + art)}" alt="">`;
+}
+// 화면 버튼 크기·투명도 (키 설정에서 조절, 11-14)
+function applyBtnStyle() {
+  const h = document.getElementById("hud"); if (!h || !SAVE) return; const s = SAVE.settings;
+  h.style.setProperty("--btnS", s.btnScale || 1); h.style.setProperty("--joyS", s.joyScale || 1); h.style.setProperty("--btnA", s.btnAlpha != null ? s.btnAlpha : 1);
 }
 function gCard(bg, tag, name, sub, own, tip) { return `<div class="ch anim-card ${own ? "" : "lock"}" title="${esc(tip || "")}">${bg}<span class="tag" style="z-index:2">${tag}</span><span class="nm" style="z-index:2">${name}<small>${sub}</small></span></div>`; }
 function gBg(kind, d) {
