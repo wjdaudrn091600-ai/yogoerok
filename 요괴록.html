@@ -3704,7 +3704,7 @@ const NET = {
   onGuest(m) {
     if (m.t === "full") { UI.toast("방이 가득 찼어요"); this.leave(); UI.multi(); }
     else if (m.t === "lobby") { this.lobby.host = { name: m.host, mode: m.mode, ver: m.ver, char: m.char, diff: m.diff || "normal" }; if (m.ver !== GAME_VERSION) UI.toast("⚠️ 방장과 게임 판이 달라요 (" + m.ver + "). 같은 최신 파일을 쓰세요", 5000); this.lobby.onUpdate && this.lobby.onUpdate(); }
-    else if (m.t === "start") { needPack(charPack(SAVE.sel)); needPack("f" + (m.floor || 1)); if (this.lobby && this.lobby.hostChar) needPack(charPack(this.lobby.hostChar)); this.startClient(m); }
+    else if (m.t === "start") { if (SAVE) needPack(charPack(SAVE.sel)); needPack("f" + (m.floor || 1)); if (this.lobby && this.lobby.hostChar) needPack(charPack(this.lobby.hostChar)); this.startClient(m); }
     else if (m.t === "s") { this.applySnap(m); }
     else if (m.t === "lv") { UI.guestLevelUp(m.opts, m.lvl); }
     else if (m.t === "job") { UI.jobPick(m.tier, m.cid, (i) => this.send({ t: "jobpick", tier: m.tier, i })); }
@@ -3873,7 +3873,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.4.18";
+const GAME_VERSION = "1.4.19";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4241,7 +4241,7 @@ const UI = {
   typing() { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"); },
   music,
   toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
-  error(err) { const b = $("#errbox"); b.hidden = false; b.textContent = "오류: " + (err && err.message); },
+  error(err) { const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
   modal(html) { $("#mbox").innerHTML = html; $("#modal").hidden = false; },
   closeModal() { $("#modal").hidden = true; $("#mbox").innerHTML = ""; },
 
@@ -4292,7 +4292,7 @@ const UI = {
     }[key];
     if (!T || !SAVE || /autotest/.test(location.hash)) return;
     SAVE.tips = SAVE.tips || {}; if (SAVE.tips[key]) return; SAVE.tips[key] = 1; saveGame();
-    if (UI.modalOpen()) { setTimeout(() => { SAVE.tips[key] = 0; UI.tip(key); }, 1500); return; }
+    if (UI.modalOpen()) { setTimeout(() => { if (!SAVE) return; SAVE.tips[key] = 0; UI.tip(key); }, 1500); return; }
     const wasG = G && !G.paused; if (wasG) G.paused = true;
     UI.modal(`<h2>${T[0]}</h2><p style="text-align:center;line-height:1.8">${T[1]}</p><div class="center"><button class="btn gold" id="tipok">알겠어요</button></div>`);
     $("#tipok").onclick = () => { UI.closeModal(); if (wasG && G) G.paused = false; };
@@ -4382,7 +4382,7 @@ const UI = {
     document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => UI.chars({ mode: b.dataset.m })));
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
     if (SAVE.bounty) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
-    if (ASSETS.packs) setTimeout(() => { needPack(charPack(SAVE.sel)).then(() => needPack("f1")).then(() => needPack("g")); }, 1500);
+    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel)).then(() => needPack("f1")).then(() => needPack("g")); }, 1500); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
