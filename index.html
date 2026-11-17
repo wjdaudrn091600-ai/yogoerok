@@ -212,6 +212,13 @@ h3 { font-family: var(--display); font-weight: 400; font-size: 1.25rem; margin: 
 .bar { position: relative; height: 14px; border-radius: 7px; background: #2a1a1f; overflow: hidden; margin-top: 4px; }
 .bar > i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ff7a6a, #c0302a); }
 .bar > s { position: absolute; inset: 0 auto 0 0; background: rgba(150, 210, 255, 0.6); }
+/* 11-17 하이엔드 체력 막대: 유리 광택 + 깎인 몫 + 낮을 때 맥박 */
+.bar > b.lag { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#fff6e0, #ffc9a0); opacity: 0.85; transition: none; }
+.bar > i { box-shadow: inset 0 -3px 6px rgba(0,0,0,0.35), 0 0 10px rgba(255,90,70,0.35); transition: width 0.08s linear; }
+.bar > i::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 45%; background: linear-gradient(rgba(255,255,255,0.38), rgba(255,255,255,0.05)); border-radius: 7px 7px 0 0; }
+.bar.hp { border: 1px solid rgba(255,190,150,0.25); box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
+.bar.hp.low > i { animation: hplow 0.8s ease-in-out infinite alternate; }
+@keyframes hplow { from { filter: brightness(1); } to { filter: brightness(1.5) saturate(1.3); } }
 .bar > span { position: absolute; inset: 0; font-size: 0.72rem; text-align: center; line-height: 14px; text-shadow: 0 1px 2px #000; }
 .bar.xp { height: 6px; background: #1d1828; } .bar.xp > i { background: linear-gradient(90deg, #8a5bff, #c9a0ff); }
 .stage { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); text-align: center; font-family: var(--display); font-size: 1.15rem; background: rgba(10, 8, 14, 0.7); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; white-space: nowrap; }
@@ -4475,7 +4482,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.6.0";
+const GAME_VERSION = "1.6.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4884,6 +4891,11 @@ function titleParts() { // 11-17 타이틀: 밤하늘로 떠오르는 풍등·�
     g.globalCompositeOperation = "source-over"; requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
+const _hpl = {}; // 체력 막대 뒤 하얀 '깎인 몫': 0.45초 기다렸다 부드럽게 따라감 (회복은 바로)
+function hpLag(k, f, el) { if (!el) return; const now = performance.now(), o = _hpl[k] || (_hpl[k] = { v: f, t: now, last: now });
+  if (f >= o.v) { o.v = f; o.t = now; } else if (f < o.prev - 0.0005) o.t = now; o.prev = f;
+  const dt = Math.min(0.1, (now - o.last) / 1000); o.last = now; if (now - o.t > 450) o.v = Math.max(f, o.v - dt * 0.6);
+  el.style.width = o.v * 100 + "%"; }
 const UI = {
   _modal: false, _tipSlot: null,
   modalOpen() { return !$("#modal").hidden; },
@@ -5470,10 +5482,10 @@ const UI = {
     input.touch = touch;
     const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span>${s === "A" ? `<button class="alock" id="alock" title="액티브 잠금 (${keyLabel(keyMap().lock)})">🔓</button>` : ""}<span class="jtag"></span></div>`;
     $("#hud").innerHTML = `<div class="hp-box"><div class="face" style="background-image:url(${imgSrc("card_" + p.art)})"></div><div class="meta">
-        <div class="nm" id="hnm"></div><div class="bar"><s id="hsh"></s><i id="hhp"></i><span id="hhpt"></span></div><div class="bar xp"><i id="hxp"></i></div></div></div>
+        <div class="nm" id="hnm"></div><div class="bar hp"><b class="lag" id="hhpl"></b><s id="hsh"></s><i id="hhp"></i><span id="hhpt"></span></div><div class="bar xp"><i id="hxp"></i></div></div></div>
       <div class="hp-box" id="fbox" hidden style="top:86px;min-width:260px;border-color:#7fe08a"><div class="face" id="fface" style="width:44px;height:44px"></div><div class="meta"><div class="nm" id="fnm"></div><div class="bar" style="height:10px"><s id="fsh"></s><i id="fhp" style="background:linear-gradient(#9fffb0,#3a9a4a)"></i></div></div></div>
       <div class="boonlist" id="boons"></div>
-      <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
+      <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><b class="lag" id="hbhpl"></b><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
       <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="멈춤 · 소리 · 키 설정 (Esc)">${uiIc("pause", "⏸")}</button></div></div>
       ${touch ? `<div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
@@ -5525,7 +5537,7 @@ const UI = {
     const p = G.p; if (!p || !p.sk || !p.maxHp) return; UI._hudT = (UI._hudT || 0) + 1; if (UI._hudT % 4) return;
     const tt = SAVE.equip.title && G.mode !== "duel" ? TITLES[SAVE.equip.title].name : "";
     $("#hnm").innerHTML = `${p.def.name}${p.formName ? "(" + p.formName + ")" : ""} <small>${p.jobName ? "<b style='color:#ffb547'>" + p.jobName + "</b> " : ""}${tt ? "「" + tt + "」 " : ""}Lv.${p.lvl}</small>`;
-    $("#hhp").style.width = (Math.max(0, p.hp) / p.maxHp) * 100 + "%"; $("#hsh").style.width = Math.min(100, (p.shield / p.maxHp) * 100) + "%";
+    { const f = Math.max(0, p.hp) / p.maxHp; $("#hhp").style.width = f * 100 + "%"; hpLag("p", f, $("#hhpl")); $(".bar.hp").classList.toggle("low", f < 0.3); } // 11-17 깎인 체력이 하얗게 남았다 천천히 줄어듦 $("#hsh").style.width = Math.min(100, (p.shield / p.maxHp) * 100) + "%";
     $("#hhpt").textContent = `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}${p.shield > 1 ? ` (+${Math.round(p.shield)})` : ""}`;
     $("#hxp").style.width = G.mode === "duel" ? "0" : (p.exp / expNeed(p.lvl)) * 100 + "%";
     $("#hc").textContent = SAVE.coins; $("#hg").textContent = p.gold || 0;
@@ -5535,7 +5547,7 @@ const UI = {
     const st = (G.mode === "practice" ? "🎯 연습장" : G.mode === "dev" ? "🛠 개발자 맵" : G.mode === "raid" ? `🐉 보스 레이드 · ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : G.mode === "story" ? `📖 ${G.floor}층 · ${theme().name} · ${G.stage}/${STAGES_PER_FLOOR} 스테이지` : G.mode === "endless" ? `♾️ 무한의 방 · ${((G.eFloor || 1) - 1) % 5 + 1}층${(G.eFloor || 1) > 5 ? ` (${Math.floor(((G.eFloor || 1) - 1) / 5) + 1}회차)` : ""} ${G.eStage || 1}/${STAGES_PER_FLOOR} 스테이지 · ${G.endlessN}번째 방` : `⚔️ ${G.duel.round}라운드 · ${G.duel.wins[0]} : ${G.duel.wins[1]}`) + dTag + yTag + cu;
     { const hs = $("#hstage"); if (hs.dataset.k !== st) { hs.dataset.k = st; hs.textContent = st; } } // 바뀔 때만 (깜빡임 방지, 11-12)
     const b = G.mode === "duel" ? G.bot : G.bossUnit && G.bossUnit.alive ? G.bossUnit : null;
-    $("#hboss").hidden = !b; if (b) $("#hboss").classList.toggle("rage", !!b.ph2); if (b) { $("#hbn").textContent = b.kind === "hero" ? `${b.guestName ? b.guestName + " — " : ""}${(b.def.name || b.name || "").replace(/\(.*\)/, "")}${b.def.job ? " · " + b.def.job : ""}${b.formName ? "(" + b.formName + ")" : ""}` : b.name; $("#hbhp").style.width = (Math.max(0, b.hp) / b.maxHp) * 100 + "%"; }
+    $("#hboss").hidden = !b; if (b) $("#hboss").classList.toggle("rage", !!b.ph2); if (b) { $("#hbn").textContent = b.kind === "hero" ? `${b.guestName ? b.guestName + " — " : ""}${(b.def.name || b.name || "").replace(/\(.*\)/, "")}${b.def.job ? " · " + b.def.job : ""}${b.formName ? "(" + b.formName + ")" : ""}` : b.name; $("#hbhp").style.width = (Math.max(0, b.hp) / b.maxHp) * 100 + "%"; hpLag("b" + (b.id || b.name), Math.max(0, b.hp) / b.maxHp, $("#hbhpl")); }
     const fr = G.units.find((u) => u.kind === "hero" && u !== p && u.team === p.team);
     $("#fbox").hidden = !fr; $("#boons").style.top = fr ? "150px" : "92px";
     if (fr) { $("#fface").style.backgroundImage = `url(${imgSrc("card_" + fr.art)})`; const nm = (fr.def && fr.def.name) || fr.name || ""; const job = fr.def && fr.def.job ? fr.def.job : (CHARS.find((c) => fr.art && fr.art.startsWith(c.id)) || {}).job || "";
