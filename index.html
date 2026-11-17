@@ -4037,7 +4037,11 @@ void main(){
   vec3 la = vec3(ambA);
   for (int i = 0; i < 40; i++) { if (i >= nL) break; vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z) continue; float att = 1.0 - dist / l.z; la += LC[i] * l.w * att * att * 0.6; }
   la = min(la, vec3(1.4));
-  col = col * (1.0 - a.a) + a.rgb * la;
+  vec3 rim = vec3(0.0);
+  if (a.a > 0.05) for (int j = 0; j < 4; j++) { int i = j == 0 ? shI.x : j == 1 ? shI.y : j == 2 ? shI.z : shI.w; if (i < 0 || i >= nL) continue;
+    vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z * 1.3) continue; float att = 1.0 - dist / (l.z * 1.3); vec2 dl = d / max(dist, 1.0);
+    float a2 = texture(tA, uv + vec2(dl.x, -dl.y) * vec2(3.5 / scr.x, 3.5 / scr.y)).a; rim += LC[i] * l.w * att * clamp(a.a - a2, 0.0, 1.0) * 1.6; }
+  col = col * (1.0 - a.a) + a.rgb * la + rim * a.a;
   vec4 b = texture(tB, uv);
   col = col * (1.0 - b.a) + b.rgb;
   o = vec4(col, 1.0);
@@ -4053,11 +4057,15 @@ void main(){ vec3 c = texture(t, uv).rgb * 0.2270270;
   c += texture(t, uv + dir * 1.3846154).rgb * 0.3162162; c += texture(t, uv - dir * 1.3846154).rgb * 0.3162162;
   c += texture(t, uv + dir * 3.2307692).rgb * 0.0702703; c += texture(t, uv - dir * 3.2307692).rgb * 0.0702703; o = vec4(c, 1.0); }`;
     const FINAL = `#version 300 es
-precision highp float; in vec2 uv; out vec4 o; uniform sampler2D tS, tB1, tB2; uniform float bloom, time, vig, grain; uniform vec3 tintS, tintH; uniform vec2 scr;
+precision highp float; in vec2 uv; out vec4 o; uniform sampler2D tS, tB1, tB2; uniform float bloom, time, vig, grain; uniform vec3 tintS, tintH; uniform vec2 scr; uniform vec4 WV[4]; uniform int nW;
 vec3 roll(vec3 c){ vec3 k = max(c - 0.78, 0.0); return min(c, 0.78) + k / (1.0 + k * 1.6); }
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){
-  vec3 c = texture(tS, uv).rgb + (texture(tB1, uv).rgb * 0.75 + texture(tB2, uv).rgb * 0.55) * bloom;
+  vec2 off = vec2(0.0); float ab = 0.0; vec2 pp = vec2(uv.x * scr.x, (1.0 - uv.y) * scr.y);
+  for (int i = 0; i < 4; i++) { if (i >= nW) break; vec4 v = WV[i]; vec2 d = pp - v.xy; float dist = length(d); float wdt = v.z * 0.14 + 10.0; float band = exp(-pow((dist - v.z) / wdt, 2.0)); vec2 n = d / max(dist, 1.0); off += n * band * v.w; ab += band * v.w; }
+  vec2 u2 = uv - vec2(off.x, -off.y) / scr; vec2 ca = vec2(off.x, -off.y) / scr * 0.35;
+  vec3 c = vec3(texture(tS, u2 + ca).r, texture(tS, u2).g, texture(tS, u2 - ca).b) + (texture(tB1, u2).rgb * 0.75 + texture(tB2, u2).rgb * 0.55) * bloom;
+  c += vec3(1.0, 0.85, 0.6) * min(ab, 20.0) * 0.004;
   c = roll(c);
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(c, c * tintS, (1.0 - smoothstep(0.0, 0.45, l)) * 0.35);
@@ -4181,6 +4189,11 @@ function glRender(r, shx, shy) {
   gl.uniform1f(fi.u.bloom, 0.7); gl.uniform1f(fi.u.time, G.time || 0); gl.uniform1f(fi.u.vig, 0.55); gl.uniform1f(fi.u.grain, 0.022); gl.uniform2f(fi.u.scr, W, H);
   const grade = GL_GRADE[th.room] || [[0.88, 0.9, 1.06], [1.06, 1.0, 0.9]];
   gl.uniform3fv(fi.u.tintS, grade[0]); gl.uniform3fv(fi.u.tintH, grade[1]);
+  { const WVa = new Float32Array(16); let n = 0; // 큰 기술·보스 내려찍기 → 화면이 일렁이는 충격파
+    for (const f of G.fx) { if (n >= 4) break; if (!(f.k === "ring" || f.k === "boltDown" || f.k === "sig") || (f.r || 0) < 140 || !f.max) continue; const k = clamp(f.t / f.max, 0, 1);
+      const sx2 = f.x * view.s + view.ox + shx * view.s, sy2 = f.y * view.s + view.oy + shy * view.s, R = (f.r || 200) * (0.25 + 0.95 * k) * view.s;
+      WVa.set([sx2, sy2, R, (1 - k) * 12 * (SAVE && SAVE.settings.shake === false ? 0.4 : 1) * view.dpr], n * 4); n++; }
+    gl.uniform4fv(fi.u.WV, WVa); gl.uniform1i(fi.u.nW, n); }
   draw(null, W, H);
 }
 
@@ -4416,7 +4429,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.5.5";
+const GAME_VERSION = "1.5.6";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
