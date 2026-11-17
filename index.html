@@ -2619,7 +2619,7 @@ function update(dt) {
   }
   for (const f of G.fx) f.t += dt; G.fx = G.fx.filter((f) => f.t < f.max);
   for (const pt of G.parts) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += (pt.ws ? -50 : 300) * dt; if (pt.ws) pt.vx *= 1 - dt * 1.5; pt.t += dt; } G.parts = G.parts.filter((pt) => pt.t < pt.max);
-  for (const t of G.texts) { t.y -= 50 * dt; t.t += dt; } G.texts = G.texts.filter((t) => t.t < 0.9);
+  for (const t of G.texts) { if (t.vx == null) { t.num = /^\d+$/.test(t.s); t.vx = t.num ? rnd(-40, 40) : 0; } t.x += t.vx * dt * Math.max(0, 1 - t.t * 2); t.y -= (t.num ? 70 * Math.max(0.15, 1 - t.t * 2.2) : 50) * dt; t.t += dt; } G.texts = G.texts.filter((t) => t.t < 0.9);
   G.shake = Math.max(0, G.shake - dt * 40);
 }
 function updateUnit(u, dt) {
@@ -3216,7 +3216,13 @@ function render() {
   for (const pt of G.parts) { if (!pt.sp) continue; const k = 1 - pt.t / pt.max; g.globalAlpha = k; g.strokeStyle = pt.col; g.lineWidth = pt.s * (0.6 + k * 0.6); g.beginPath(); g.moveTo(pt.x, pt.y); g.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); g.stroke(); }
   g.restore();
   if (hq) {} else if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (G.curse === "dark") drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
-  for (const t of G.texts) { g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${t.size}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,0.8)"; g.strokeText(t.s, t.x, t.y); g.fillStyle = t.col; g.fillText(t.s, t.x, t.y); } g.globalAlpha = 1;
+  for (const t of G.texts) { // 11-17 하이엔드 숫자: 튀어나왔다 자리 잡음, 치명타는 금빛 그라디언트·빛
+    const pop = t.num ? 1 + (t.big ? 0.9 : 0.55) * Math.max(0, 1 - t.t / 0.11) - 0.12 * Math.max(0, Math.min(1, (t.t - 0.11) / 0.1)) * (1 - Math.min(1, t.t / 0.4)) : 1, sz = t.size * pop;
+    g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${sz}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineJoin = "round"; g.lineWidth = t.big ? 6 : 4; g.strokeStyle = "rgba(0,0,0,0.85)";
+    const jx = t.big && t.t < 0.15 ? rnd(-2, 2) : 0; g.strokeText(t.s, t.x + jx, t.y);
+    if (t.big && t.num) { const gr = g.createLinearGradient(0, t.y - sz * 0.8, 0, t.y); gr.addColorStop(0, "#fff6c8"); gr.addColorStop(0.5, t.col); gr.addColorStop(1, "#d8701a"); g.fillStyle = gr; g.shadowColor = "rgba(255,170,40,0.9)"; g.shadowBlur = 14; }
+    else g.fillStyle = t.col;
+    g.fillText(t.s, t.x + jx, t.y); g.shadowBlur = 0; } g.globalAlpha = 1;
   // 클릭 표시
   drawAim(g); drawItemInfo(g); if (G.mode !== "dev" && G.mode !== "practice") drawGuide(g);
   if (G.cur.devLabel) { g.save(); g.font = '24px "Do Hyeon"'; g.textAlign = "center"; g.fillStyle = "rgba(255,226,160,0.85)"; const dim = IMG.emo_tools; if (dim && dim.naturalWidth) { const tw = g.measureText(G.cur.devLabel).width; g.drawImage(dim, RW / 2 - tw / 2 - 40, BT + 12, 34, 34); g.fillText(G.cur.devLabel, RW / 2 + 4, BT + 40); } else g.fillText("🛠 " + G.cur.devLabel, RW / 2, BT + 40); g.restore(); }
@@ -4109,7 +4115,7 @@ void main(){ vec3 c = texture(t, uv).rgb * 0.2270270;
   c += texture(t, uv + dir * 1.3846154).rgb * 0.3162162; c += texture(t, uv - dir * 1.3846154).rgb * 0.3162162;
   c += texture(t, uv + dir * 3.2307692).rgb * 0.0702703; c += texture(t, uv - dir * 3.2307692).rgb * 0.0702703; o = vec4(c, 1.0); }`;
     const FINAL = `#version 300 es
-precision highp float; in vec2 uv; out vec4 o; uniform sampler2D tS, tB1, tB2; uniform float bloom, time, vig, grain; uniform vec3 tintS, tintH; uniform vec2 scr; uniform vec4 WV[4]; uniform int nW;
+precision highp float; in vec2 uv; out vec4 o; uniform sampler2D tS, tB1, tB2; uniform float bloom, time, vig, grain; uniform vec3 tintS, tintH; uniform vec2 scr; uniform vec4 WV[4]; uniform int nW; uniform float lowHp;
 vec3 roll(vec3 c){ vec3 k = max(c - 0.78, 0.0); return min(c, 0.78) + k / (1.0 + k * 1.6); }
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){
@@ -4125,6 +4131,7 @@ void main(){
   c = mix(vec3(l), c, 1.08);
   c = (c - 0.5) * 1.04 + 0.5;
   vec2 q = uv - 0.5; q.x *= scr.x / scr.y; float v = 1.0 - smoothstep(0.42, 1.05, length(q)) * vig; c *= v;
+  c = mix(c, vec3(0.55, 0.02, 0.02), smoothstep(0.38, 1.0, length(q)) * lowHp);
   c += (hash(uv * scr + fract(time) * 91.7) - 0.5) * grain;
   o = vec4(clamp(c, 0.0, 1.0), 1.0); }`;
     const mk = (fs) => {
@@ -4241,6 +4248,7 @@ function glRender(r, shx, shy) {
   const fi = P.final; gl.useProgram(fi.pr); bindT(fi.u.tS, 0, S.t); bindT(fi.u.tB1, 1, B1.t); bindT(fi.u.tB2, 2, B2.t);
   gl.uniform1f(fi.u.bloom, 0.7); gl.uniform1f(fi.u.time, G.time || 0); gl.uniform1f(fi.u.vig, 0.55); gl.uniform1f(fi.u.grain, 0.022); gl.uniform2f(fi.u.scr, W, H);
   const grade = GL_GRADE[th.room] || [[0.88, 0.9, 1.06], [1.06, 1.0, 0.9]];
+  { const p = G.p, f = p && p.alive ? p.hp / p.maxHp : 1; gl.uniform1f(fi.u.lowHp, f < 0.3 ? (0.3 - f) / 0.3 * 0.55 * (0.65 + 0.35 * Math.sin((G.time || 0) * 7)) + 0.12 : 0); }
   gl.uniform3fv(fi.u.tintS, grade[0]); gl.uniform3fv(fi.u.tintH, grade[1]);
   { const WVa = new Float32Array(16); let n = 0; // 큰 기술·보스 내려찍기 → 화면이 일렁이는 충격파
     for (const f of G.fx) { if (n >= 4) break; if (!(f.k === "ring" || f.k === "boltDown" || f.k === "sig") || (f.r || 0) < 140 || !f.max) continue; const k = clamp(f.t / f.max, 0, 1);
@@ -4482,7 +4490,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.6.1";
+const GAME_VERSION = "1.6.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
