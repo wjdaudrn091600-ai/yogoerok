@@ -1883,7 +1883,7 @@ function buildRoom(r) {
   const bg = IMG["room_" + th.room + "_" + r.bg];
   const wf = IMG["wall_" + th.room + "_front"];
   r.needBg = !(bg && bg.complete && bg.naturalWidth) || (wf && !wf.naturalWidth);
-  if (!r.needBg) g.drawImage(bg, 0, 0, RW, RH); else { g.fillStyle = th.wall[2]; g.fillRect(0, 0, RW, RH); }
+  if (!r.needBg) { g.filter = "saturate(0.78) brightness(0.9) contrast(1.06)"; g.drawImage(bg, 0, 0, RW, RH); g.filter = "none"; } // 11-17 바닥은 살짝 차분하게 → 캐릭터가 또렷하게 else { g.fillStyle = th.wall[2]; g.fillRect(0, 0, RW, RH); }
   const first = !r.laid; r.laid = true;
   // 바닥 가장자리 어둡게
   const vg = g.createRadialGradient(RW / 2, RH / 2 + 40, 200, RW / 2, RH / 2 + 40, 900); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.3)");
@@ -2316,7 +2316,7 @@ function damage(t, d, src, crit, o = {}) {
   if (src === G.p && (crit || t.hp <= 0)) G.hitStop = Math.max(G.hitStop || 0, t.kind === "boss" ? 0.07 : crit ? 0.035 : 0.05);
   if (t.kind === "mob") t.hurtT = 0.2; else if (t.kind === "boss" && (d > t.maxHp * 0.025 || !(t.hurtCd > G.time)) && t.st !== "charge") { t.hurtT = 0.22; t.hurtCd = G.time + 1.4; }
   if (!o.quiet && !(SAVE && SAVE.settings.dmgNum === false)) addText(t.x + rnd(-16, 16), t.y - t.r - 26, Math.round(d) + "", crit ? "#ffd84a" : o.dot ? "#ff9a5a" : "#ffffff", crit ? 26 : 19, crit);
-  if (Math.random() < 0.5) spark(t.x, t.y - t.r * 0.6, crit ? "#ffd84a" : "#ffffff", crit ? 8 : 4);
+  if (Math.random() < 0.7) spark(t.x, t.y - t.r * 0.6, crit ? "#ffd84a" : "#ffe6b0", crit ? 10 : 5);
   if (!o.dot && G.fx.length < 120) G.fx.push({ k: "hit", x: t.x + rnd(-10, 10), y: t.y - t.r * 0.8, r: crit ? 70 : 44, t: 0, max: 0.18, col: crit ? "#ffd84a" : "#ffe9c0", a: Math.random() * 6.28 });
   if (t.hp <= 0) killUnit(t, src);
   return d;
@@ -3062,7 +3062,7 @@ function endRun(win, storyDone) {
 
 // ---------- 효과 보조 ----------
 function addText(x, y, s, col, size, big) { G.texts.push({ x, y, s, col, size: size || 18, t: 0, big }); if (G.texts.length > 80) G.texts.shift(); }
-function spark(x, y, col, n) { if (SAVE && SAVE.settings.low) { if (G.parts.length > 50) return; n = Math.ceil(n / 3); } for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: rnd(-220, 220), vy: rnd(-260, 40), t: 0, max: rnd(0.25, 0.5), col, s: rnd(2, 4) }); }
+function spark(x, y, col, n) { if (SAVE && SAVE.settings.low) { if (G.parts.length > 50) return; n = Math.ceil(n / 3); } for (let i = 0; i < n; i++) G.parts.push({ sp: 1, x, y, vx: rnd(-220, 220), vy: rnd(-260, 40), t: 0, max: rnd(0.25, 0.5), col, s: rnd(2, 4) }); }
 
 // ---------- 그리기 ----------
 let autoDpr = 0; // 자동 화질로 낮춘 값 (0이면 그대로)
@@ -3122,14 +3122,15 @@ function drawFog(g) {
 }
 function render() {
   if (!G || !G.cur || !G.p || !G.cur.cache) return;
-  const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#07060a"; g.fillRect(0, 0, cv.width, cv.height);
   if (!base) resize(); updateCam();
+  const hq = glOn(); if (hq) glLayers(); // 11-17 하이엔드: 캐릭터 층(a)·효과 층(b)에 그리고 GPU 에서 조명·블룸
+  let g = hq ? GLR.a : ctx; if (!hq) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#07060a"; g.fillRect(0, 0, cv.width, cv.height); } else ctx.clearRect(0, 0, cv.width, cv.height);
   const shk = SAVE && SAVE.settings.shake === false ? 0 : G.shake * ((SAVE && SAVE.settings.shakeAmt != null) ? SAVE.settings.shakeAmt : 1), sx = shk ? rnd(-shk, shk) : 0, sy = shk ? rnd(-shk, shk) : 0;
   g.setTransform(view.s, 0, 0, view.s, view.ox + sx * view.s, view.oy + sy * view.s);
   g.save(); g.beginPath(); g.rect(0, 0, RW, RH); g.clip();
   const r = G.cur;
   if (r.needBg) { const bg = IMG["room_" + r.th.room + "_" + r.bg], wf = IMG["wall_" + r.th.room + "_front"]; if (bg && bg.complete && bg.naturalWidth && (!wf || wf.naturalWidth)) buildRoom(r); }
-  g.drawImage(r.cache, 0, 0, RW, RH);
+  if (!hq) g.drawImage(r.cache, 0, 0, RW, RH);
   if (!(SAVE && SAVE.settings.low)) drawFog(g);
   drawHazards(g, r); drawDoors(g, r);
   for (const z of G.zones) drawZone(g, z);
@@ -3143,11 +3144,15 @@ function render() {
   for (const pr of props) { const o = pr.prop; g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.ellipse(o.x + 12, o.y + o.r * 0.35, o.r * 1.5, o.r * 0.6, 0, 0, 7); g.fill(); }
   const order = list.concat(props).sort((a, b) => (a.prop ? a.y : a.y + a.r * 0.6) - (b.prop ? b.y : b.y + b.r * 0.6));
   for (const u of order) { if (u.prop) drawProp(g, u.prop); else drawUnit(g, u); }
+  if (hq) { drawLampBodies(g, r); g.restore(); g = GLR.b; g.setTransform(view.s, 0, 0, view.s, view.ox + sx * view.s, view.oy + sy * view.s); g.save(); g.beginPath(); g.rect(0, 0, RW, RH); g.clip(); } // 여기부터 스스로 빛나는 효과·글자 층
   for (const o of G.orbs) { if (Number.isFinite(o.x) && Number.isFinite(o.y)) glowDot(g, o.x, o.y, 13, o.col); }
   for (const pr of G.projs) drawProj(g, pr);
   for (const f of G.fx) drawFx(g, f);
-  for (const pt of G.parts) { g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
-  if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (G.curse === "dark") drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
+  for (const pt of G.parts) { if (pt.sp) continue; g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; // 11-17 타격 불꽃: 빛나는 줄
+  for (const pt of G.parts) { if (!pt.sp) continue; const k = 1 - pt.t / pt.max; g.globalAlpha = k; g.strokeStyle = pt.col; g.lineWidth = pt.s * (0.6 + k * 0.6); g.beginPath(); g.moveTo(pt.x, pt.y); g.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); g.stroke(); }
+  g.restore();
+  if (hq) {} else if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (G.curse === "dark") drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
   for (const t of G.texts) { g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${t.size}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,0.8)"; g.strokeText(t.s, t.x, t.y); g.fillStyle = t.col; g.fillText(t.s, t.x, t.y); } g.globalAlpha = 1;
   // 클릭 표시
   drawAim(g); drawItemInfo(g); if (G.mode !== "dev" && G.mode !== "practice") drawGuide(g);
@@ -3157,13 +3162,14 @@ function render() {
   else if (G.target && !G.target.alive) G.target = null;
   drawOffscreen(g);
   g.restore();
-  if (!(SAVE && SAVE.settings.low)) { // 11-17 화면 가장자리 어둡게(비네트) — 시선이 가운데 주인공에 모이게
+  if (!hq && !(SAVE && SAVE.settings.low)) { // 11-17 화면 가장자리 어둡게(비네트) — 시선이 가운데 주인공에 모이게
     g.setTransform(1, 0, 0, 1, 0, 0); const W = cv.width, H = cv.height, R = Math.hypot(W, H) / 2;
     if (!G._vig || G._vig.W !== W || G._vig.H !== H) { const vg = g.createRadialGradient(W / 2, H / 2, R * 0.45, W / 2, H / 2, R); vg.addColorStop(0, "rgba(6,4,12,0)"); vg.addColorStop(0.7, "rgba(6,4,12,0.28)"); vg.addColorStop(1, "rgba(6,4,12,0.62)"); G._vig = { W, H, vg }; }
     g.fillStyle = G._vig.vg; g.fillRect(0, 0, W, H); }
   g.setTransform(base.s, 0, 0, base.s, base.ox, base.oy); // 글자 띠는 화면 기준 (확대와 상관없이 같은 자리·크기)
   if (G.banner) drawBanner(g, G.banner);
   if (G.trans) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(0,0,0,${clamp(G.trans.mode === "out" ? 1 - G.trans.t / G.trans.max : G.trans.t / G.trans.max, 0, 1)})`; g.fillRect(0, 0, cv.width, cv.height); }
+  if (hq) glRender(r, sx, sy);
   if (false) { const k = G.trans.mode === "out" ? 1 - G.trans.t / G.trans.max : G.trans.t / G.trans.max; g.fillStyle = `rgba(0,0,0,${clamp(k, 0, 1)})`; g.fillRect(0, 0, RW, RH); }
 }
 function drawHazards(g, r) {
@@ -3547,10 +3553,14 @@ function drawUnit(g, u) {
   if (u.elite) { g.shadowColor = "#ff4dff"; g.shadowBlur = 22; }
   if (u.kind === "boss") { g.shadowColor = u.ph2 ? "#ff3b30" : "#8a6bff"; g.shadowBlur = 30; }
   if (u.kind === "hero" && u.team === 1) { g.shadowColor = "#ff4d4d"; g.shadowBlur = 14; }
-  if (u.hitT > 0) g.filter = u.kind === "hero" ? "brightness(1.6) saturate(1.3)" : "brightness(2.4)";
+  else if (u === G.p && !(SAVE && SAVE.settings.low)) { g.shadowColor = "rgba(255,226,170,0.75)"; g.shadowBlur = 10; } // 11-17 내 캐릭터 테두리 빛
+  const whiteHit = u.hitT > 0 && u.kind !== "hero" && !(SAVE && SAVE.settings.low);
+  if (u.hitT > 0 && !whiteHit) g.filter = u.kind === "hero" ? "brightness(1.6) saturate(1.3)" : "brightness(2.4)";
+  else if (u.hitT > 0) {}
   else if (u.stunT > 0) g.filter = "grayscale(0.6) brightness(1.2)";
   else if (u.flash > 0) { g.filter = "brightness(1.8) saturate(1.5)"; }
   if (cel) g.drawImage(img, cel.sx, 0, cel.sw, cel.sh, -ax, -ay, dw, dh); else g.drawImage(img, -ax, -ay, dw, dh);
+  if (whiteHit) { g.shadowBlur = 0; g.globalCompositeOperation = "lighter"; g.globalAlpha = Math.min(1, u.hitT / 0.12) * 0.85; for (let k = 0; k < 2; k++) { if (cel) g.drawImage(img, cel.sx, 0, cel.sw, cel.sh, -ax, -ay, dw, dh); else g.drawImage(img, -ax, -ay, dw, dh); } } // 11-17 타격감: 하얗게 번쩍
   g.restore();
   if (u.flash > 0) u.flash -= 1 / 60;
   if (u.spawnT > 0) g.restore();
@@ -3677,6 +3687,10 @@ function drawLight(g, r) {
   }
   const pg = g.createRadialGradient(p.x, p.y - 40, 2, p.x, p.y - 40, 220); pg.addColorStop(0, "rgba(255,190,110,0.16)"); pg.addColorStop(1, "rgba(255,190,110,0)"); g.fillStyle = pg; g.beginPath(); g.arc(p.x, p.y - 40, 220, 0, 7); g.fill();
   g.restore();
+  drawLampBodies(g, r);
+}
+function drawLampBodies(g, r) {
+  const th = r.th || FLOORS[0];
   // 등불 본체: Blender로 만든 3D 등롱 그림 (없으면 예전 방식)
   const ln = IMG["lantern_" + (r.th || FLOORS[0]).room];
   if (ln && ln.naturalWidth) { for (const l of r.lamps || []) { const sw = Math.sin(G.time * 1.6 + l.ph) * 0.05; g.save(); g.translate(l.x, l.y - 34); g.rotate(sw); const H = 72, W = H * ln.naturalWidth / ln.naturalHeight; g.drawImage(ln, -W / 2, 0, W, H); g.restore(); } }
@@ -3890,6 +3904,7 @@ function perfWatch(ms) {
   if (performance.now() - perfWin.t0 < 4000) return;
   const avg = perfWin.sum / perfWin.n; perfWin.n = perfWin.sum = perfWin.t0 = 0;
   const cur = view && view.dpr ? view.dpr : 1;
+  if (avg > 24 && cur <= 1 && GLR.ok && !GLR.auto) { GLR.auto = true; GLR.ok = false; GLR.cv.style.display = "none"; cv.style.opacity = ""; if (G.p) addText(G.p.x, G.p.y - 130, "⚙️ 부드럽게 하려고 고급 그래픽을 껐어요", "#9fe8ff", 18); return; } // 11-17 하이엔드가 버거운 기기
   if (avg > 22 && cur > 1) { autoDpr = cur > 1.5 ? 1.5 : 1; resize(); if (G.p) addText(G.p.x, G.p.y - 130, "⚙️ 부드럽게 하려고 화질을 조금 낮췄어요", "#9fe8ff", 18); }
 }
 document.addEventListener("visibilitychange", () => {
@@ -3922,6 +3937,210 @@ function initEngine() {
   lightCv = document.createElement("canvas"); lightCv.width = 800; lightCv.height = 450; lctx = lightCv.getContext("2d");
   resize(); window.addEventListener("resize", resize);
   bindInput(); requestAnimationFrame(loop);
+}
+
+// ======================================================================
+// 하이엔드 그래픽 (11-17 사용자: "상업작에 비해 퀄리티가 너무 떨어져" → "무료중에 하이엔드 방식, 무조건 하이엔드")
+// WebGL2 지연 조명 + HDR 후처리. 2D 캔버스 그림은 그대로 두고 세 겹으로 나눠 GPU 에서 합친다.
+//  ① 바닥: 방 그림(albedo) + 노멀맵(Depth Anything V2 Small + 밝기 높이, tools/make_normals.py) → 등불·주인공·투사체·효과 빛이
+//     돌 틈·조각 무늬를 따라 실제로 비추는 실시간 조명(디퓨즈 + 젖은 돌 반사광)
+//  ② 캐릭터·소품 층: 같은 빛을 받음(평면), 어두운 곳에서도 보이게 최소 밝기
+//  ③ 효과·글자 층: 빛을 받지 않고 스스로 빛남(블룸 대상)
+//  → HDR(반정밀 부동소수) 버퍼 → 밝은 부분 추출·2단계 가우스 블러 블룸 → 하이라이트 롤오프 톤매핑 → 층별 색 보정·비네트·필름 그레인
+// WebGL2 가 없거나 저사양 모드·설정 '고급 그래픽' 끔이면 예전 2D 그대로.
+// ======================================================================
+const GLR = { ok: null, gl: null, cv: null, a: null, b: null, tex: {}, fb: {}, prog: {}, roomKey: null, nKey: null, hasN: false, half: false, fail: 0 };
+function glOn() {
+  if (SAVE && SAVE.settings && (SAVE.settings.low || SAVE.settings.hq === false)) { if (GLR.cv) GLR.cv.style.display = "none"; if (cv) cv.style.opacity = ""; return false; }
+  if (GLR.ok === null) glInit();
+  if (!GLR.ok) return false;
+  GLR.cv.style.display = ""; cv.style.opacity = "0"; return true;
+}
+function glInit() {
+  GLR.ok = false;
+  try {
+    const c = document.createElement("canvas"); c.id = "gamegl"; c.setAttribute("aria-hidden", "true");
+    c.style.cssText = "position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;background:#07060a;";
+    const gl = c.getContext("webgl2", { alpha: false, antialias: false, premultipliedAlpha: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
+    if (!gl) return;
+    GLR.half = !!gl.getExtension("EXT_color_buffer_float") || !!gl.getExtension("EXT_color_buffer_half_float");
+    gl.getExtension("OES_texture_float_linear");
+    cv.parentNode.insertBefore(c, cv); // 2D 캔버스(입력 받는 곳)는 위에 투명하게 남김
+    GLR.cv = c; GLR.gl = gl;
+    GLR.a = document.createElement("canvas").getContext("2d"); GLR.b = document.createElement("canvas").getContext("2d");
+    const V = "#version 300 es\nin vec2 p; out vec2 uv; void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }";
+    const SCENE = `#version 300 es
+precision highp float; in vec2 uv; out vec4 o;
+uniform sampler2D tAlb, tNrm, tA, tB; uniform int hasN;
+uniform vec2 scr; uniform vec3 vw; uniform vec2 room; uniform vec4 bnd;
+uniform vec4 L[40]; uniform vec3 LC[40]; uniform int nL;
+uniform vec3 amb; uniform float ambA, specK;
+void main(){
+  vec2 px = vec2(uv.x * scr.x, (1.0 - uv.y) * scr.y);
+  vec2 w = (px - vw.yz) / vw.x;
+  vec2 ruv = w / room;
+  vec3 col = vec3(0.0);
+  if (ruv.x >= 0.0 && ruv.y >= 0.0 && ruv.x <= 1.0 && ruv.y <= 1.0) {
+    vec3 alb = texture(tAlb, ruv).rgb;
+    bool inner = w.x > bnd.x && w.x < bnd.z && w.y > bnd.y && w.y < bnd.w;
+    vec3 N = vec3(0.0, 0.0, 1.0); float hgt = 0.5;
+    if (hasN == 1 && inner) { vec4 nn = texture(tNrm, ruv); N = normalize(nn.xyz * 2.0 - 1.0); hgt = nn.a; }
+    vec3 lit = amb * (0.85 + 0.3 * hgt); vec3 spec = vec3(0.0);
+    for (int i = 0; i < 40; i++) { if (i >= nL) break;
+      vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z) continue;
+      float att = 1.0 - dist / l.z; att *= att;
+      vec3 Lv = normalize(vec3(d, l.z * 0.32 + 40.0));
+      float df = max(dot(N, Lv), 0.0);
+      lit += LC[i] * l.w * att * (0.22 + 0.88 * df);
+      vec3 H = normalize(Lv + vec3(0.0, 0.0, 1.0));
+      spec += LC[i] * l.w * att * pow(max(dot(N, H), 0.0), 28.0) * specK * (0.4 + hgt);
+    }
+    col = alb * lit + spec * alb * 1.6;
+  }
+  vec4 a = texture(tA, uv);
+  vec3 la = vec3(ambA);
+  for (int i = 0; i < 40; i++) { if (i >= nL) break; vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z) continue; float att = 1.0 - dist / l.z; la += LC[i] * l.w * att * att * 0.6; }
+  la = min(la, vec3(1.4));
+  col = col * (1.0 - a.a) + a.rgb * la;
+  vec4 b = texture(tB, uv);
+  col = col * (1.0 - b.a) + b.rgb;
+  o = vec4(col, 1.0);
+}`;
+    const BRIGHT = `#version 300 es
+precision highp float; in vec2 uv; out vec4 o; uniform sampler2D t; uniform vec2 px; uniform float thr;
+void main(){ vec3 c = vec3(0.0);
+  c += texture(t, uv + px * vec2(-1.0, -1.0)).rgb; c += texture(t, uv + px * vec2(1.0, -1.0)).rgb; c += texture(t, uv + px * vec2(-1.0, 1.0)).rgb; c += texture(t, uv + px * vec2(1.0, 1.0)).rgb; c *= 0.25;
+  float l = max(max(c.r, c.g), c.b); float k = smoothstep(thr, thr + 0.35, l); o = vec4(c * k, 1.0); }`;
+    const BLUR = `#version 300 es
+precision highp float; in vec2 uv; out vec4 o; uniform sampler2D t; uniform vec2 dir;
+void main(){ vec3 c = texture(t, uv).rgb * 0.2270270;
+  c += texture(t, uv + dir * 1.3846154).rgb * 0.3162162; c += texture(t, uv - dir * 1.3846154).rgb * 0.3162162;
+  c += texture(t, uv + dir * 3.2307692).rgb * 0.0702703; c += texture(t, uv - dir * 3.2307692).rgb * 0.0702703; o = vec4(c, 1.0); }`;
+    const FINAL = `#version 300 es
+precision highp float; in vec2 uv; out vec4 o; uniform sampler2D tS, tB1, tB2; uniform float bloom, time, vig, grain; uniform vec3 tintS, tintH; uniform vec2 scr;
+vec3 roll(vec3 c){ vec3 k = max(c - 0.78, 0.0); return min(c, 0.78) + k / (1.0 + k * 1.6); }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main(){
+  vec3 c = texture(tS, uv).rgb + (texture(tB1, uv).rgb * 0.75 + texture(tB2, uv).rgb * 0.55) * bloom;
+  c = roll(c);
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(c, c * tintS, (1.0 - smoothstep(0.0, 0.45, l)) * 0.35);
+  c = mix(c, c * tintH, smoothstep(0.45, 1.0, l) * 0.25);
+  c = mix(vec3(l), c, 1.08);
+  c = (c - 0.5) * 1.04 + 0.5;
+  vec2 q = uv - 0.5; q.x *= scr.x / scr.y; float v = 1.0 - smoothstep(0.42, 1.05, length(q)) * vig; c *= v;
+  c += (hash(uv * scr + fract(time) * 91.7) - 0.5) * grain;
+  o = vec4(clamp(c, 0.0, 1.0), 1.0); }`;
+    const mk = (fs) => {
+      const pr = gl.createProgram();
+      for (const [t, s] of [[gl.VERTEX_SHADER, V], [gl.FRAGMENT_SHADER, fs]]) { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); gl.attachShader(pr, sh); }
+      gl.bindAttribLocation(pr, 0, "p"); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+      const u = {}; const n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < n; i++) { const inf = gl.getActiveUniform(pr, i), nm = inf.name.replace(/\[0\]$/, ""); u[nm] = gl.getUniformLocation(pr, inf.name); }
+      return { pr, u };
+    };
+    GLR.prog = { scene: mk(SCENE), bright: mk(BRIGHT), blur: mk(BLUR), final: mk(FINAL) };
+    const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    for (const k of ["alb", "nrm", "a", "b"]) GLR.tex[k] = glTex(gl);
+    c.addEventListener("webglcontextlost", (e) => { e.preventDefault(); GLR.ok = false; c.style.display = "none"; cv.style.opacity = ""; });
+    GLR.ok = true;
+  } catch (e) { console.warn("고급 그래픽 끔:", e && e.message); GLR.ok = false; if (GLR.cv) GLR.cv.remove(); }
+}
+function glTex(gl) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0])); return t;
+}
+function glFbo(name, w, h) {
+  const gl = GLR.gl; let f = GLR.fb[name]; if (f && f.w === w && f.h === h) return f;
+  if (f) { gl.deleteFramebuffer(f.fb); gl.deleteTexture(f.t); }
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  if (GLR.half) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null); else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE && GLR.half) { GLR.half = false; gl.deleteFramebuffer(fb); gl.deleteTexture(t); delete GLR.fb[name]; return glFbo(name, w, h); }
+  return (GLR.fb[name] = { fb, t, w, h });
+}
+// 2D 층 캔버스를 화면 크기에 맞추고 비움
+function glLayers() {
+  const W = cv.width, H = cv.height;
+  for (const g of [GLR.a, GLR.b]) { if (g.canvas.width !== W || g.canvas.height !== H) { g.canvas.width = W; g.canvas.height = H; } g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); }
+  if (GLR.cv.width !== W || GLR.cv.height !== H) { GLR.cv.width = W; GLR.cv.height = H; }
+}
+// flip: 2D 캔버스(위가 0)를 GL(아래가 0) 화면 좌표에 맞춤. 방 그림은 세계 좌표로 직접 읽어서 뒤집지 않음.
+function glUp(t, src, premul, flip) {
+  const gl = GLR.gl; gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premul); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flip);
+  gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, premul ? gl.BROWSER_DEFAULT_WEBGL : gl.NONE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+}
+const _hx = {};
+function hexRGB(c) {
+  if (_hx[c]) return _hx[c]; let v = [1, 0.85, 0.6];
+  if (typeof c === "string" && c[0] === "#") { const s = c.length === 4 ? c.slice(1).split("").map((x) => x + x).join("") : c.slice(1, 7), n = parseInt(s, 16); if (Number.isFinite(n)) v = [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; }
+  return (_hx[c] = v);
+}
+// 이 장면의 빛 목록 (예전 2D 어둠 구멍과 같은 곳 + 색)
+function glLights(r) {
+  const th0 = r.th || FLOORS[0], th = G.midnight ? Object.assign({}, th0, { light: "#7f9fff" }) : th0, p = G.p, out = [];
+  const add = (x, y, R, I, col) => { if (out.length < 40 && Number.isFinite(x) && Number.isFinite(y) && R > 0 && I > 0.01) out.push([x, y, R, I, col]); };
+  const warm = [1, 0.78, 0.52], tl = hexRGB(th.light);
+  add(p.x, p.y - 30, 560 * (1 + (p.light || 0)) * (G.curse === "dark" ? 0.72 : 1) + Math.sin(G.time * 7) * 6, 0.82, warm);
+  for (const h of G.units) if (h.kind === "hero" && h !== p && h.alive) add(h.x, h.y - 30, h.team === 0 ? 420 : 330, 0.75, h.team === 0 ? warm : [1, 0.45, 0.4]);
+  for (const l of r.lamps || []) { const fl = 0.85 + Math.sin(G.time * 6 + l.ph) * 0.1 + Math.sin(G.time * 13 + l.ph * 2) * 0.05; add(l.x, l.y + 40, 300, 0.95 * fl, tl); }
+  for (const u of G.units) if (u.alive && u.kind === "boss") add(u.x, u.y - 30, 300, 0.6, u.ph2 ? [1, 0.3, 0.25] : [0.6, 0.45, 1]);
+  for (const h of r.haz) if (h.kind === "lava" || h.kind === "soul") add(h.x, h.y, h.rx * 2.2, 0.8, h.kind === "lava" ? [1, 0.45, 0.15] : [0.7, 0.4, 1]);
+  for (const f of G.fx) if (f.k === "ring" || f.k === "boltDown" || f.k === "beam" || f.k === "sig") add(f.x, f.y, (f.r || 200) * 1.3, 1.1 * (1 - f.t / f.max), hexRGB(f.col || "#fff0c0"));
+  for (const t of G.tele) if (t.shape === "circle") add(t.x, t.y, t.r * 1.15, 0.45, [1, 0.35, 0.3]);
+  for (const z of G.zones) add(z.x, z.y, (z.r || 120) * 1.3, 0.45, hexRGB(z.col || "#ff9a6a"));
+  for (const pr of G.projs) add(pr.x, pr.y, 150, 0.55, hexRGB(pr.col || "#ffd8a0"));
+  for (const d of G.drops) if (d.type !== "gold") add(d.x, d.y, 140, 0.5, d.type === "stairs" ? [0.5, 0.75, 1] : [1, 0.85, 0.5]);
+  return out;
+}
+const GL_GRADE = { f1: [[0.86, 0.9, 1.08], [1.08, 1.0, 0.88]], f2: [[0.82, 0.92, 1.12], [1.0, 1.04, 1.08]], f3: [[0.95, 0.82, 0.86], [1.12, 0.98, 0.82]], f4: [[0.84, 0.98, 0.9], [1.04, 1.06, 0.88]], f5: [[0.9, 0.82, 1.1], [1.06, 0.94, 1.08]] };
+const _LA = new Float32Array(160), _LC = new Float32Array(120);
+function glRender(r, shx, shy) {
+  const gl = GLR.gl, W = cv.width, H = cv.height, P = GLR.prog;
+  // 방 그림·노멀맵 (방이 바뀌거나 다시 그려졌을 때만 올림)
+  if (GLR.roomKey !== r.cache) { glUp(GLR.tex.alb, r.cache, false, false); GLR.roomKey = r.cache; }
+  const th = r.th || FLOORS[0], nk = "room_" + th.room + "_" + r.bg + "_n", nim = IMG[nk];
+  if (GLR.nKey !== nk || (!GLR.hasN && nim && nim.naturalWidth)) { GLR.hasN = !!(nim && nim.naturalWidth); if (GLR.hasN) glUp(GLR.tex.nrm, nim, false, false); GLR.nKey = nk; }
+  glUp(GLR.tex.a, GLR.a.canvas, true, true); glUp(GLR.tex.b, GLR.b.canvas, true, true);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  const S = glFbo("scene", W, H), w2 = Math.max(1, W >> 2), h2 = Math.max(1, H >> 2), w3 = Math.max(1, W >> 3), h3 = Math.max(1, H >> 3);
+  const B1 = glFbo("b1", w2, h2), B1t = glFbo("b1t", w2, h2), B2 = glFbo("b2", w3, h3), B2t = glFbo("b2t", w3, h3);
+  const bindT = (u, unit, t) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.uniform1i(u, unit); };
+  const draw = (f, w, h) => { gl.bindFramebuffer(gl.FRAMEBUFFER, f ? f.fb : null); gl.viewport(0, 0, w, h); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
+  // ① 장면 (바닥 조명 + 캐릭터 층 + 효과 층)
+  const sc = P.scene; gl.useProgram(sc.pr);
+  bindT(sc.u.tAlb, 0, GLR.tex.alb); bindT(sc.u.tNrm, 1, GLR.tex.nrm); bindT(sc.u.tA, 2, GLR.tex.a); bindT(sc.u.tB, 3, GLR.tex.b);
+  gl.uniform1i(sc.u.hasN, GLR.hasN ? 1 : 0); gl.uniform2f(sc.u.scr, W, H); gl.uniform3f(sc.u.vw, view.s, view.ox + shx * view.s, view.oy + shy * view.s);
+  gl.uniform2f(sc.u.room, RW, RH); gl.uniform4f(sc.u.bnd, BL - 4, BT - 4, BR + 4, BB + 4);
+  const Ls = glLights(r); _LA.fill(0); _LC.fill(0);
+  Ls.forEach((l, i) => { _LA[i * 4] = l[0]; _LA[i * 4 + 1] = l[1]; _LA[i * 4 + 2] = l[2]; _LA[i * 4 + 3] = l[3]; _LC[i * 3] = l[4][0]; _LC[i * 3 + 1] = l[4][1]; _LC[i * 3 + 2] = l[4][2]; });
+  gl.uniform4fv(sc.u.L, _LA); gl.uniform3fv(sc.u.LC, _LC); gl.uniform1i(sc.u.nL, Ls.length);
+  const dark = G.mode === "duel" ? 0.66 : G.curse === "dark" ? 0.32 : roomLocked() ? 0.56 : 0.64, tl = hexRGB(th.light);
+  gl.uniform3f(sc.u.amb, dark * (0.8 + tl[0] * 0.2), dark * (0.8 + tl[1] * 0.2), dark * (0.85 + tl[2] * 0.25));
+  gl.uniform1f(sc.u.ambA, G.curse === "dark" ? 0.55 : 0.8); gl.uniform1f(sc.u.specK, 0.55);
+  draw(S, W, H);
+  // ② 블룸 (1/4·1/8 해상도 가우스)
+  const br = P.bright; gl.useProgram(br.pr); bindT(br.u.t, 0, S.t); gl.uniform2f(br.u.px, 1 / W, 1 / H); gl.uniform1f(br.u.thr, 0.9); draw(B1, w2, h2);
+  const bl = P.blur; gl.useProgram(bl.pr);
+  bindT(bl.u.t, 0, B1.t); gl.uniform2f(bl.u.dir, 1 / w2, 0); draw(B1t, w2, h2);
+  bindT(bl.u.t, 0, B1t.t); gl.uniform2f(bl.u.dir, 0, 1 / h2); draw(B1, w2, h2);
+  bindT(bl.u.t, 0, B1.t); gl.uniform2f(bl.u.dir, 1 / w3, 0); draw(B2t, w3, h3);
+  bindT(bl.u.t, 0, B2t.t); gl.uniform2f(bl.u.dir, 0, 1 / h3); draw(B2, w3, h3);
+  bindT(bl.u.t, 0, B2.t); gl.uniform2f(bl.u.dir, 2 / w3, 0); draw(B2t, w3, h3);
+  bindT(bl.u.t, 0, B2t.t); gl.uniform2f(bl.u.dir, 0, 2 / h3); draw(B2, w3, h3);
+  // ③ 마무리 (하이라이트 롤오프·층별 색 보정·비네트·그레인)
+  const fi = P.final; gl.useProgram(fi.pr); bindT(fi.u.tS, 0, S.t); bindT(fi.u.tB1, 1, B1.t); bindT(fi.u.tB2, 2, B2.t);
+  gl.uniform1f(fi.u.bloom, 0.7); gl.uniform1f(fi.u.time, G.time || 0); gl.uniform1f(fi.u.vig, 0.55); gl.uniform1f(fi.u.grain, 0.022); gl.uniform2f(fi.u.scr, W, H);
+  const grade = GL_GRADE[th.room] || [[0.88, 0.9, 1.06], [1.06, 1.0, 0.9]];
+  gl.uniform3fv(fi.u.tintS, grade[0]); gl.uniform3fv(fi.u.tintH, grade[1]);
+  draw(null, W, H);
 }
 
 </script>
@@ -4156,7 +4375,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.5.3";
+const GAME_VERSION = "1.5.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4955,6 +5174,7 @@ const UI = {
       <p><label><input type="checkbox" id="vce" ${s.voice === false ? "" : "checked"}> 음성 (보스·이야기)</label></p>
       <p>효과 밝기 <input type="range" id="fxa" min="0.4" max="1" step="0.05" value="${s.fxAmt != null ? s.fxAmt : 1}"> <span class="muted" style="font-size:.8rem">(번쩍임이 부담되면 낮추세요)</span></p>
       <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
+      <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><button class="btn" id="keysbtn">⌨️ 키 설정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
@@ -4973,6 +5193,7 @@ const UI = {
     $("#vce").onchange = (e) => { s.voice = e.target.checked; saveGame(); };
     $("#fxa").oninput = (e) => { s.fxAmt = +e.target.value; saveGame(); };
     $("#pkr").oninput = (e) => { s.pickR = +e.target.value; $("#pkrv").textContent = "×" + s.pickR; saveGame(); };
+    $("#hqfx").onchange = (e) => { s.hq = e.target.checked; saveGame(); UI.toast(s.hq ? "고급 그래픽 켬" : "고급 그래픽 끔"); };
     $("#lowfx").onchange = (e) => { s.low = e.target.checked; saveGame(); resize(); UI.toast(s.low ? "저사양 모드 켬" : "저사양 모드 끔"); };
     $("#sfv").oninput = (e) => { s.sfx = +e.target.value; sfxVol = s.sfx; saveGame(); sfx("coin"); };
     $("#bsv").oninput = (e) => { s.bossVol = +e.target.value; saveGame(); };
@@ -5437,7 +5658,7 @@ else if (/autotest/.test(location.hash)) {
   if (/fresh/.test(location.hash)) { login("tester" + Date.now(), "test1234", true); } else login(DEV_ID, DEV_PW); SAVE.story.seen.open = 1;
   if (mode === "menu" || mode === "gacha" || mode === "chars" || mode === "bag" || mode === "missions" || mode === "skills" || mode === "howto") { mode === "menu" ? UI.menu() : UI.open(mode); }
   else {
-    newRun({ mode, char: ch, floor: +((location.hash.match(/floor=(d)/) || [])[1] || 1), diff: "normal" }); $("#screens").innerHTML = ""; $("#hud").hidden = false;
+    newRun({ mode, char: ch, floor: +((location.hash.match(/floor=(\d)/) || [])[1] || 1), diff: "normal" }); $("#screens").innerHTML = ""; $("#hud").hidden = false;
     if (/boss/.test(location.hash)) { for (const [k, r] of G.rooms) if (r.type === "boss") { enterRoom(k, "N"); break; } }
     if (/fight/.test(location.hash)) { for (const [k, r] of G.rooms) if (r.type === "fight") { enterRoom(k, "N"); break; } }
     if (/pull/.test(location.hash)) { G = null; UI.menu(); doPull("char", 10); }
