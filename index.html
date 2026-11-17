@@ -7,7 +7,7 @@
 <title>요괴록 — 조선 요괴 토벌기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=East+Sea+Dokdo&display=swap">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" async></script>
 <style>
 :root {
@@ -408,6 +408,13 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .cutin .ctx small { display: block; font-size: 1rem; color: #e8dcc4; letter-spacing: .1em; }
 .cutin .ctx b { font-size: 3rem; font-weight: 400; }
 .cutin.big .ctx b { color: #ff8a6a; }
+/* 11-17 하이엔드 보스 등장: 영화 화면비 띠 + 붓글씨 이름 + 먹물 번짐 */
+.lbox { position: fixed; left: 0; right: 0; height: 11vh; background: #000; z-index: 29; pointer-events: none; animation: lbox 2.6s cubic-bezier(.3,.7,.2,1) forwards; box-shadow: 0 0 40px #000; }
+.lbox.t { top: 0; transform-origin: top; } .lbox.b { bottom: 0; transform-origin: bottom; } .lbox.mini { height: 7vh; }
+@keyframes lbox { 0% { transform: scaleY(0); } 14% { transform: scaleY(1); } 82% { transform: scaleY(1); } 100% { transform: scaleY(0); } }
+.cutin.big .ctx b { font-family: "East Sea Dokdo", var(--display); font-size: 4.6rem; line-height: 1; color: #ffb08a; text-shadow: 0 0 18px rgba(255,60,40,0.55), 0 3px 0 #2a0505, 0 6px 16px #000; letter-spacing: 0.02em; }
+.cutin.big .cbar::after { content: ""; position: absolute; left: 30%; top: 50%; width: 46%; height: 160%; transform: translateY(-50%); background: radial-gradient(ellipse, rgba(120,0,0,0.45), rgba(0,0,0,0) 65%); filter: blur(6px); animation: ink 2.2s ease-out forwards; }
+@keyframes ink { from { opacity: 0; transform: translateY(-50%) scaleX(0.3); } 25% { opacity: 1; } to { opacity: 0.7; transform: translateY(-50%) scaleX(1); } }
 @keyframes cutin { 0% { opacity: 0; transform: translateX(-40px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(40px); } }
 @keyframes cutimg { 0% { transform: translateX(-120px); } 15% { transform: none; } 100% { transform: translateX(30px); } }
 @media (max-height: 520px) { .cutin { height: 100px; } .cutin img { height: 130px; } .cutin .ctx { top: 18px; } .cutin .ctx b { font-size: 2rem; } }
@@ -3123,11 +3130,14 @@ function roomQ() { if (!base) return 1; const need = base.s * camZoom(); return 
 function updateCam() {
   const Z = camZoom(), s = base.s * Z, vw = cv.width / s, vh = cv.height / s, p = G.p;
   let tx = RW / 2, ty = RH / 2;
-  if (Z > 1 && p) { const mo = input.sx != null && !input.touch && performance.now() - (input.mouseT || 0) < 4000, ax = mo ? clamp(input.mx - p.x, -260, 260) * 0.15 : 0, ay = mo ? clamp(input.my - p.y, -200, 200) * 0.15 : 0; tx = p.x + ax; ty = p.y - 30 + ay; }
+  const fc = G.camFocus && G.camFocus.t > 0 && G.camFocus.u && G.camFocus.u.alive ? G.camFocus.u : null;
+  if (Z > 1 && fc) { tx = fc.x; ty = fc.y - 60; }
+  else if (Z > 1 && p) { const mo = input.sx != null && !input.touch && performance.now() - (input.mouseT || 0) < 4000, ax = mo ? clamp(input.mx - p.x, -260, 260) * 0.15 : 0, ay = mo ? clamp(input.my - p.y, -200, 200) * 0.15 : 0; tx = p.x + ax; ty = p.y - 30 + ay; }
   const cx0 = vw >= RW ? RW / 2 : clamp(tx, vw / 2, RW - vw / 2), cy0 = vh >= RH ? RH / 2 : clamp(ty, vh / 2, RH - vh / 2);
   const now = performance.now(), dt = Math.min(0.1, ((now - (G.camT || now)) / 1000)); G.camT = now;
   if (G.camSnap || !G.cam) { G.cam = { x: cx0, y: cy0 }; G.camSnap = false; }
-  else { const k = 1 - Math.exp(-dt * 9); G.cam.x += (cx0 - G.cam.x) * k; G.cam.y += (cy0 - G.cam.y) * k; }
+  else { const k = 1 - Math.exp(-dt * (fc ? 4 : 9)); G.cam.x += (cx0 - G.cam.x) * k; G.cam.y += (cy0 - G.cam.y) * k; }
+  if (G.camFocus && G.camFocus.t > 0) G.camFocus.t -= dt;
   view.s = s; view.ox = cv.width / 2 - G.cam.x * s; view.oy = cv.height / 2 - G.cam.y * s; view.dpr = base.dpr;
   if (input.sx != null && !input.touch) { const w = toWorldRaw(input.sx, input.sy); input.mx = w.x; input.my = w.y; } // 카메라가 움직여도 마우스가 가리키는 곳 그대로
   view.x0 = (0 - view.ox) / s; view.y0 = (0 - view.oy) / s; view.x1 = view.x0 + vw; view.y1 = view.y0 + vh;
@@ -4461,7 +4471,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.5.8";
+const GAME_VERSION = "1.5.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -4968,6 +4978,7 @@ const UI = {
     const el = document.createElement("div"); el.className = "cutin" + (b.mini ? "" : " big");
     el.innerHTML = `<div class="cbar"></div><img src="${im}" alt=""><div class="ctx"><small>${b.mini ? "중간보스" : "층 보스"} · ${d.style === "ranged" ? "원거리" : "근거리"}${Y ? " · " + Y.n + " 속성" : ""}</small><b>${d.name || b.name}</b></div>`;
     document.body.appendChild(el); setTimeout(() => el.remove(), 2300);
+    { for (const c of ["t", "b"]) { const x = document.createElement("div"); x.className = "lbox " + c + (b.mini ? " mini" : ""); document.body.appendChild(x); setTimeout(() => x.remove(), 2700); } if (G) G.camFocus = { u: b, t: b.mini ? 1.1 : 1.7 }; } // 11-17 하이엔드 보스 등장: 띠 + 카메라가 보스를 비춤
   },
   bountyCard() {
     const B = ensureBounty(); if (!B) return "";
