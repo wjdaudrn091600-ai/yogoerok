@@ -3177,6 +3177,7 @@ function render() {
   for (const o of G.orbs) { if (Number.isFinite(o.x) && Number.isFinite(o.y)) glowDot(g, o.x, o.y, 13, o.col); }
   for (const pr of G.projs) drawProj(g, pr);
   for (const f of G.fx) drawFx(g, f);
+  if (hq) drawAtmo(g, r);
   for (const pt of G.parts) { if (pt.sp) continue; g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; // 11-17 타격 불꽃: 빛나는 줄
   for (const pt of G.parts) { if (!pt.sp) continue; const k = 1 - pt.t / pt.max; g.globalAlpha = k; g.strokeStyle = pt.col; g.lineWidth = pt.s * (0.6 + k * 0.6); g.beginPath(); g.moveTo(pt.x, pt.y); g.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); g.stroke(); }
@@ -3969,6 +3970,19 @@ function initEngine() {
   bindInput(); requestAnimationFrame(loop);
 }
 
+// 11-17 하이엔드: 층마다 공기 중 입자 (먼지·눈·불씨·포자·혼불) — 화면 안에서만, 시간으로 위치를 정해 상태 저장 없음
+const ATMO = { f1: { n: 46, col: [255, 226, 170], sz: 1.6, vy: -6, vx: 4, a: 0.35, glow: 0 }, f2: { n: 70, col: [225, 240, 255], sz: 2.2, vy: 22, vx: -6, a: 0.55, glow: 0 },
+  f3: { n: 60, col: [255, 150, 60], sz: 1.8, vy: -38, vx: 6, a: 0.85, glow: 1 }, f4: { n: 44, col: [170, 255, 140], sz: 2.4, vy: -8, vx: 3, a: 0.5, glow: 1 }, f5: { n: 36, col: [190, 150, 255], sz: 3.0, vy: -14, vx: 0, a: 0.6, glow: 1 } };
+function drawAtmo(g, r) {
+  const A = ATMO[(r.th || FLOORS[0]).room]; if (!A || view.x0 == null) return; const t = G.time || 0, W = view.x1 - view.x0, H = view.y1 - view.y0;
+  g.save(); g.globalCompositeOperation = "lighter";
+  for (let i = 0; i < A.n; i++) { const h1 = Math.sin(i * 127.1) * 43758.5453 % 1, h2 = Math.sin(i * 311.7) * 24634.6345 % 1, h3 = Math.sin(i * 74.7) * 9631.123 % 1;
+    const sp = 0.6 + Math.abs(h3) * 0.8, x = view.x0 + (((Math.abs(h1) * W + t * A.vx * sp + Math.sin(t * 0.7 + i) * 18) % W) + W) % W, y = view.y0 + (((Math.abs(h2) * H + t * A.vy * sp) % H) + H) % H;
+    const tw = 0.55 + 0.45 * Math.sin(t * (1.5 + Math.abs(h3) * 2) + i), s2 = A.sz * (0.6 + Math.abs(h3)), al = A.a * tw;
+    if (A.glow) { const gr = g.createRadialGradient(x, y, 0, x, y, s2 * 5); gr.addColorStop(0, `rgba(${A.col[0]},${A.col[1]},${A.col[2]},${al * 0.5})`); gr.addColorStop(1, `rgba(${A.col[0]},${A.col[1]},${A.col[2]},0)`); g.fillStyle = gr; g.fillRect(x - s2 * 5, y - s2 * 5, s2 * 10, s2 * 10); }
+    g.fillStyle = `rgba(${A.col[0]},${A.col[1]},${A.col[2]},${al})`; g.beginPath(); g.arc(x, y, s2, 0, 7); g.fill(); }
+  g.restore();
+}
 // ======================================================================
 // 하이엔드 그래픽 (11-17 사용자: "상업작에 비해 퀄리티가 너무 떨어져" → "무료중에 하이엔드 방식, 무조건 하이엔드")
 // WebGL2 지연 조명 + HDR 후처리. 2D 캔버스 그림은 그대로 두고 세 겹으로 나눠 GPU 에서 합친다.
@@ -4004,7 +4018,7 @@ precision highp float; in vec2 uv; out vec4 o;
 uniform sampler2D tAlb, tNrm, tA, tB, tO; uniform int hasN; uniform ivec4 shI;
 uniform vec2 scr; uniform vec3 vw; uniform vec2 room; uniform vec4 bnd;
 uniform vec4 L[40]; uniform vec3 LC[40]; uniform int nL;
-uniform vec3 amb; uniform float ambA, specK;
+uniform vec3 amb; uniform float ambA, specK; uniform vec2 atex;
 void main(){
   vec2 px = vec2(uv.x * scr.x, (1.0 - uv.y) * scr.y);
   vec2 w = (px - vw.yz) / vw.x;
@@ -4015,6 +4029,11 @@ void main(){
     bool inner = w.x > bnd.x && w.x < bnd.z && w.y > bnd.y && w.y < bnd.w;
     vec3 N = vec3(0.0, 0.0, 1.0); float hgt = 0.5;
     if (hasN == 1 && inner) { vec4 nn = texture(tNrm, ruv); N = normalize(nn.xyz * 2.0 - 1.0); hgt = nn.a; }
+    { // 방 그림(벽·잔해·소품 포함) 밝기 기울기 → 잔 굴곡을 더함 (벽은 이것만)
+      vec3 lw = vec3(0.299, 0.587, 0.114); float e = 1.5;
+      float lx = dot(texture(tAlb, ruv + vec2(atex.x * e, 0.0)).rgb, lw) - dot(texture(tAlb, ruv - vec2(atex.x * e, 0.0)).rgb, lw);
+      float ly = dot(texture(tAlb, ruv + vec2(0.0, atex.y * e)).rgb, lw) - dot(texture(tAlb, ruv - vec2(0.0, atex.y * e)).rgb, lw);
+      float k = inner ? 1.2 : 2.6; N = normalize(N + vec3(-lx * k, -ly * k, 0.0)); }
     vec3 lit = amb * (0.85 + 0.3 * hgt); vec3 spec = vec3(0.0);
     for (int i = 0; i < 40; i++) { if (i >= nL) break;
       vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z) continue;
@@ -4165,7 +4184,7 @@ function glRender(r, shx, shy) {
   const sc = P.scene; gl.useProgram(sc.pr);
   bindT(sc.u.tAlb, 0, GLR.tex.alb); bindT(sc.u.tNrm, 1, GLR.tex.nrm); bindT(sc.u.tA, 2, GLR.tex.a); bindT(sc.u.tB, 3, GLR.tex.b); bindT(sc.u.tO, 4, GLR.tex.occ);
   gl.uniform1i(sc.u.hasN, GLR.hasN ? 1 : 0); gl.uniform2f(sc.u.scr, W, H); gl.uniform3f(sc.u.vw, view.s, view.ox + shx * view.s, view.oy + shy * view.s);
-  gl.uniform2f(sc.u.room, RW, RH); gl.uniform4f(sc.u.bnd, BL - 4, BT - 4, BR + 4, BB + 4);
+  gl.uniform2f(sc.u.room, RW, RH); gl.uniform2f(sc.u.atex, 1 / r.cache.width, 1 / r.cache.height); gl.uniform4f(sc.u.bnd, BL - 4, BT - 4, BR + 4, BB + 4);
   const Ls = glLights(r); _LA.fill(0); _LC.fill(0);
   Ls.forEach((l, i) => { _LA[i * 4] = l[0]; _LA[i * 4 + 1] = l[1]; _LA[i * 4 + 2] = l[2]; _LA[i * 4 + 3] = l[3]; _LC[i * 3] = l[4][0]; _LC[i * 3 + 1] = l[4][1]; _LC[i * 3 + 2] = l[4][2]; });
   { const cx = (view.x0 + view.x1) / 2, cy = (view.y0 + view.y1) / 2, cand = Ls.map((l, i) => [i, l]).filter(([, l]) => l[5]).sort((a, b) => Math.hypot(a[1][0] - cx, a[1][1] - cy) - Math.hypot(b[1][0] - cx, b[1][1] - cy)).slice(0, 4).map(([i]) => i);
@@ -4429,7 +4448,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.5.6";
+const GAME_VERSION = "1.5.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
