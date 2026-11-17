@@ -2374,6 +2374,7 @@ function killUnit(t, src) {
   { const DA = ASSETS.meta && ASSETS.meta[t.img] && ASSETS.meta[t.img].anim; G.fx.push({ k: "death", x: t.x, y: t.y, r: t.r, t: 0, max: DA && DA.m.death ? 0.9 : 0.5, img: t.img, flip: t.flip }); }
   if (t.dummy) { SAVE.stats.dummyKills = (SAVE.stats.dummyKills || 0) + 1; const x = t.x, y = t.y; schedule(1.2, () => G && G.cur && G.cur.type === "devskill" && spawnDummy(x, y)); return; }
   for (let i = 0; i < 12; i++) spark(t.x, t.y - t.r * 0.5, "#b9a8ff", 1);
+  if (!(SAVE && SAVE.settings.low)) { const nW = t.kind === "boss" ? 26 : 9, wc = t.kind === "boss" ? "255,150,110" : "185,165,255"; for (let i = 0; i < nW; i++) G.parts.push({ ws: 1, wc, x: t.x + rnd(-t.r, t.r) * 0.8, y: t.y - rnd(0, t.r * 1.6), vx: rnd(-40, 40), vy: rnd(-90, -30), t: 0, max: rnd(0.7, 1.4), s: rnd(3, 6) * (t.kind === "boss" ? 1.6 : 1) }); } // 11-17 하이엔드: 쓰러지면 혼불 조각이 흩어져 오름
   if (t.kind === "mob") { sfx(t.affix === "burst" ? "burst" : "kill"); if (t.team === 1 && !t.dummy && SAVE) { SAVE.mk = SAVE.mk || {}; if (!SAVE.mk[t.type]) { G.newMobs = G.newMobs || []; G.newMobs.push(t.type); addText(t.x, t.y - t.r - 60, "📖 도감 등록!", "#9fe0ff", 18); } SAVE.mk[t.type] = (SAVE.mk[t.type] || 0) + 1; } }
   if (t.affix === "burst") G.tele.push({ t: 0, team: 1, src: t, shape: "circle", x: t.x, y: t.y, r: 110 + t.r, max: 0.9, dmg: t.dmg * 0.9, bcol: "#ff8a3c" }); // 엘리트 특성: 폭발 (11-16 밸런스 1.2→0.9)
   if (t.affix === "split" && t.kind === "mob" && !G.client) for (let i = 0; i < 2; i++) { // 엘리트 특성: 분열 — 작은 둘로
@@ -2610,7 +2611,7 @@ function update(dt) {
   }
   }
   for (const f of G.fx) f.t += dt; G.fx = G.fx.filter((f) => f.t < f.max);
-  for (const pt of G.parts) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += 300 * dt; pt.t += dt; } G.parts = G.parts.filter((pt) => pt.t < pt.max);
+  for (const pt of G.parts) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += (pt.ws ? -50 : 300) * dt; if (pt.ws) pt.vx *= 1 - dt * 1.5; pt.t += dt; } G.parts = G.parts.filter((pt) => pt.t < pt.max);
   for (const t of G.texts) { t.y -= 50 * dt; t.t += dt; } G.texts = G.texts.filter((t) => t.t < 0.9);
   G.shake = Math.max(0, G.shake - dt * 40);
 }
@@ -3201,7 +3202,9 @@ function render() {
   for (const pr of G.projs) drawProj(g, pr);
   for (const f of G.fx) drawFx(g, f);
   if (hq) drawAtmo(g, r);
-  for (const pt of G.parts) { if (pt.sp) continue; g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
+  { g.save(); g.globalCompositeOperation = "lighter"; for (const pt of G.parts) { if (!pt.ws) continue; const k = 1 - pt.t / pt.max, R = pt.s * (1 + (1 - k) * 0.8), wob = Math.sin(pt.t * 9 + pt.x) * 2;
+      const gr = g.createRadialGradient(pt.x + wob, pt.y, 0, pt.x + wob, pt.y, R * 3); gr.addColorStop(0, `rgba(255,255,255,${0.9 * k})`); gr.addColorStop(0.25, `rgba(${pt.wc},${0.7 * k})`); gr.addColorStop(1, `rgba(${pt.wc},0)`); g.fillStyle = gr; g.fillRect(pt.x + wob - R * 3, pt.y - R * 3, R * 6, R * 6); } g.restore(); }
+  for (const pt of G.parts) { if (pt.sp || pt.ws) continue; g.globalAlpha = 1 - pt.t / pt.max; g.fillStyle = pt.col; g.fillRect(pt.x - pt.s / 2, pt.y - pt.s / 2, pt.s, pt.s); } g.globalAlpha = 1;
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; // 11-17 타격 불꽃: 빛나는 줄
   for (const pt of G.parts) { if (!pt.sp) continue; const k = 1 - pt.t / pt.max; g.globalAlpha = k; g.strokeStyle = pt.col; g.lineWidth = pt.s * (0.6 + k * 0.6); g.beginPath(); g.moveTo(pt.x, pt.y); g.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); g.stroke(); }
   g.restore();
@@ -4183,6 +4186,7 @@ function glLights(r) {
   for (const u of G.units) if (u.alive && u.kind === "boss") add(u.x, u.y - 30, 300, 0.6, u.ph2 ? [1, 0.3, 0.25] : [0.6, 0.45, 1]);
   for (const h of r.haz) if (h.kind === "lava" || h.kind === "soul") add(h.x, h.y, h.rx * 2.2, 0.8, h.kind === "lava" ? [1, 0.45, 0.15] : [0.7, 0.4, 1], 1);
   for (const f of G.fx) if (f.k === "ring" || f.k === "boltDown" || f.k === "beam" || f.k === "sig") add(f.x, f.y, (f.r || 200) * 1.3, 1.1 * (1 - f.t / f.max), hexRGB(f.col || "#fff0c0"));
+  for (const f of G.fx) if (f.k === "death" && f.t < 0.35) add(f.x, f.y - 20, (f.r || 30) * 6 + 90, 0.9 * (1 - f.t / 0.35), [0.78, 0.65, 1]); // 쓰러질 때 순간 빛
   for (const t of G.tele) if (t.shape === "circle") add(t.x, t.y, t.r * 1.15, 0.45, [1, 0.35, 0.3]);
   for (const z of G.zones) add(z.x, z.y, (z.r || 120) * 1.3, 0.45, hexRGB(z.col || "#ff9a6a"));
   for (const pr of G.projs) add(pr.x, pr.y, 150, 0.55, hexRGB(pr.col || "#ffd8a0"));
@@ -4471,7 +4475,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.5.9";
+const GAME_VERSION = "1.6.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
