@@ -4665,7 +4665,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.8";
+const GAME_VERSION = "1.7.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5912,12 +5912,13 @@ const UI = {
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 미션 보상이 있어요!</p>' : ""}
-      <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="home">처음 화면</button></div>`);
+      <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="home">처음 화면</button>${["story", "endless", "raid"].includes(r.mode) ? '<button class="btn" id="sharec">📸 기록 카드</button>' : ""}</div>`);
     const opt = G.opt, multi = opt.multi || NET.client;
     if (multi) $("#again").textContent = "대기실로 (다시 함께)";
     $("#again").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; G = null; NET.roomSent = null; UI.multi(); return; } if (opt.mode === "story") { opt.floor = Math.min(opt.floor, SAVE.story.maxFloor); delete opt.resume; delete opt._newOk; } UI.startRun(opt); };
     $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
     if (typeof talkType === "function") talkType();
+    if ($("#sharec")) $("#sharec").onclick = () => shareCard(r);
     document.querySelectorAll(".goal[data-go]").forEach((g) => (g.onclick = () => { if (multi) return; UI.closeModal(); UI.menu(); UI.open(g.dataset.go); }));
   },
 };
@@ -6501,6 +6502,28 @@ function duoHint(k) {
   if (!G || !G.p) return ""; const have = (x) => G.p.boons.includes(x);
   const d = Object.keys(BOONS).find((dk) => { const D = BOONS[dk]; return D.duo && D.req && D.req.includes(k) && !have(dk) && D.req.every((q) => q === k || have(q)); });
   return d ? `<p class="duoh">🔗 고르면 조합 「${BOONS[d].name}」이 열려요</p>` : "";
+}
+
+// ===================== 11-18 1.7.9 기록 카드 (공유용 이미지) =====================
+function shareCard(r) {
+  const W = 1200, H = 630, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  const art = IMG["card_" + charArt(G.p.id)] || IMG["spr_" + G.p.art], bg = IMG.ui_menu_bg || IMG.cg_open, logo = IMG.ui_logo;
+  g.fillStyle = "#120c10"; g.fillRect(0, 0, W, H);
+  if (bg && bg.naturalWidth) { g.globalAlpha = 0.35; g.drawImage(bg, 0, 0, W, H); g.globalAlpha = 1; }
+  const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, "rgba(10,6,10,0.2)"); gr.addColorStop(0.45, "rgba(10,6,10,0.85)"); gr.addColorStop(1, "rgba(10,6,10,0.95)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  if (art && art.naturalWidth) { const s = Math.min(560 / art.naturalHeight, 460 / art.naturalWidth); g.drawImage(art, 40, H - art.naturalHeight * s - 20, art.naturalWidth * s, art.naturalHeight * s); }
+  if (logo && logo.naturalWidth) { const s = 260 / logo.naturalWidth; g.drawImage(logo, W - 300, 24, 260, logo.naturalHeight * s); }
+  g.strokeStyle = "#b8864b"; g.lineWidth = 3; g.strokeRect(12, 12, W - 24, H - 24);
+  g.textAlign = "left"; g.fillStyle = "#ffd27a"; g.font = '700 46px "Do Hyeon"'; const c0 = CHAR[G.p.id];
+  g.fillText(`${c0.name} · ${c0.job}`, 520, 210);
+  const res = r.mode === "story" ? `스토리 ${r.floor}층 ${r.stage}스테이지 ${r.storyDone ? "완주!" : r.win ? "돌파" : "도달"}` : r.mode === "endless" ? `무한의 방 ${r.endless}번째 방` : `보스 레이드 ${G.raidN || 0}마리`;
+  g.fillStyle = "#fff"; g.font = '700 34px "Do Hyeon"'; g.fillText(res, 520, 262);
+  const rows = [["처치", r.kills], ["레벨", "Lv." + r.lvl], ["최대 연격", r.comboMax || 0], ["혼불", "+" + ((r.soulInfo && r.soulInfo.total) || 0)]];
+  rows.forEach(([k, v], i) => { const x = 520 + (i % 2) * 300, y = 330 + Math.floor(i / 2) * 90; g.fillStyle = "rgba(255,200,120,0.08)"; g.fillRect(x, y - 44, 280, 70); g.fillStyle = "#c9b9a0"; g.font = '24px "Gowun Dodum"'; g.fillText(k, x + 16, y - 12); g.fillStyle = "#ffe08a"; g.font = '700 34px "Do Hyeon"'; g.fillText(String(v), x + 16, y + 20); });
+  g.fillStyle = "#a89a88"; g.font = '22px "Gowun Dodum"'; g.fillText(`${new Date().toLocaleDateString("ko-KR")} · 요괴록: 조선 요괴 토벌기 · ${nick()}`, 520, 560);
+  c.toBlob((blob) => { if (!blob) return; const f = new File([blob], "요괴록_기록.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: "요괴록 토벌 기록" }).catch(() => {});
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "요괴록_기록.png"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); UI.toast("📸 기록 카드를 저장했어요"); } }, "image/png");
 }
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
