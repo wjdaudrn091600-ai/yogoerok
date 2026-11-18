@@ -1,13 +1,13 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.6";
+const GAME_VERSION = "1.9.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
 // PC 앱 설치 (11-12): 웹에서 들어오면 '앱으로 설치' — 브라우저 설치 창, 안 되면 바로가기 만드는 파일 내려받기
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
-if (location.protocol === "https:" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+if (window.isSecureContext && /^https?:/.test(location.protocol) && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(() => { if (navigator.serviceWorker.controller || !window.caches) return; const cu = [...document.scripts].map((s) => (s.textContent.match(/core\.json\?h=[0-9a-f]+/) || [])[0]).find(Boolean); if (cu) setTimeout(() => caches.open("yogoerok-1").then((c) => c.add(cu)).catch(() => { }), 8000); }).catch(() => { }); // 첫 방문 때 받은 core 도 보관 (HTTP 캐시에서 바로 옴)
 const isWebPlay = () => location.protocol.startsWith("http") && !matchMedia("(display-mode: standalone)").matches && !/; wv\)|Android.*Version\/[\d.]+ Chrome/.test(navigator.userAgent) && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 function installPc() {
   if (installEvt) { installEvt.prompt(); installEvt.userChoice.then(() => { installEvt = null; }); return; }

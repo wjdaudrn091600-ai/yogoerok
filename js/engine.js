@@ -12,7 +12,7 @@ const PACK = { done: {}, wait: {} };
 function needPack(name) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
   if (PACK.wait[name]) return PACK.wait[name];
-  const url = ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : "");
+  const url = ASSETS.packs[name].includes("h=") ? ASSETS.packs[name] : ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : ""); // 11-19 지문 주소면 버전 안 붙임
   return (PACK.wait[name] = fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((j) => {
     for (const k in j.img) { ASSETS.img[k] = j.img[k]; const im = new Image(); im.src = j.img[k]; IMG[k] = im; }
     Object.assign(ASSETS.meta, j.meta || {}); PACK.done[name] = true; if (G && G.p) setTimeout(warmRun, 30);
