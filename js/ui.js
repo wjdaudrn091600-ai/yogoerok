@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.0.0";
+const GAME_VERSION = "2.0.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -625,7 +625,8 @@ const UI = {
     if ($("#dailyb")) $("#dailyb").onclick = () => dailyStart();
     if ($("#storeb")) $("#storeb").onclick = () => storeClaim();
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
-    const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID; // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
+    const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID;
+    if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.story.maxFloor || 1) >= 2 && (SAVE.hist || []).length >= 3) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 1층 보스를 잡은 뒤 한 번만 구글 별점 창 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
