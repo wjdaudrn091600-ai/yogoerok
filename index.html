@@ -507,6 +507,10 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .mres{text-align:center;margin:2px auto 6px;font-size:.9rem}.mres b{color:var(--gold2)}.mres .up{color:#7fe08a;font-weight:700}
 .ch .rec{position:absolute;left:6px;bottom:30px;font-size:.68rem;padding:1px 6px;border-radius:8px;background:#2e7d4f;color:#e9ffe9;border:1px solid #7fe08a;box-shadow:0 0 8px rgba(127,224,138,.5)}
 .buildc{margin-top:10px}.buildc h3{margin:0 0 4px}.bchips{display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow:auto}.bchip{font-size:.78rem;padding:3px 8px;border:1px solid;border-radius:10px;background:rgba(0,0,0,.35)}
+.sbook{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;max-width:1100px;margin:0 auto}
+.sbi{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);cursor:pointer;transition:transform .15s,border-color .15s}.sbi:hover{transform:translateY(-2px);border-color:var(--gold2)}
+.sbi .sbp{height:118px;background-size:cover;background-position:center}.sbi b{display:block;padding:8px 10px;font-size:.85rem}.sbi.off{cursor:default;opacity:.45}.sbi.off .sbp{background:#120e16}
+.duoh{margin:6px 0 0;font-size:.75rem;color:#7fe0c8;text-shadow:0 0 8px rgba(127,224,200,.5)}
 </style>
 </head>
 <body>
@@ -2010,13 +2014,8 @@ function populate(r) {
     const a1 = rollActive(), a2 = rollActive([a1]);
     G.drops.push({ type: "act", k: a1, x: RW / 2 - 220, y: RH / 2 + 40, grp: 1 }, { type: "act", k: a2, x: RW / 2 + 220, y: RH / 2 + 40, grp: 1 });
   } else if (r.type === "shop" && !r.cleared) {
-    r.cleared = true;
-    const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.3) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
-    const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
-    const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(rollBoons(1, G.p.lvl)[0] ? [{ what: "boon", k: rollBoons(1, G.p.lvl)[0], price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
-    list.forEach((it, i) => { const x = RW / 2 + ((i % 3) - 1) * 260, y = RH / 2 - 60 + Math.floor(i / 3) * 210;
-      const base = it.price || (it.what === "herb" ? SHOP_ITEMS.herb.price : SHOP_ITEMS[it.k].price);
-      G.drops.push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
+    r.cleared = true; stockShop();
+    G.drops.push({ type: "shopre", x: RW / 2, y: RH / 2 + 300, n: 0, price: 40 }); // 11-18 다시 진열 종 (Hades 카론 상점 재고 바꾸기 재해석)
   } else if (r.type === "event" && !r.cleared && !r.evDone) {
     setTimeout(() => { if (G && !G.over) UI.tip("event"); }, 600);
     r.cleared = true; r.evDone = true; G.drops.push({ type: "evt", k: typeof pickEvent === "function" ? pickEvent() : "bowl", x: RW / 2, y: RH / 2 - 10, used: false });
@@ -2847,6 +2846,11 @@ function pickups(u, dt = 1 / 60) {
       if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
     else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; healUnit(u, u.maxHp * 0.35); u.shield = Math.max(u.shield, u.maxHp * 0.1); sfx("heal"); }
+    else if (d.type === "shopre" && dd < 50 && !d.cool && u === G.p && d.away !== false) {
+      d.cool = 1.2; d.away = false; if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); continue; }
+      u.gold -= d.price; d.n++; d.price = 40 + d.n * 35; sfx("coin"); for (let i = G.drops.length - 1; i >= 0; i--) if (G.drops[i].type === "shop" && !G.drops[i].sold) G.drops.splice(i, 1);
+      stockShop(); addText(d.x, d.y - 80, "보부상이 새 물건을 꺼냈다!", "#ffe08a", 22); for (let i = 0; i < 10; i++) spark(RW / 2 + rnd(-300, 300), RH / 2 + rnd(-100, 150), "#ffe6b0", 4); continue;
+    }
     else if (d.type === "shop" && !d.sold && dd < 50 && !d.cool) {
       if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); d.cool = 1.5; continue; }
       u.gold -= d.price; d.sold = true; sfx("coin");
@@ -3542,6 +3546,7 @@ function drawDrop(g, d) {
     else { g.save(); g.translate(d.x, d.y); g.fillStyle = "#5a3418"; g.fillRect(-36, -20, 72, 40); g.fillStyle = "#e0b04a"; g.fillRect(-38, -22, 76, 5); g.restore(); }
   }
   else if (d.type === "evt") drawEvt(g, d);
+  else if (d.type === "shopre") drawShopRe(g, d);
   else if (d.type === "spring") {
     const wl = IMG.well, M = ASSETS.meta && ASSETS.meta.well;
     if (wl && wl.naturalWidth) { const H = 190, sc = M ? H * M.s : H / wl.naturalHeight; g.save(); if (d.used) g.filter = "grayscale(0.8) brightness(0.7)"; else { const gl = g.createRadialGradient(d.x, d.y - 40, 5, d.x, d.y - 40, 130); gl.addColorStop(0, "rgba(140,230,255,0.35)"); gl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gl; g.fillRect(d.x - 140, d.y - 170, 280, 280); }
@@ -4400,6 +4405,25 @@ function drawEvt(g, d) {
   g.restore();
 }
 
+// 11-18 상점 진열 (다시 진열 때도 씀)
+function stockShop() {
+  const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.3) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
+  const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
+  const bk = rollBoons(1, G.p.lvl)[0];
+  const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(bk ? [{ what: "boon", k: bk, price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
+  list.forEach((it, i) => { const x = RW / 2 + ((i % 3) - 1) * 260, y = RH / 2 - 60 + Math.floor(i / 3) * 210;
+    const base = it.price || (it.what === "herb" ? SHOP_ITEMS.herb.price : SHOP_ITEMS[it.k].price);
+    G.drops.push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
+}
+function drawShopRe(g, d) {
+  const t = G.time, y = d.y - 30 + Math.sin(t * 3) * 3; if (G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) > 100) d.away = true; // 한 번 쓰면 떨어졌다 와야 다시
+  g.save(); g.fillStyle = "rgba(0,0,0,0.4)"; g.beginPath(); g.ellipse(d.x, d.y + 6, 34, 10, 0, 0, 7); g.fill();
+  const gr = g.createRadialGradient(d.x, y, 2, d.x, y, 40); gr.addColorStop(0, "rgba(255,230,150,0.55)"); gr.addColorStop(1, "rgba(255,200,90,0)"); g.fillStyle = gr; g.beginPath(); g.arc(d.x, y, 40, 0, 7); g.fill();
+  g.font = "38px serif"; g.textAlign = "center"; g.fillText("🔔", d.x, y + 13);
+  g.font = '700 18px "Do Hyeon"'; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = `다시 진열 · 엽전 ${d.price}`; g.strokeText(tx, d.x, d.y + 34); g.fillStyle = (G.p.gold || 0) >= d.price ? "#ffe08a" : "#a99"; g.fillText(tx, d.x, d.y + 34);
+  g.restore();
+}
+
 </script>
 <script>
 // ===== 등불 미궁: 온라인 멀티 (PeerJS) =====
@@ -4632,7 +4656,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.6";
+const GAME_VERSION = "1.7.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5181,7 +5205,8 @@ const UI = {
     const extra = `<h3 style="margin-top:18px">일반 요괴 <span class="muted">${Object.keys(ENEMIES).filter((k) => mk[k]).length}/${Object.keys(ENEMIES).length}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${mobs}</div>
       <h3 style="margin-top:18px">엘리트 특성 <span class="muted">엘리트 요괴 머리 위에 이름이 보여요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${affs}</div>
       <h3 style="margin-top:18px">조합 패시브 <span class="muted">두 패시브를 모두 가지면 레벨업 때 나와요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${duos}</div>`;
-    UI.frame("📖 요괴록 도감", `<p class="muted">${got}/${all} · 잡은 요괴를 누르면 설화와 토벌 요령이 열려요 (3번: 요령 · 10번: 토벌 완료 도장)</p>${floors}${extra}`);
+    UI.frame("📖 요괴록 도감", `<div class="center" style="margin:4px 0 8px"><button class="btn gold" id="sbook">📜 이야기 다시 보기</button></div><p class="muted">${got}/${all} · 잡은 요괴를 누르면 설화와 토벌 요령이 열려요 (3번: 요령 · 10번: 토벌 완료 도장)</p>${floors}${extra}`);
+    if ($("#sbook")) $("#sbook").onclick = () => UI.storyBook();
     document.querySelectorAll("[data-lore]").forEach((c) => { const n = (SAVE.kb || {})[c.dataset.lore] || 0; if (n) { c.style.cursor = "pointer"; if (n >= 10) c.classList.add("ldone"); c.onclick = () => UI.loreOpen(c.dataset.lore, false); } });
     document.querySelectorAll("[data-lmob]").forEach((c) => { const n = (SAVE.mk || {})[c.dataset.lmob] || 0; if (n) { c.style.cursor = "pointer"; if (n >= 10) c.classList.add("ldone"); c.onclick = () => UI.loreOpen(c.dataset.lmob, true); } });
   },
@@ -5850,7 +5875,7 @@ const UI = {
     // 고를 패시브가 남지 않으면(모두 Lv.3이거나 상한) 엽전으로 대신 (11-13)
     if (!opts.length) { G.p.gold = (G.p.gold || 0) + 60; addText(G.p.x, G.p.y - 120, "패시브 모두 최대! 엽전 +60", "#ffe08a", 22); return; }
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
-    UI.modal(`<h2>레벨 업! Lv.${G.p.lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1~${opts.length} 키)</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b><div class="muted">${RARITY[b.rar].name}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? ` · <b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b>` : " · 새 패시브"; })()}</div>${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>${G.rerolls > 0 && !multi ? `<div class="center"><button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button></div>` : ""}`);
+    UI.modal(`<h2>레벨 업! Lv.${G.p.lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1~${opts.length} 키)</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b><div class="muted">${RARITY[b.rar].name}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? ` · <b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b>` : " · 새 패시브"; })()}</div>${typeof duoHint === "function" ? duoHint(k) : ""}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>${G.rerolls > 0 && !multi ? `<div class="center"><button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button></div>` : ""}`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
@@ -6450,6 +6475,23 @@ UI.history = function () {
   UI.frame("📜 토벌 기록", `<div class="card" style="max-width:980px;margin:0 auto"><p class="muted">최근 ${H.length}판 · 가장 많이 잡은 판 ${best((x) => x.k)}마리 · 최고 연격 ${Math.max(best((x) => x.cb), SAVE.stats.maxCombo || 0)} · 최고 무한의 방 ${SAVE.stats.endlessBest || 0}</p>
     ${H.length ? `<div style="overflow-x:auto"><table class="ptab"><tr><th>때</th><th>영웅</th><th>모드</th><th>도달</th><th>결과</th><th>처치</th><th>레벨</th><th>연격</th><th>혼불</th><th>시간</th></tr>${rows}</table></div>` : '<p class="muted">아직 기록이 없어요. 첫 토벌을 떠나 보세요!</p>'}</div>`, () => UI.menu());
 };
+
+// ===================== 11-18 1.7.7 이야기 다시 보기 · 조합 힌트 =====================
+function storyOrder() { const o = ["open"]; for (let f = 1; f <= 5; f++) o.push(String(f), `f${f}_mid`, `f${f}_boss`, `f${f}_clear`); o.push("end"); return o.filter((k) => STORY[k]); }
+function storyOpen(k) { const S = SAVE.story || {}, mf = S.maxFloor || 1, seen = S.seen || {};
+  if (k === "open") return !!seen.open; if (/^\d$/.test(k)) return mf >= +k; if (k === "end") return (SAVE.stats.storyClear || 0) > 0;
+  const m = k.match(/^f(\d)_(mid|boss|clear)$/); if (!m) return false; if (m[2] === "clear") return mf > +m[1] || (SAVE.stats.storyClear || 0) > 0; return !!seen[k] || mf > +m[1]; }
+UI.storyBook = function () {
+  const ks = storyOrder(), open = ks.filter(storyOpen).length;
+  UI.frame("📜 이야기 다시 보기", `<p class="muted" style="text-align:center">찢긴 요괴록 이야기 ${open}/${ks.length} · 장면을 누르면 음성과 함께 다시 봐요</p><div class="sbook">${ks.map((k) => { const s = STORY[k], ok = storyOpen(k);
+    return `<div class="sbi ${ok ? "" : "off"}" ${ok ? `data-sk="${k}"` : ""}><div class="sbp" style="background-image:url(${ok ? imgSrc(s.img) : ""})"></div><b>${ok ? s.title : "??? — 아직 가 보지 못한 이야기"}</b></div>`; }).join("")}</div>`, () => UI.bestiary());
+  document.querySelectorAll(".sbi[data-sk]").forEach((b) => (b.onclick = () => UI.story(b.dataset.sk, () => {})));
+};
+function duoHint(k) {
+  if (!G || !G.p) return ""; const have = (x) => G.p.boons.includes(x);
+  const d = Object.keys(BOONS).find((dk) => { const D = BOONS[dk]; return D.duo && D.req && D.req.includes(k) && !have(dk) && D.req.every((q) => q === k || have(q)); });
+  return d ? `<p class="duoh">🔗 고르면 조합 「${BOONS[d].name}」이 열려요</p>` : "";
+}
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
