@@ -511,6 +511,9 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .sbi{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);cursor:pointer;transition:transform .15s,border-color .15s}.sbi:hover{transform:translateY(-2px);border-color:var(--gold2)}
 .sbi .sbp{height:118px;background-size:cover;background-position:center}.sbi b{display:block;padding:8px 10px;font-size:.85rem}.sbi.off{cursor:default;opacity:.45}.sbi.off .sbp{background:#120e16}
 .duoh{margin:6px 0 0;font-size:.75rem;color:#7fe0c8;text-shadow:0 0 8px rgba(127,224,200,.5)}
+.mode.starthere{border-color:#ffd27a!important;box-shadow:0 0 0 2px rgba(255,210,122,.6),0 0 28px rgba(255,190,90,.45);animation:sh 1.6s ease-in-out infinite}
+@keyframes sh{0%,100%{box-shadow:0 0 0 2px rgba(255,210,122,.5),0 0 18px rgba(255,190,90,.3)}50%{box-shadow:0 0 0 3px rgba(255,220,140,.9),0 0 38px rgba(255,190,90,.6)}}
+.mode .shere{position:absolute;right:10px;top:10px;z-index:3;font-style:normal;font-family:var(--display);background:linear-gradient(180deg,#ffe08a,#e0a040);color:#2a1606;padding:4px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
@@ -2953,7 +2956,9 @@ function updateBoss(b, dt) {
   if (b.img !== b.type && ASSETS.meta && ASSETS.meta[b.type]) b.img = b.type; // 층 그림 묶음이 뒤늦게 와도 전용 그림으로 (11-15)
   const tg = mobTarget(b) || heroesOf(0).find((h) => h.alive); b.tg = tg; if (!tg) return;
   const ph2 = b.hp < b.maxHp * 0.5, sp = ph2 ? 1.35 : 1;
-  if (ph2 && !b.ph2) { b.ph2 = true; G.banner = { text: "분노!", sub: b.name + "의 공격이 빨라집니다", t: 1.6, boss: true }; G.shake = 12; }
+  if (ph2 && !b.ph2) { b.ph2 = true; G.banner = { text: "분노!", sub: b.name + "의 공격이 빨라집니다", t: 1.6, boss: true }; G.shake = 12;
+    G.slowT = Math.max(G.slowT || 0, 0.7); b.flash = 0.6; sfx("boom"); G.fx.push({ k: "ring", x: b.x, y: b.y, r: 520, t: 0, max: 0.9, col: "#ff3b30" }, { k: "ring", x: b.x, y: b.y, r: 260, t: 0, max: 0.6, col: "#ffb547" }); // 11-18 분노 전환 연출: 순간 느려짐·충격파·굉음
+    for (let i = 0; i < 24; i++) spark(b.x + rnd(-60, 60), b.y - b.r + rnd(-40, 40), i % 2 ? "#ff6a4d" : "#ffd27a", 8); }
   b.t -= dt * sp;
   if (b.castT > 0) b.castT -= dt; if (b.atkT > 0) b.atkT -= dt; if (b.guardT > 0) { b.guardT -= dt; if (b.guardT <= 0) { G.banner = { text: "반격!", sub: b.name + "의 돌 껍질이 깨집니다", t: 1.2, boss: true }; } }
   if (b.st === "charge" && b.trailOn) { b.trailT = (b.trailT || 0) - dt; if (b.trailT <= 0) { b.trailT = 0.07; G.zones.push({ x: b.x, y: b.y, r: 62, dur: 3.2, t: 0, dps: b.dmg * 0.9, slow: 0, guard: 0, execute: 0, team: 1, src: b, follow: null, col: BCOL.b_boss2, tick: 0.2, vk: bfx(b, "magma") }); } }  if (b.st === "move") {
@@ -4665,7 +4670,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.9";
+const GAME_VERSION = "1.8.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5108,6 +5113,7 @@ const UI = {
         <label class="autochk"><input type="checkbox" id="lauto" ${ls.get("ygr_auto_off") ? "" : "checked"}> 자동 로그인 (다음부터 바로 시작)</label>
         <div class="err" id="lerr"></div>
         <div class="center"><button class="btn gold" type="submit">로그인</button><button class="btn" type="button" id="lnew">새 계정 만들기</button></div>
+        <div class="center" style="margin-top:6px"><button class="btn gold" type="button" id="lguest" style="min-width:220px">▶ 바로 시작 (게스트)</button></div>
         <p class="muted" style="text-align:center;margin:12px 0 0">☁️ 같은 아이디로 로그인하면 PC·폰 어디서든 이어서 해요 · v${GAME_VERSION}</p>
       </form></div>`;
     titleParts();
@@ -5119,6 +5125,14 @@ const UI = {
     const go = async (create) => { if (busy) return; busy = true; $("#lerr").textContent = "☁️ 접속 중…"; const id = $("#lid").value, pw = $("#lpw").value; const e = await loginCloud(id, pw, create, $("#lnick").value); busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; } rememberLogin($("#lauto").checked, id, pw); afterLogin(); };
     $("#lf").onsubmit = (e) => { e.preventDefault(); go(false); };
     $("#lnew").onclick = () => go(true);
+    $("#lguest").onclick = async () => { // 11-18 가입 없이 바로 시작 — 아이디·비밀번호는 자동으로 만들고 설정 화면에서 볼 수 있음
+      if (busy) return; busy = true; $("#lerr").textContent = "☁️ 준비 중…";
+      let G0 = null; try { G0 = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { }
+      const id = G0 ? G0.id : "손님" + Math.floor(100000 + Math.random() * 900000), pw = G0 ? G0.pw : Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+      let e = await loginCloud(id, pw, !G0, "토벌꾼" + id.slice(-4)); if (e && G0) e = await loginCloud(id, pw, true, "토벌꾼" + id.slice(-4));
+      busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; }
+      ls.set("ygr_guest", JSON.stringify({ id, pw })); rememberLogin(true, id, pw); afterLogin();
+    };
     setTimeout(() => { const el = last ? $("#lpw") : $("#lid"); if (el) el.focus(); }, 50);
   },
 
@@ -5264,6 +5278,7 @@ const UI = {
         <p class="muted" style="font-size:.75rem;opacity:.7">버전 v${GAME_VERSION}${location.href.startsWith(UPDATE_URL) ? " · 온라인 자동 업데이트" : ""}</p>
         <p class="muted">선택한 캐릭터: <b style="color:var(--gold2)">${CHAR[cur].name} · ${CHAR[cur].job}</b></p>
       </div></div>`;
+    if (!(st.rooms || 0) && !dev) { const sm = document.querySelector('.mode[data-m="story"]'); if (sm) { sm.classList.add("starthere"); const e = document.createElement("em"); e.className = "shere"; e.textContent = "▶ 여기서 시작!"; sm.appendChild(e); } } // 11-18 처음 온 사람 길잡이
     document.querySelectorAll(".mode,.sub").forEach((b) => { const k = b.dataset.m || b.dataset.s; if (GATE[k]) { b.classList.add("lock"); const e = document.createElement("em"); e.className = "lkb"; e.textContent = "🔒 " + GATE[k]; b.appendChild(e); } });
     document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : UI.chars({ mode: b.dataset.m })));
     titleParts(); // 11-17 하이엔드 메뉴: 떠오르는 풍등 + 카드가 마우스를 따라 기울고 금빛이 훑음
@@ -5530,6 +5545,7 @@ const UI = {
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
+      ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     $("#infobtn").onclick = () => UI.info("prob");
