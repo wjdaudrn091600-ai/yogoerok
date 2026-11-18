@@ -460,7 +460,7 @@ function buildRoom(r) {
   // 기둥·장애물
   const layouts = [[], [[0.3, 0.38], [0.7, 0.38], [0.3, 0.75], [0.7, 0.75]], [[0.5, 0.56]], [[0.22, 0.56], [0.78, 0.56]], [[0.35, 0.33], [0.65, 0.78]], [[0.18, 0.3], [0.82, 0.3], [0.18, 0.82], [0.82, 0.82]], [[0.4, 0.45], [0.6, 0.45], [0.4, 0.7], [0.6, 0.7]]];
   if (first) {
-  const lay = r.type === "fight" || r.type === "elite" || r.type === "start" ? pick(layouts) : r.type === "boss" || r.type === "arena" ? pick([layouts[0], layouts[5]]) : [];
+  const lay = r.type === "start" ? pick(layouts.filter((l) => !l.some(([fx]) => Math.abs(fx - 0.5) < 0.2))) : r.type === "fight" || r.type === "elite" ? pick(layouts) : r.type === "boss" || r.type === "arena" ? pick([layouts[0], layouts[5]]) : []; // 11-19 시작 방은 가운데 기둥 없음 (시작하자마자 앞이 막히던 배치)
   for (const [fx, fy] of lay) r.obs.push({ x: BL + (BR - BL) * fx, y: BT + (BB - BT) * fy, r: rint(30, 40), kind: th.hazard === "ice" ? "crystal" : "pillar", prop: "prop_" + th.room + (Math.random() < 0.6 ? "a" : "b") });
   // 위험 지형
   const hz = { f1: "spike", f2: "ice", f3: "lava", f4: "poison", f5: "soul" }[th.room];
