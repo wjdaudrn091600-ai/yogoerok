@@ -2550,6 +2550,7 @@ document.addEventListener("visibilitychange", () => {
   } catch (e) { }
 });
 window.addEventListener("pagehide", () => { const a = document.getElementById("bgm"); if (a) { a.pause(); a._bgPaused = true; } });
+document.addEventListener("visibilitychange", () => { try { if (document.hidden && G && !G.over && !(G.opt && G.opt.multi) && !G.client && !UI.modalOpen() && !/autotest/.test(location.hash)) UI.togglePause(); } catch (e) { } }); // 11-19 앱을 내리면 멈춤 창 (돌아왔을 때 바로 맞지 않게)
 function loop(t) {
   const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); perfWatch(t - lastT); lastT = t;
   try { pollPad(); } catch (e) { }

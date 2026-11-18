@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.5";
+const GAME_VERSION = "1.9.6";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -381,7 +381,8 @@ function analyticsInit() {
 const NATIVE = (() => { const C = window.Capacitor, P = C && C.Plugins; return C && C.isNativePlatform && C.isNativePlatform() && P ? P : null; })();
 function haptic(kind) { try { if (SAVE && SAVE.settings && SAVE.settings.haptic === false) return;
   try { const gp = typeof pad !== "undefined" && pad.on && navigator.getGamepads && [...navigator.getGamepads()].find((g) => g && g.connected); if (gp && gp.vibrationActuator) gp.vibrationActuator.playEffect("dual-rumble", { duration: kind === "heavy" ? 260 : 90, strongMagnitude: kind === "heavy" ? 0.9 : 0.25, weakMagnitude: kind === "heavy" ? 0.6 : 0.5 }).catch(() => {}); } catch (e) { }
-  if (!NATIVE || !NATIVE.Haptics) return; if (kind === "heavy") NATIVE.Haptics.impact({ style: "HEAVY" }); else NATIVE.Haptics.impact({ style: "LIGHT" }); } catch (e) { } }
+  if (!NATIVE || !NATIVE.Haptics) { if (IS_TOUCH && navigator.vibrate) navigator.vibrate(kind === "heavy" ? [40, 30, 60] : 18); return; } // 11-19 스토어 앱(웹뷰)·휴대폰 브라우저 진동
+  if (kind === "heavy") NATIVE.Haptics.impact({ style: "HEAVY" }); else NATIVE.Haptics.impact({ style: "LIGHT" }); } catch (e) { } }
 function keepAwake(on) { try { if (NATIVE && NATIVE.KeepAwake) (on ? NATIVE.KeepAwake.keepAwake() : NATIVE.KeepAwake.allowSleep()).catch(() => {}); } catch (e) { } }
 try { if (NATIVE && NATIVE.StatusBar) NATIVE.StatusBar.hide().catch(() => {}); } catch (e) { }
 const _anaQ = []; // 11-19 PostHog 가 불러와지기 전 기록은 모아 뒀다가 보냄
