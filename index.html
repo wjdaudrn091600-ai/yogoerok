@@ -435,6 +435,7 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 #mini { cursor: pointer; }
 @media (pointer: coarse) { .sk .cd, .sk b { font-size: 1.15rem !important; text-shadow: 0 0 4px #000, 0 0 8px #000; } }
 .mode.lock,.sub.lock{filter:grayscale(.85) brightness(.55);position:relative}.mode .lkb{position:absolute;left:8px;right:8px;top:8px;font-style:normal;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.72);color:#e9dcc0;font-size:.78rem;text-align:center;z-index:3}.sub .lkb{display:none}.sub.lock{opacity:.75}
+.ptab{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:.85rem}.ptab th,.ptab td{border:1px solid var(--line);padding:5px 8px;text-align:center}.ptab th{background:rgba(255,200,120,.08);color:var(--gold2)}.infobody h3{margin-top:14px}
 </style>
 </head>
 <body>
@@ -4503,7 +4504,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.6.4";
+const GAME_VERSION = "1.6.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5235,7 +5236,8 @@ const UI = {
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${g.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${g.cost10}</button></div></div>
 `;
     }
-    UI.frame("가챠", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인: 원정 성적 · 몬스터·상자·보스 · 미션 · 출석</p>`);
+    UI.frame("가챠", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인: 원정 성적 · 몬스터·상자·보스 · 미션 · 출석 · <a href="#" id="probl" style="color:var(--gold2)">🎲 확률 보기</a></p>`);
+    if ($("#probl")) $("#probl").onclick = (e) => { e.preventDefault(); UI.info("prob", () => UI.open("gacha", opt)); };
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.gacha({ tab: b.dataset.t, slot })));
     document.querySelectorAll("[data-sl]").forEach((b) => (b.onclick = () => UI.gacha({ tab: "skill", slot: b.dataset.sl })));
     document.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.p, slot)));
@@ -5343,10 +5345,11 @@ const UI = {
       <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
       <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
-      <p><button class="btn" id="keysbtn">⌨️ 키 설정</button></p>
+      <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
+    $("#infobtn").onclick = () => UI.info("prob");
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
     $("#mus").onchange = (e) => { s.music = e.target.checked; saveGame(); if (!s.music) $("#bgm").pause(); else { curTrack = null; music("menu"); } };
     $("#vol").oninput = (e) => { s.vol = +e.target.value; $("#bgm").volume = s.vol; saveGame(); };
@@ -5885,6 +5888,92 @@ else if (/autotest/.test(location.hash)) {
     }, 400);
   }
 }
+
+// ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
+// 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
+const SUPPORT = { mail: "", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
+const pct = (v) => { const p = v * 100; return (p >= 1 ? p.toFixed(2) : p >= 0.01 ? p.toFixed(3) : p.toFixed(4)).replace(/\.?0+$/, "") + "%"; };
+function probTables() {
+  const T = (rows, head) => `<table class="ptab"><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
+  let h = `<p class="muted">아래 확률은 게임이 실제로 뽑을 때 쓰는 값에서 자동으로 만든 표예요. 뽑기는 게임 안 재화(코인·엽전)로만 하며, 현재 현금 결제는 없어요.</p>`;
+  // 캐릭터 뽑기
+  const heroes = CHARS.filter((c) => c.unlock.type === "gacha"), GR = ["SS", "S", "A", "B", "C"];
+  let sum = 0; const rows = [];
+  for (const g of GR) {
+    const r = GACHA_GRADE_RATE[g] || 0, hs = heroes.filter((c) => CHAR_GRADE[c.id] === g); if (!hs.length) continue; sum += r;
+    const [lo, hi] = SHARD.per[g];
+    rows.push([`${g}급 영웅 (${hs.length}명)`, pct(r), pct(r / hs.length), `조각 ${lo}~${hi}개 (해금 ${SHARD.need[g]}개) · 아직 없는 영웅이면 ${pct(SHARD.direct[g])} 확률로 바로 해금`]);
+  }
+  rows.push(["가진 캐릭터 조각 2~5개", pct(1 - sum), "-", "강화 재료"]);
+  h += `<h3>🎰 캐릭터 뽑기 (1회 코인 ${pullCost("char", 1)} · 10회 ${pullCost("char", 10)})</h3>` + T(rows, ["결과", "1회 확률", "영웅 1명당", "내용"]);
+  h += `<p class="muted">천장: 영웅이 ${SHARD.pity}번 연속 안 나오면 ${SHARD.pity}번째에 반드시 영웅 (A급 ${pct(PITY_GRADE.A)} · S급 ${pct(PITY_GRADE.S)} · SS급 ${pct(PITY_GRADE.SS)}). 영웅이 나오면 천장 횟수는 0으로 돌아가요.</p>`;
+  h += `<details><summary>영웅 목록</summary><p class="muted">${GR.map((g) => `${g}: ` + heroes.filter((c) => CHAR_GRADE[c.id] === g).map((c) => c.name).join(", ")).join("<br>")}</p></details>`;
+  // 스킬 뽑기
+  const sg = ["S", "A", "B", "C", "D"];
+  h += `<h3>📜 스킬 뽑기 (칸마다 따로)</h3>` + T(["Q", "W", "E", "R"].map((s) => [s === "R" ? "R (궁극기)" : s, ...sg.map((g) => { const n = SKILL_KEYS.filter((k) => SKILLS[k].slot === s && SKILLS[k].grade === g).length; return n ? `${pct(SK_GRADE[g].p)}<br><span class="muted">${n}종 · 1종당 ${pct(SK_GRADE[g].p / n)}</span>` : `${pct(SK_GRADE[g].p)}<br><span class="muted">없음 → D급으로</span>`; })]), ["칸", ...sg.map((g) => g + "급")]);
+  // 아티팩트·펫·칭호
+  for (const [k, T0, nm] of [["art", ARTIFACTS, "🏺 아티팩트 뽑기"], ["pet", PETS, "🐾 펫 뽑기"], ["title", TITLES, "🏷 칭호 뽑기"]]) {
+    const pool = gachaPool(T0), R = GACHA[k].rates;
+    h += `<h3>${nm} (1회 코인 ${GACHA[k].cost} · 10회 ${GACHA[k].cost10})</h3>` + T([4, 3, 2, 1].map((r) => { const n = pool.filter((x) => T0[x].rar === r).length; return [RARITY[r].name, pct(R[r] || 0), n ? `${n}종 · 1종당 ${pct((R[r] || 0) / n)}` : "없음"]; }), ["등급", "1회 확률", "종류"]);
+  }
+  h += `<p class="muted">10회 뽑기: 아티팩트·펫·칭호는 10번째까지 희귀 이상이 없으면 10번째가 희귀 이상으로 바뀌어요.</p>`;
+  // 강화
+  h += `<h3>⬆️ 강화 성공 확률</h3>` + T([Array.from({ length: SHARD.maxEnh }, (_, i) => pct(SHARD.enhRate(i)))], Array.from({ length: SHARD.maxEnh }, (_, i) => "+" + (i + 1)));
+  h += `<p class="muted">캐릭터 강화(최대 +${SHARD.maxEnh})·아티팩트·펫 강화(최대 +${ITEM_SHARD.max}) 모두 이 표를 따라요. 실패하면 단계는 그대로이고 쓴 조각은 사라져요.</p>`;
+  return h;
+}
+const TERMS = `<h3>이용약관 (요약)</h3><ol class="muted" style="line-height:1.8">
+<li>요괴록(이하 '게임')은 ${"${co}"}가 제공하며, 게임을 이용하면 이 약관에 동의한 것으로 봐요.</li>
+<li>계정은 본인만 써야 하며 남에게 팔거나 빌려주면 안 돼요. 비밀번호 관리 책임은 이용자에게 있어요.</li>
+<li>코인·엽전·조각·아이템 등 게임 안 재화는 게임 안에서만 쓰는 것으로, 현금으로 바꾸거나 다른 사람에게 팔 수 없어요.</li>
+<li>버그·해킹 도구·자동 프로그램으로 얻은 재화나 기록은 회수하거나 계정 이용을 제한할 수 있어요.</li>
+<li>멀티플레이에서 욕설·괴롭힘·부적절한 닉네임은 금지이며, 닉네임은 바꾸도록 요청하거나 제한할 수 있어요.</li>
+<li>게임은 업데이트로 내용·밸런스·확률이 바뀔 수 있고, 확률이 바뀌면 이 화면의 확률표가 함께 바뀌어요.</li>
+<li>서비스를 끝낼 때는 최소 30일 전에 게임 안에서 알려요.</li>
+<li>문의: ${"${mail}"}</li></ol>`;
+const PRIVACY = `<h3>개인정보 처리방침</h3><ol class="muted" style="line-height:1.8">
+<li><b>모으는 정보</b>: 아이디(로그인용 — 이메일 모양 번호로 바꿔 저장), 비밀번호(암호화되어 저장, 개발자도 볼 수 없음), 닉네임, 게임 진행 저장 데이터. 실명·전화번호·실제 이메일은 받지 않아요.</li>
+<li><b>쓰는 곳</b>: 로그인, 여러 기기에서 이어 하기(클라우드 저장), 멀티플레이 상대에게 닉네임 표시.</li>
+<li><b>맡기는 곳</b>: Google Firebase(로그인·저장, 미국 등 Google 서버). 멀티플레이는 PeerJS 연결 서버를 거쳐 기기끼리 직접 연결돼 상대에게 IP 주소가 보일 수 있어요. 글꼴은 Google Fonts 에서 받아요.</li>
+<li><b>통계·오류 보고</b>: 현재 꺼져 있어요. 켜게 되면 아이디·닉네임 없이 무작위 기기 번호로만 모으며, 설정에서 끌 수 있어요.</li>
+<li><b>보관 기간</b>: 계정을 지울 때까지. 설정 → 정보 → 계정 삭제에서 언제든 바로 지울 수 있고, 지우면 서버의 저장 데이터와 로그인 정보가 함께 지워져요.</li>
+<li><b>만 14세 미만</b>: 보호자 동의 없이 가입하지 않도록 해 주세요.</li>
+<li><b>문의·열람·정정·삭제 요청</b>: ${"${mail}"}</li></ol>`;
+const CREDITS = `<h3>만든 것들 · 라이선스</h3><ul class="muted" style="line-height:1.8">
+<li><b>AI 사용 고지</b>: 캐릭터·몬스터·배경 그림 일부와 동작 프레임은 생성형 AI(Google Gemini)로 만든 뒤 사람이 고르고 다듬었어요. 음악은 Google Lyria, 음성·효과음은 ElevenLabs 로 만들었어요.</li>
+<li>3D 동작: Adobe Mixamo (게임 사용 허용) · 3D 렌더: Blender</li>
+<li>그림 확대: Real-ESRGAN (BSD-3-Clause) · 바닥 입체 지도: Depth Anything V2 Small (Apache-2.0)</li>
+<li>글꼴: East Sea Dokdo · Song Myung · Nanum Brush Script · Yeon Sung · Do Hyeon · Gowun Dodum (SIL Open Font License 1.1)</li>
+<li>멀티플레이 연결: PeerJS (MIT) · 로그인·저장: Google Firebase</li>
+<li>게임 기획·프로그래밍·검수: 요괴록 개발팀</li></ul>`;
+const ERRLOG = { list: [], add(m) { try { this.list.push(new Date().toISOString().slice(0, 19) + " " + String(m).slice(0, 300)); this.list = this.list.slice(-20); ls.set("ygr_errlog", JSON.stringify(this.list)); } catch (e) { } } };
+try { ERRLOG.list = JSON.parse(ls.get("ygr_errlog") || "[]"); } catch (e) { }
+{ const old = UI.error; UI.error = function (err) { ERRLOG.add((err && err.message) + " @" + ((err && err.stack) || "").split("\n")[1]); try { if (SAVE && G) saveGame(); } catch (e) { } return old.call(UI, err); }; } // 오류가 나면 기록하고 진행을 먼저 저장
+window.addEventListener("unhandledrejection", (e) => ERRLOG.add("promise: " + (e.reason && (e.reason.message || e.reason))));
+UI.info = function (tab, back) {
+  tab = tab || "prob"; const mail = SUPPORT.mail || "출시 전 문의 메일이 이곳에 적혀요", co = SUPPORT.company;
+  const tabs = [["prob", "🎲 확률 공개"], ["terms", "📄 이용약관"], ["privacy", "🔒 개인정보"], ["credits", "🎨 크레딧·라이선스"], ["bug", "🐞 버그 신고"], ["account", "👤 계정"]];
+  let body = "";
+  if (tab === "prob") body = probTables();
+  else if (tab === "terms") body = TERMS.split("${co}").join(esc(co)).split("${mail}").join(esc(mail));
+  else if (tab === "privacy") body = PRIVACY.split("${mail}").join(esc(mail));
+  else if (tab === "credits") body = CREDITS;
+  else if (tab === "bug") body = `<h3>버그 신고</h3><p class="muted">아래 내용을 복사해서 문의처로 보내 주세요. 아이디·비밀번호는 들어가지 않아요.</p><textarea id="buglog" readonly style="width:100%;height:220px;background:#0b0a10;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:.78rem">${esc(["요괴록 v" + GAME_VERSION, navigator.userAgent, "화면 " + innerWidth + "x" + innerHeight + " · 고급 그래픽 " + (typeof GLR !== "undefined" && GLR.ok ? "켜짐" : "꺼짐"), "--- 최근 오류 ---", ...(ERRLOG.list.length ? ERRLOG.list : ["(없음)"])].join("\n"))}</textarea><div class="center"><button class="btn gold" id="bugcp">📋 복사</button></div><p class="muted">문의: ${esc(mail)}</p>`;
+  else if (tab === "account") body = `<h3>계정</h3><p>아이디: <b>${esc(ACCOUNT || "")}</b> · 닉네임: <b>${esc(nick())}</b></p><div class="card" style="border-color:#c0392b"><h3 style="color:#ff8a7a">계정 삭제</h3><p class="muted">이 계정의 서버 저장 데이터와 로그인 정보, 이 기기의 저장을 모두 지워요. <b>되돌릴 수 없어요.</b></p><p>확인을 위해 아이디를 그대로 적어 주세요</p><div style="display:flex;gap:8px"><input id="delid" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn" id="delgo" style="border-color:#c0392b;color:#ff8a7a">계정 삭제</button></div></div>`;
+  UI.frame("정보", `<div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n}</button>`).join("")}</div><div class="card infobody" style="max-width:900px;margin:0 auto">${body}</div>`, back || (() => UI.settings()));
+  document.querySelectorAll(".tab[data-t]").forEach((b) => (b.onclick = () => UI.info(b.dataset.t, back)));
+  if ($("#bugcp")) $("#bugcp").onclick = () => { const t = $("#buglog"); t.select(); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => UI.toast("복사했어요"), () => { document.execCommand("copy"); UI.toast("복사했어요"); }); };
+  if ($("#delgo")) $("#delgo").onclick = async () => {
+    if ($("#delid").value.trim() !== ACCOUNT) { UI.toast("아이디가 달라요"); return; }
+    if (ACCOUNT === DEV_ID) { UI.toast("개발자 계정은 지울 수 없어요"); return; }
+    $("#delgo").disabled = true; UI.toast("지우는 중…");
+    try {
+      if (CLOUD.on) { const tk = await CLOUD.token(); await fetch(CLOUD.doc(), { method: "DELETE", headers: { Authorization: "Bearer " + tk } }); await CLOUD.api("delete", { idToken: tk }); }
+      try { localStorage.removeItem("dbm2_save_" + ACCOUNT); } catch (e) { } ls.set("ygr_auto", ""); CLOUD.off(); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause();
+      UI.login(); UI.toast("계정을 지웠어요. 그동안 고마웠어요!", 4000);
+    } catch (e) { $("#delgo").disabled = false; UI.toast("인터넷 연결을 확인하고 다시 해 주세요"); }
+  };
+};
 
 </script>
 </body>
