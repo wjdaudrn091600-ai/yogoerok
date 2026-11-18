@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.9";
+const GAME_VERSION = "2.0.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2022,6 +2022,7 @@ function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아
 const isFestival = () => { const d = new Date().getDay(); return d === 0 || d === 6; }; // 토·일
 function festivalBanner() { return isFestival() ? `<div class="fest">🎆 <b>주말 혼불 축제</b> · 오늘은 판에서 얻는 혼불 <b>1.5배</b>!</div>` : ""; }
 
+try { const m = location.hash.match(/autotest[^#]*&ff=(\d)/); if (m) window._ff = Math.min(6, +m[1]); } catch (e) { } // 시험 봇 빨리 감기
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";

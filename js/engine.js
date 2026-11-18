@@ -117,7 +117,8 @@ function makeMob0(type, mul, elite) {
 }
 const BOSS_HP_MUL = 2.6;
 function makeBoss(key, mul, mini) {
-  const d = BOSSES[key], hp = d.hp * mul.hp * BOSS_HP_MUL * (mini ? 0.5 : 1); // 11-17 플레이 로봇: 보스가 5~11초에 쓰러져 패턴을 못 봄 → 2.6배 (성공작 보스 1분 안팎)
+  const lateB = G && G.mode === "story" && G.floor >= 3 ? 1 + 0.6 * (G.floor - 2) : 1; // 11-19 5배속 봇: 3~5층 보스 6~12초 → 3층 ×1.6, 4층 ×2.2, 5층 ×2.8
+  const d = BOSSES[key], hp = d.hp * mul.hp * BOSS_HP_MUL * (mini ? 0.5 : 1) * lateB; // 11-17 플레이 로봇: 보스가 5~11초에 쓰러져 패턴을 못 봄 → 2.6배 (성공작 보스 1분 안팎)
   const own = ASSETS.meta && ASSETS.meta[key]; if (!own && ASSETS.packs && d.fl) needPack("f" + d.fl);
   return { kind: "boss", team: 1, type: key, def: d, img: own || !d.art ? key : d.art, fx: d.art || key, name: mini ? "중간보스 · " + d.name : d.name, x: RW / 2, y: BT + 200, r: d.r * (mini ? 0.85 : 1),
     hp, maxHp: hp, dmg: d.dmg * mul.dmg * (mini ? 0.8 : 1), spd: d.spd, alive: true, buffs: [], st: "move", t: 1.6, pi: 0, mini: !!mini,
@@ -186,7 +187,8 @@ function diffBase() {
   if (G.mode === "endless") { const n = G.endlessN; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02), dmg: Math.pow(1.28, n / 8), spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
   const f = G.floor - 1, s = G.stage - 1;
   if (G.mode === "raid") { const n = G.raidN || 0; return { hp: 1.6 * Math.pow(1.45, n), dmg: 1.3 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; }
-  return { hp: Math.pow(1.6, f) * (1 + 0.07 * s), dmg: Math.pow(1.45, f) * (1 + 0.045 * s), spd: 1 + f * 0.05 + s * 0.008, tier: f }; // 11-17 dmg 1.33→1.45: 3층부터 체력이 거의 안 줄던 문제(플레이 로봇)
+  const late = f >= 2 ? f - 1 : 0; // 11-19 5배속 봇: 3층부터 보스가 8~18초 만에 쓰러지고 체력 90% 유지 → 2차 측정도 2층부터 피해 0 → 층마다 체력 +20%·공격 +12% (3층부터)
+  return { hp: Math.pow(1.6, f) * (1 + 0.07 * s) * (1 + 0.2 * late), dmg: Math.pow(1.45, f) * (1 + 0.045 * s) * (1 + 0.12 * late), spd: 1 + f * 0.05 + s * 0.008, tier: f }; // 11-17 dmg 1.33→1.45: 3층부터 체력이 거의 안 줄던 문제(플레이 로봇)
 }
 const theme = () => FLOORS[(G.mode === "endless" ? (G.eFloor || 1) - 1 : G.floor - 1) % FLOORS.length];
 
@@ -598,7 +600,7 @@ function collide(u) {
   const minX = BL + u.r, maxX = BR - u.r, minY = BT + u.r * 0.6, maxY = BB - u.r * 0.6;
   if (!inDoor) { u.x = clamp(u.x, minX, maxX); u.y = clamp(u.y, minY, maxY); }
   else { if (inDoor === "N" || inDoor === "S") u.x = clamp(u.x, RW / 2 - DOOR_W / 2 + u.r * 0.5, RW / 2 + DOOR_W / 2 - u.r * 0.5); else u.y = clamp(u.y, RH / 2 + 20 - DOOR_W / 2 + u.r * 0.5, RH / 2 + 20 + DOOR_W / 2 - u.r * 0.5); u.x = clamp(u.x, 8, RW - 8); u.y = clamp(u.y, 30, RH - 8); }
-  for (const o of G.cur.obs) { const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), m = o.r + u.r * 0.8; if (d < m && d > 0.01) { u.x = o.x + (dx / d) * m; u.y = o.y + (dy / d) * m; } }
+  for (const o of G.cur.obs) { const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), m = o.r + u.r * 0.8; if (d < m && d > 0.01) { u.x = o.x + (dx / d) * m; u.y = o.y + (dy / d) * m; if (Math.abs(dx) < 6) u.x += (dx >= 0 ? 2 : -2); else if (Math.abs(dy) < 6) u.y += (dy >= 0 ? 2 : -2); } } // 11-19 문 정가운데에서 기둥에 똑바로 부딪히면(6px 이내) 살짝 비켜 줌
 }
 // 열린 문 앞 통로에 있으면 그 방향
 function doorZone(u) {
@@ -2555,7 +2557,8 @@ function loop(t) {
   if (SAVE && SAVE.settings && SAVE.settings.fps30 && t - lastT < 30) { requestAnimationFrame(loop); return; } // 11-19 절전 모드
   const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); perfWatch(t - lastT); lastT = t;
   try { pollPad(); } catch (e) { }
-  try { update(dt); NET.hostTick(dt); render(); UI.hud(); } catch (err) { console.error(err); UI.error && UI.error(err); }
+  const ff = window._ff || 1; // 11-19 시험 봇 빨리 감기 (주소 #autotest...&ff=3 일 때만)
+  try { for (let i = 0; i < ff; i++) { update(dt); NET.hostTick(dt); } render(); UI.hud(); } catch (err) { console.error(err); UI.error && UI.error(err); }
   requestAnimationFrame(loop);
 }
 // 다른 창으로 가면 브라우저가 화면 그리기를 멈추므로, 멀티일 때는 워커 시계로 게임을 계속 돌림
