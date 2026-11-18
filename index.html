@@ -992,6 +992,8 @@ const MISSIONS = [
   { id: "so300", stat: "soulTotal", n: 300, coin: 3, name: "혼불 300 모으기 (누적)" },
   { id: "so2000", stat: "soulTotal", n: 2000, coin: 10, name: "혼불 2000 모으기 (누적)" },
   { id: "ms5", stat: "mastMax", n: 5, coin: 4, name: "한 영웅 숙련 Lv.5" },
+  { id: "pd10", stat: "perfectDodge", n: 10, coin: 3, name: "완벽 회피 10번" },
+  { id: "pd100", stat: "perfectDodge", n: 100, coin: 10, name: "완벽 회피 100번 — 바람의 몸놀림" },
   { id: "ms10", stat: "mastMax", n: 10, coin: 15, name: "한 영웅 숙련 Lv.10 (옥 표식)" },
   { id: "sec_boss100", stat: "floorBossKills", n: 100, coin: 20, secret: true, name: "[숨은 업적] 층 보스 100번 처치 — 보스펫 '꼬마 도깨비 왕' 획득" },
   { id: "sec_dummy200", stat: "dummyKills", n: 200, coin: 8, secret: true, name: "[숨은 업적] 허수아비 200번 쓰러뜨리기 (+ 스토리 클리어 시 숨은 영웅 '짚신' 해금)" },
@@ -2214,7 +2216,7 @@ function dodge(u, at) {
   if (u === G.p && (input.kx || input.ky)) { ax = input.kx; ay = input.ky; } else if (!at) { const ap = aimPoint(u); ax = ap.x - u.x; ay = ap.y - u.y; }
   const L = Math.hypot(ax, ay) || 1, D = 190;
   castFx(u, [{ t: "dash", dist: D, d: 0, inv: 0.3, col: "#cfe8ff" }], 1, { x: u.x + (ax / L) * D, y: u.y + (ay / L) * D });
-  u.cd.D = DODGE_CD; if (u.cdMax) u.cdMax.D = DODGE_CD; return true;
+  u.cd.D = DODGE_CD; if (u.cdMax) u.cdMax.D = DODGE_CD; if (u === G.p) u.dodgeAt = G.time; return true;
 }
 function slotFx(u, slot) { if (slot === "A") return u.active ? ACTIVES[u.active.k].fx : null; const s = u.sk && u.sk[slot]; return s ? s.fx : null; }
 function placeInfo(u, slot) {
@@ -2457,7 +2459,14 @@ function damage(t, d, src, crit, o = {}) {
   if (G.mode === "duel" && G.duel && G.duel.state !== "fight" && t.kind === "hero") return 0; /* 11-16 버그: 준비 시간에 쓰러지면 결투가 안 끝남 */
   if (t.guardT > 0) { d *= 0.2; if (Math.random() < 0.3) addText(t.x, t.y - t.r * 2, "막음", "#d9b27a", 16); }
   if (t.kind === "hero") {
-    if (t.invT > 0 || hasBuff(t, "inv")) { if (!o.quiet) addText(t.x, t.y - 60, "무적", "#ffe9a0", 16); return 0; }
+    if (t.invT > 0 || hasBuff(t, "inv")) {
+      if (t === G.p && src && src !== t && t.dodgeAt != null && G.time - t.dodgeAt < 0.24 && t.pdUsed !== t.dodgeAt) { // 11-18 완벽 회피: 맞기 직전 구르기 → 시간 느려짐 + 공격력 3초
+        t.pdUsed = t.dodgeAt; G.slowT = Math.max(G.slowT || 0, 0.5); t.buffs = t.buffs.filter((b) => !b.pd); t.buffs.push({ pd: true, atk: 0.3, t: 3, dur: 3, col: "#9fe8ff" });
+        addText(t.x, t.y - 90, "완벽 회피!", "#9fe8ff", 28); sfx("blink"); G.fx.push({ k: "ring", x: t.x, y: t.y, r: 170, t: 0, max: 0.5, col: "#9fe8ff" }); G.kx = (G.kx || 0) * 0.3;
+        SAVE.stats.perfectDodge = (SAVE.stats.perfectDodge || 0) + 1; if (typeof UI !== "undefined" && UI.tip) UI.tip("pdodge"); return 0;
+      }
+      if (!o.quiet) addText(t.x, t.y - 60, "무적", "#ffe9a0", 16); return 0;
+    }
     d *= drMul(t); if (G.curse === "blood" && t.team === 0) d *= 1.25;
     if (t.shield > 0) { const s = Math.min(t.shield, d); t.shield -= s; d -= s; }
     t.hp -= d; t.hitT = 0.1; if (d > t.maxHp * 0.02) t.hurtT = 0.28;
@@ -4656,7 +4665,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.7";
+const GAME_VERSION = "1.7.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5133,6 +5142,7 @@ const UI = {
       altar: ["🔥 혼불 제단", "판에서 쓰러져도 <b>혼불</b>은 남아요. 처음 화면 <b>혼불 제단</b>에 바치면 모든 영웅이 영구히 강해져요.<br>판이 끝날 때 '다음 목표'에서 얼마나 남았는지 볼 수 있어요."],
       event: ["👻 괴이한 방", "떠다니는 혼불에 다가가면 설화 속 일이 벌어져요. 선택에 따라 보상도, 위험도 달라요."],
       trial: ["⏳ 시련의 방", "위쪽 시계가 0이 되기 전에 요괴를 모두 정리하면 <b>보물 상자 + 강화 하나</b>. 늦어도 벌은 없어요."],
+      pdodge: ["💨 완벽 회피", "공격이 닿기 직전에 구르면(<b>Space</b>) <b>완벽 회피</b>! 잠깐 시간이 느려지고 3초 동안 공격력이 30% 올라요."],
       combo: ["⚔️ 연격", "공격을 끊기지 않게 이어 가면 연격이 쌓여요. <b>15 이상</b>에서 끊기면 엽전을 받고, 연격이 높을수록 많이 받아요."],
       map: ["🗺️ 큰 지도", "<b>M 키</b>(폰은 오른쪽 위 작은 지도를 누르기)로 이번 스테이지 지도를 크게 볼 수 있어요. 안 가 본 방과 홍살문 위치가 보여요."],
     }[key];
