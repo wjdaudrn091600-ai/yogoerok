@@ -475,6 +475,20 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .dailyc .drules{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.78rem}.dailyc .drules i{font-style:normal}.dailyc .drules .good{color:#8fe3a0}.dailyc .drules .bad{color:#ff9a8a}
 .dailyc .dsc{text-align:center;font-size:.8rem;color:#cfc6ff}.dailyc .dsc b{font-size:1.1rem;color:var(--gold2)}
 .dres{text-align:center;margin:4px auto 8px;padding:6px 10px;border:1px solid #6b5bd6;border-radius:10px;background:rgba(60,45,120,.35);max-width:560px}.dres b{color:var(--gold2);font-size:1.2rem}
+
+/* 11-18 1.7.2 도감 이야기 */
+.lorebox{display:flex;gap:18px;align-items:flex-start;max-width:760px}.lorebox>img{width:200px;max-height:240px;object-fit:contain;flex:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
+.lorebox h2{text-align:left;margin:0}.lorebox h3{margin:12px 0 4px;color:var(--gold2)}.lorebox p,.lorebox li{line-height:1.7}.lorebox ul{margin:0;padding-left:18px}
+.lst{color:#ff8a5a;border:1px solid #ff8a5a;border-radius:6px;padding:0 6px;margin-left:4px}.lrw{color:#ffb35a;text-align:center;font-weight:700}
+.item.ldone{border-color:#c0392b!important;box-shadow:inset 0 0 0 1px rgba(255,120,80,.35)}.item.ldone::after{content:"토벌";position:absolute;top:6px;right:6px;font-size:.7rem;color:#ff9a7a;border:1px solid #ff9a7a;border-radius:4px;padding:0 4px;transform:rotate(8deg)}
+@media (max-width:640px){.lorebox{flex-direction:column;align-items:center}.lorebox>img{width:140px}}
+
+/* 11-18 연격 */
+#combo{position:absolute;right:22px;top:38%;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none;opacity:0;transform:translateX(20px);transition:opacity .25s,transform .25s;z-index:5}
+#combo.on{opacity:1;transform:none}#combo b{font-family:var(--display);font-size:3.2rem;line-height:1;color:var(--cc);text-shadow:0 0 18px var(--cc),0 3px 0 #000,0 0 2px #000;transition:transform .12s}
+#combo.pop b{transform:scale(1.25)}#combo span{font-family:var(--display);font-size:1.1rem;color:#fff;text-shadow:0 2px 4px #000;letter-spacing:.08em}
+#combo i{display:block;height:4px;border-radius:2px;background:var(--cc);box-shadow:0 0 8px var(--cc);margin-top:4px;width:0;max-width:120px}
+@media (max-width:640px){#combo{top:26%;right:12px}#combo b{font-size:2.3rem}}
 </style>
 </head>
 <body>
@@ -2427,6 +2441,7 @@ function damage(t, d, src, crit, o = {}) {
   if (t.affix === "iron") d *= 0.7; // 엘리트 특성: 강철 (11-16 밸런스 0.6→0.7)
   t.hp -= d; t.hitT = 0.12;
   if (src && src.team === 0 && !o.dot) sfx(crit ? "crit" : "hit");
+  if (src === G.p && !o.dot) { G.combo = (G.comboT > 0 ? G.combo || 0 : 0) + 1; G.comboT = 2.4; G.comboPop = 0.18; if (G.combo > (G.comboMax || 0)) G.comboMax = G.combo; } // 11-18 연격
   if (src === G.p && !o.dot) { const a = Math.atan2(t.y - src.y, t.x - src.x), kk = crit ? 3 : 1.5; G.kx = (G.kx || 0) + Math.cos(a) * kk; G.ky = (G.ky || 0) + Math.sin(a) * kk; }
   if (src === G.p && (crit || t.hp <= 0)) G.hitStop = Math.max(G.hitStop || 0, t.kind === "boss" ? 0.07 : crit ? 0.035 : 0.05);
   if (t.kind === "mob") t.hurtT = 0.2; else if (t.kind === "boss" && (d > t.maxHp * 0.025 || !(t.hurtCd > G.time)) && t.st !== "charge") { t.hurtT = 0.22; t.hurtCd = G.time + 1.4; }
@@ -2619,6 +2634,7 @@ function update(dt) {
   if (G.slowT > 0) { G.slowT -= dt; dt *= 0.3; }
   if (G.hitStop > 0) { G.hitStop -= dt; if (!(SAVE && SAVE.settings.hitstop === false)) dt *= 0.06; } // 11-16 타격감: 순간 멈칫
   if (G.kx || G.ky) { const dk = Math.exp(-dt * 16); G.kx = clamp((G.kx || 0) * dk, -12, 12); G.ky = clamp((G.ky || 0) * dk, -12, 12); if (Math.abs(G.kx) + Math.abs(G.ky) < 0.05) G.kx = G.ky = 0; } // 11-18 화면 밀림 되돌리기
+  if (G.comboT > 0) { G.comboT -= dt; G.comboPop = Math.max(0, (G.comboPop || 0) - dt); if (G.comboT <= 0) { if (G.combo >= 15 && G.p) { const gg = Math.floor(G.combo / 5) * 2; G.p.gold = (G.p.gold || 0) + gg; addText(G.p.x, G.p.y - 130, `연격 ${G.combo}! 엽전 +${gg}`, "#ffd84a", 24); } G.combo = 0; } } // 11-18 연격이 끊기면 보상
   G.time += dt; G.roomT += dt;
   if (G.trans) { G.trans.t -= dt; if (G.trans.t <= 0) { const tr = G.trans; G.trans = null; if (tr.mode === "out") tr.then(); } else if (G.trans.mode === "out") return; }
   if (G.banner) { G.banner.t -= dt; if (G.banner.t <= 0) G.banner = null; }
@@ -3178,6 +3194,7 @@ function endRun(win, storyDone) {
   r.coinRw = runReward(r); SAVE.coins += r.coinRw;
   r.soulInfo = typeof altarEarn === "function" ? altarEarn(r) : null; // 11-18 혼불
   r.daily = typeof dailyEnd === "function" ? dailyEnd(r) : null;
+  if ((G.comboMax || 0) > (SAVE.stats.maxCombo || 0)) SAVE.stats.maxCombo = G.comboMax; r.comboMax = G.comboMax || 0;
   NET.hostEnd(r);
   G.paused = true; checkUnlocks(); saveGame();
   UI.result(r);
@@ -4575,7 +4592,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.1";
+const GAME_VERSION = "1.7.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5099,21 +5116,23 @@ const UI = {
     // 중간보스 전용 그림은 층별 그림 묶음에 있다 → 도감을 열면 다섯 층 묶음을 받고 다시 그린다 (11-15 사용자: 도감 이미지가 다 똑같아)
     if (ASSETS.packs) { const miss = [1, 2, 3, 4, 5].filter((f) => ASSETS.packs["f" + f] && !PACK.done["f" + f]); if (miss.length) Promise.all(miss.map((f) => needPack("f" + f))).then(() => { if (UI._frameTitle && /도감/.test(UI._frameTitle)) UI.bestiary(); }); }
     const kb = SAVE.kb || {}, all = Object.keys(BOSSES).length, got = Object.keys(kb).length;
-    const card = (k) => { const d = BOSSES[k], n = kb[k] || 0, im = ASSETS.img[k] ? k : d.art; return `<div class="item ${n ? "" : "off"}" style="min-height:0;padding:8px;text-align:center">
+    const card = (k) => { const d = BOSSES[k], n = kb[k] || 0, im = ASSETS.img[k] ? k : d.art; return `<div class="item ${n ? "" : "off"}" data-lore="${k}" style="min-height:0;padding:8px;text-align:center">
       <div style="height:110px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(im)}" alt="" style="max-height:108px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div>
       <b style="color:${d.mid ? "#c9a0ff" : "#ff8a6a"}">${n ? d.name : "???"}</b><span class="muted" style="font-size:.75rem">${d.mid ? "중간보스" : "층보스"} · ${d.style === "ranged" ? "원거리" : "근거리"} · <b style="color:${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].col}">${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].n}</b>${n >= 10 ? ' · <b style="color:#7fe08a">피해 +5%</b>' : n ? ` · ${n}/10` : ""}${n ? " · " + n + "번 토벌" : ""}</span></div>`; };
     const floors = [1, 2, 3, 4, 5].map((f) => { const th = FLOORS[f - 1], boss = th.boss, mids = MID_BY_FLOOR[f - 1];
       return `<h3 style="margin-top:14px">${f}층 · ${th.name} <span class="muted">${[boss, ...mids].filter((k) => kb[k]).length}/${mids.length + 1}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${card(boss)}${mids.map(card).join("")}</div>`; }).join("");
     // 11-16: 일반 요괴(한 번 잡으면 공개)·엘리트 특성·조합 패시브(한 번 얻으면 공개)
     const mk = SAVE.mk || {}, AI_T = { chase: "쫓아옴", weave: "지그재그로 날아옴", ranged: "멀리서 쏨", charger: "돌진", caster: "발밑에 주술", blinker: "순간이동" };
-    const mobs = Object.keys(ENEMIES).map((k) => { const e = ENEMIES[k], n = mk[k] || 0; return `<div class="item ${n ? "" : "off"}" style="min-height:0;padding:8px;text-align:center"><div style="height:90px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(e.img)}" alt="" style="max-height:88px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div><b>${n ? e.name : "???"}</b><span class="muted" style="font-size:.75rem">${n ? AI_T[e.ai] || "" : "아직 못 만남"}${n ? " · " + n + "번 처치" : ""}</span></div>`; }).join("");
+    const mobs = Object.keys(ENEMIES).map((k) => { const e = ENEMIES[k], n = mk[k] || 0; return `<div class="item ${n ? "" : "off"}" data-lmob="${k}" style="min-height:0;padding:8px;text-align:center"><div style="height:90px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(e.img)}" alt="" style="max-height:88px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div><b>${n ? e.name : "???"}</b><span class="muted" style="font-size:.75rem">${n ? AI_T[e.ai] || "" : "아직 못 만남"}${n ? " · " + n + "번 처치" : ""}</span></div>`; }).join("");
     const AFX_T = { swift: "빠르게 움직임", iron: "받는 피해 30% 줄임", split: "쓰러지면 작은 요괴 둘로 갈라짐", burst: "쓰러지면 잠시 뒤 폭발 — 피하세요", regen: "체력이 계속 차오름" };
     const affs = Object.keys(AFFIX).map((a) => `<div class="item" style="min-height:0;padding:8px"><b style="color:${AFFIX[a].col}">${AFFIX[a].name}</b><span class="muted" style="font-size:.8rem">${AFX_T[a]}</span></div>`).join("");
     const duo = SAVE.duo || {}, duos = Object.keys(BOONS).filter((k) => BOONS[k].duo).map((k) => { const b = BOONS[k]; return `<div class="item ${duo[k] ? "" : "off"}" style="min-height:0;padding:8px"><b>${b.ic || ""} ${duo[k] ? b.name : "???"}</b><span class="muted" style="font-size:.8rem">${(b.req || []).map((q) => BOONS[q].name).join(" + ")}${duo[k] ? " → " + b.desc.replace(/^\[조합\][^→]*→\s*/, "") : ""}</span></div>`; }).join("");
     const extra = `<h3 style="margin-top:18px">일반 요괴 <span class="muted">${Object.keys(ENEMIES).filter((k) => mk[k]).length}/${Object.keys(ENEMIES).length}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${mobs}</div>
       <h3 style="margin-top:18px">엘리트 특성 <span class="muted">엘리트 요괴 머리 위에 이름이 보여요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${affs}</div>
       <h3 style="margin-top:18px">조합 패시브 <span class="muted">두 패시브를 모두 가지면 레벨업 때 나와요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${duos}</div>`;
-    UI.frame("📖 요괴록 도감", `<p class="muted">${got}/${all}</p>${floors}${extra}`);
+    UI.frame("📖 요괴록 도감", `<p class="muted">${got}/${all} · 잡은 요괴를 누르면 설화와 토벌 요령이 열려요 (3번: 요령 · 10번: 토벌 완료 도장)</p>${floors}${extra}`);
+    document.querySelectorAll("[data-lore]").forEach((c) => { const n = (SAVE.kb || {})[c.dataset.lore] || 0; if (n) { c.style.cursor = "pointer"; if (n >= 10) c.classList.add("ldone"); c.onclick = () => UI.loreOpen(c.dataset.lore, false); } });
+    document.querySelectorAll("[data-lmob]").forEach((c) => { const n = (SAVE.mk || {})[c.dataset.lmob] || 0; if (n) { c.style.cursor = "pointer"; if (n >= 10) c.classList.add("ldone"); c.onclick = () => UI.loreOpen(c.dataset.lmob, true); } });
   },
 
   // ----- 메인 메뉴 -----
@@ -5640,6 +5659,7 @@ const UI = {
   },
   flashSlot(s) { const el = document.querySelector(`#hud .sk[data-s="${s}"]`); if (!el) return; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); },
   hud() {
+    comboHud();
     if (!G || $("#hud").hidden) return;
     const p = G.p; if (!p || !p.sk || !p.maxHp) return; UI._hudT = (UI._hudT || 0) + 1; if (UI._hudT % 4) return;
     const tt = SAVE.equip.title && G.mode !== "duel" ? TITLES[SAVE.equip.title].name : "";
@@ -5799,7 +5819,7 @@ const UI = {
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
     UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}층 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
-      <div><b>${r.kills}</b>처치</div><div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
+      <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 미션 보상이 있어요!</p>' : ""}
@@ -6224,6 +6244,113 @@ function dailyEnd(r) { // endRun 에서: 점수·보상
   return { score, best: rec.best, newBest: best && !first, first, coin };
 }
 function dailyHtml(d) { if (!d) return ""; return `<div class="dres">🌙 오늘의 괴담 점수 <b>${d.score}</b>${d.newBest ? " · 🎉 오늘 최고 기록!" : ` · 오늘 최고 ${d.best}`}${d.first ? `<br><span class="muted">오늘 첫 도전 보상: 코인 +${d.coin} · 혼불 +20 (내일 새 괴담이 열려요)</span>` : ""}</div>`; }
+
+// ===================== 11-18 1.7.2 요괴록 도감 이야기 (Hades 도감처럼 잡을수록 열림) =====================
+// 1번: 설화 한 줄 · 3번: 공략(패턴 대처) · 10번: 토벌 완료 도장 + 혼불 10 (한 번)
+const LORE = {
+  b_boss: "그믐밤 요괴록을 찢은 장본인. 깨진 갓 아래 얼굴은 아무도 본 적이 없고, 방망이로 땅을 치면 그림자가 사람 수만큼 갈라진다.",
+  b_boss3: "북방을 지키다 눈보라 속에 얼어 죽은 장군. 아무도 기억해 주지 않은 원한이 갑옷째 얼어붙어 다시 일어섰다.",
+  b_boss2: "대장간 화로에 버려진 불씨들이 모여 귀신이 되었다. 쇠가 녹는 냄새를 좋아하고, 화가 나면 하늘에서 불덩이를 부른다.",
+  b_boss4: "늪을 통째로 삼키고 왕이 된 두꺼비. 넷째 장을 배 속에 넣고 독 안개로 늪을 덮었다. 혀가 몸길이의 세 배라는 소문이 있다.",
+  b_boss5: "저승 명부를 들고 다니는 염라의 사자. 산 사람의 이름을 부르면 넋이 대답하고 끌려간다고 한다. 마지막 장을 명부 사이에 끼워 두었다.",
+  b_boss6: "석굴 입구를 천 년 동안 지킨 돌 수문장. 누가 지키라고 했는지는 잊었지만 지키는 일만은 잊지 않았다.",
+  f_gumiho: "천 년을 살아 꼬리 아홉을 얻은 여우. 사람의 간 백 개를 먹으면 사람이 된다는 말을 아직도 믿고 있다.",
+  f_imugi: "용이 되지 못한 큰 구렁이. 여의주를 얻지 못한 원망으로 얼음 골짜기에 똬리를 틀었다.",
+  f_bulgasari: "쇠붙이를 먹고 자라는 짐승. 바늘 하나로 시작해 성문 쇠빗장까지 삼켰다는 옛이야기가 있다. 불로도 죽지 않는다 하여 '불가살이'.",
+  m_jangsan: "흰 털이 긴 산짐승. 사람 목소리를 흉내 내어 '이리 와' 하고 부른다. 대답하면 안 된다.",
+  m_eodum: "어둠이 뭉쳐 생긴 요괴. 쳐다볼수록 커지고, 고개를 숙이면 작아진다는 어둑시니.",
+  m_gangcheol: "지나가는 곳마다 가뭄이 든다는 쇠 기운의 용. 강철이가 지나간 들판엔 풀 한 포기 남지 않는다.",
+  m_mulgwi: "물에 빠져 죽은 넋. 혼자 가기 외로워 물가 사람의 발목을 잡아끈다.",
+  m_geuseun: "밤길 사람 뒤를 소리 없이 따라오는 그슨대. 돌아보면 사라지고, 다시 걸으면 한 걸음 더 가까이 있다.",
+  m_dueok: "사람 머리를 짓누르는 커다란 귀신. 밤에 가위눌리는 건 두억시니가 앉아서라고 한다.",
+  m_oedari: "다리가 하나뿐인 도깨비. 씨름을 좋아해서, 왼쪽으로 넘기면 쉽게 이긴다는 비법이 전해진다.",
+  m_bakjwi: "석굴 박쥐들이 우두머리를 따라 요괴가 되었다. 피 냄새를 맡으면 떼로 몰려든다.",
+  m_duduji: "땅속 길을 다 안다는 두더지 장군. 석굴이 무너지지 않는 건 이 장군이 굴을 받쳐서라고도 한다.",
+  m_gaeksa: "객지에서 죽어 고향에 돌아가지 못한 넋. 길 가는 사람에게 붙어 함께 가려 한다.",
+  m_dokbul: "비 오는 밤 들판에 떠다니는 푸른 불. 따라가면 길을 잃는다.",
+  m_seokjang: "마을을 지키던 돌장승이 요괴의 기운을 먹고 움직이기 시작했다. 본래는 착한 수호신이었다.",
+  m_dongjang: "겨울을 몰고 오는 동장군. 입김 한 번에 강물이 얼고, 성질이 나면 우박을 뿌린다.",
+  m_seolgwi: "눈보라 속에서 길을 잃은 사람이 된 귀신. 하얀 옷 때문에 눈 속에서 보이지 않는다.",
+  m_baekgom: "북쪽 산신을 모시던 흰 곰. 얼음 동굴에 갇혀 신장(神將)이 되었다.",
+  m_bingho: "얼음 구슬을 품은 여우. 구미호의 먼 친척이라 자랑하지만 꼬리는 하나다.",
+  m_seorirang: "서리 늑대 무리의 우두머리. 달이 뜨면 무리를 불러 사냥한다.",
+  m_goderum: "고드름을 화살 삼아 쏘는 궁수 귀신. 살아서 명궁이었으나 얼음 골짜기에서 길을 잃었다.",
+  m_nunjangi: "눈사람에 깃든 장난꾸러기 도깨비. 뚝딱 소리와 함께 눈덩이를 굴려 온다.",
+  m_seorihak: "학 천 마리가 얼어붙어 하나가 된 요괴. 날갯짓마다 눈보라가 인다.",
+  m_jowang: "부엌을 지키는 조왕신이 대장간 불에 노해 성난 신이 되었다. 화로를 함부로 다루는 자를 용서하지 않는다.",
+  m_bulgae: "해와 달을 삼키려다 뜨거워 뱉었다는 불개. 일식·월식이 불개 짓이라는 옛말이 있다.",
+  m_soedok: "대장간 쇠붙이에 깃든 도깨비. 망치질 소리에 맞춰 춤추듯 싸운다.",
+  m_hwacha: "불타는 수레를 끄는 귀신. 죄 많은 넋을 실어 나른다는 화차.",
+  m_bulyeowoo: "불을 머금은 여우. 꼬리를 흔들면 도깨비불이 튄다.",
+  m_yongamdu: "용암 속에서 사는 두꺼비. 늪 두꺼비 왕의 사촌이라는데, 서로 사이가 나쁘다.",
+  m_daejang: "칼을 다 벼리지 못하고 죽은 대장장이의 원귀. 아직도 모루 앞을 떠나지 못한다.",
+  m_hwajo: "불꽃 깃털의 새. 지나간 하늘에 붉은 줄이 남는다.",
+  m_jine: "사람 키보다 긴 왕지네. 닭이 천적이라 닭 울음소리를 싫어한다.",
+  m_geomi: "늪가 오두막에 사는 거미 여인. 길 잃은 나그네를 묵어 가라 붙잡는다.",
+  m_guryeong: "곳간을 지키던 업구렁이가 늪으로 쫓겨나 사나워졌다.",
+  m_dalgyal: "얼굴에 눈·코·입이 없는 달걀귀신. 원한이 너무 깊어 얼굴마저 지워졌다.",
+  m_beoseot: "독 안개를 먹고 자란 버섯 요괴. 포자를 뿜어 늪을 넓힌다.",
+  m_geomeori: "늪의 피를 빨아 몸집이 커진 거머리 요괴.",
+  m_dokdu: "두꺼비 왕의 오른팔 장군. 등의 혹마다 독이 가득하다.",
+  m_mangryang: "물과 숲의 정령 망량. 사람 흉내를 내어 길을 묻고는 엉뚱한 길을 알려 준다.",
+  m_gangrim: "저승차사 가운데 으뜸이라는 강림도령. 염라대왕도 함부로 못 한다는 담력의 차사.",
+  m_umama: "소 머리와 말 얼굴의 저승 옥졸. 둘이 늘 함께 다닌다.",
+  m_pangwan: "망자의 죄를 저울질하는 저승 판관. 붓 한 획에 지옥과 극락이 갈린다.",
+  m_haechi: "옳고 그름을 가린다는 상상의 짐승 해치. 저승 문을 지키며 거짓말쟁이를 들이받는다.",
+  m_wongwi: "억울하게 죽은 장수의 원귀. 아직 끝나지 않은 싸움을 계속하고 있다.",
+  m_songaksi: "혼례를 못 치르고 죽은 손각시. 신부 옷차림 그대로 저승을 떠돈다.",
+  m_mongdal: "장가를 못 가고 죽은 총각 귀신 몽달귀신. 짝을 찾아 헤맨다.",
+  m_cheonyeo: "긴 머리를 풀어 헤친 처녀귀신. 한을 풀어 줄 사람을 기다린다.",
+  m_jeoseungsae: "저승 소식을 이승에 전한다는 까마귀. 지붕 위에서 울면 누군가 떠난다고 했다.",
+  m_munjigi: "저승 맨 바깥 문을 지키는 거인. 산 사람의 발소리는 천 리 밖에서도 듣는다.",
+  slime: "벼루에 엎질러진 먹물이 요괴록의 기운을 먹고 굴러다닌다.", bat: "피 냄새를 따라 날아드는 박쥐 떼.", skel: "석굴에 묻힌 옛 병사의 뼈가 활을 들었다.",
+  brute: "돌무더기에 깃든 도깨비. 몸통 박치기를 좋아한다.", wisp: "들판의 도깨비불이 주술을 배웠다.", clone: "그림자 도깨비 왕의 그림자에서 떨어져 나온 자객.",
+  kkoma: "키는 작아도 심술은 큰 꼬마 도깨비.", kkokdu: "상여를 장식하던 꼭두 인형이 혼자 걸어 다닌다.", jongi: "찢긴 요괴록 종이가 바람을 타고 귀신이 되었다.",
+  jangseung: "마을 어귀 장승이 요괴 기운에 홀려 돌진한다.", dukkeobi: "늪의 독을 품은 두꺼비.", gaksi: "각시탈을 쓴 원귀. 탈 속 얼굴은 아무도 모른다.",
+  sotdae: "솟대 위에 앉아 있던 나무 새가 까마귀 요괴가 되었다.", neoguri: "사람으로 둔갑하는 너구리. 순식간에 자리를 바꾼다.",
+};
+const PAT_TIP = {
+  combo: "연속 베기 — 세 번째 휘두름이 가장 셉니다. 두 번 맞은 뒤 뒤로 구르세요.", club: "방망이 내려찍기 — 붉은 원이 사라지기 직전에 옆으로 피하세요.",
+  clones: "분신 — 진짜는 그림자가 진한 쪽. 범위 공격으로 한꺼번에 지우세요.", ddukddak: "뚝딱 — 방망이를 들면 주변에 충격파. 멀리 떨어지세요.",
+  snipe: "저격 — 붉은 선이 그어진 뒤 쏩니다. 선 방향과 수직으로 움직이세요.", icespear: "얼음창 — 일직선으로 날아옵니다. 대각선으로 다가가세요.",
+  icecage: "얼음 감옥 — 발밑 원에 갇히면 움직일 수 없어요. 원이 생기면 바로 벗어나세요.", glacier: "빙하 — 바닥을 따라 얼음이 뻗어 나옵니다. 벽 쪽으로 피하세요.",
+  blizzard: "눈보라 — 방 전체가 느려집니다. 보스 가까이 붙어 짧게 몰아치세요.", flamewave: "불길 파도 — 부채꼴로 퍼집니다. 보스 뒤쪽이 안전해요.",
+  meteor: "불덩이 비 — 떨어질 자리에 그림자. 그림자가 진해지면 이미 늦어요, 미리 움직이세요.", firewall: "불벽 — 길을 막습니다. 벽이 사라질 때까지 원거리 공격.",
+  eruption: "분출 — 발밑이 붉어지면 곧 터집니다. 제자리에 서 있지 마세요.", hops: "뛰어오르기 — 착지 지점에 그림자. 착지 직후가 반격 기회.",
+  tongue: "혀 낚아채기 — 일직선으로 끌어당겨요. 정면에 서지 마세요.", spit: "독 뱉기 — 바닥에 독 웅덩이가 남아요. 웅덩이 밖에서 싸우세요.",
+  leap: "큰 도약 — 화면이 흔들리며 착지. 착지 지점 둘레가 위험합니다.", summon: "졸개 부르기 — 졸개부터 정리해야 보스에게 집중할 수 있어요.",
+  soulhunt: "넋 사냥 — 따라오는 혼령. 구르기로 떼어 내세요.", chains: "사슬 — 묶이면 끌려갑니다. 사슬이 날아올 때 옆으로.",
+  soulspiral: "혼령 소용돌이 — 돌며 퍼지는 탄막. 빈틈을 따라 바깥으로 도세요.", judgment: "심판 — 넓은 범위를 표시한 뒤 내리칩니다. 표시 밖으로.",
+  slam: "내려치기 — 큰 충격. 보스 정면 근접은 피하세요.", fissure: "땅 가르기 — 일직선 균열. 균열 방향과 비껴서세요.",
+  guard: "방어 자세 — 이때 공격하면 피해가 크게 줄어요. 기술을 아껴 두세요.", quake: "지진 — 방 전체 흔들림 뒤 바위가 떨어져요. 계속 움직이세요.",
+  rockfall: "낙석 — 그림자를 보고 피하세요.", foxfire: "여우불 — 휘어 날아옵니다. 마지막 순간에 구르세요.",
+  magma: "용암 — 바닥에 오래 남습니다. 싸울 자리를 미리 넓게 잡으세요.", frostnova: "서리 폭발 — 보스 둘레가 얼어붙어요. 터지기 전에 거리를 두세요.",
+  scythe: "낫 휘두르기 — 넓은 원을 그립니다. 원 안쪽 깊숙이 붙으면 오히려 안전.",
+};
+const AI_TIP = { chase: "쫓아와 붙습니다. 뒤로 물러나며 치세요.", weave: "지그재그로 날아와요. 범위 공격이 잘 맞아요.", ranged: "멀리서 쏩니다. 먼저 잡으세요.", charger: "돌진 전에 멈칫해요. 옆으로 피한 뒤 반격.", caster: "발밑에 주술을 겁니다. 계속 움직이세요.", blinker: "순간이동합니다. 나타난 자리를 바로 치세요." };
+UI.loreOpen = function (k, isMob) {
+  const d = isMob ? ENEMIES[k] : BOSSES[k], n = isMob ? ((SAVE.mk || {})[k] || 0) : ((SAVE.kb || {})[k] || 0); if (!d || !n) return;
+  const im = isMob ? d.img : (ASSETS.img[k] ? k : d.art), tips = isMob ? [AI_TIP[d.ai]].filter(Boolean) : (d.pats || []).map((p) => PAT_TIP[p]).filter(Boolean);
+  SAVE.loreRw = SAVE.loreRw || {};
+  let rw = ""; if (n >= 10 && !SAVE.loreRw[k]) { SAVE.loreRw[k] = 1; SAVE.soul = (SAVE.soul || 0) + 10; saveGame(); rw = `<p class="lrw">🏮 토벌 완료 도장! 혼불 +10</p>`; }
+  UI.modal(`<div class="lorebox"><img src="${imgSrc(im)}" alt=""><div><h2>${d.name}</h2><p class="muted">토벌 ${n}번 ${n >= 10 ? '<span class="lst">토벌 완료</span>' : `· 10번이면 토벌 완료 도장`}</p>
+    <h3>📜 설화</h3><p>${esc(LORE[k] || "아직 알려진 이야기가 없다.")}</p>
+    <h3>⚔️ 토벌 요령 ${n >= 3 ? "" : `<span class="muted">(${n}/3 — 세 번 잡으면 열려요)</span>`}</h3>${n >= 3 ? `<ul>${tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p class="muted">???</p>`}${rw}
+    <div class="center"><button class="btn gold" id="lok">닫기</button></div></div></div>`);
+  $("#lok").onclick = () => UI.closeModal();
+};
+
+// ===================== 11-18 1.7.2 연격 표시 (Devil May Cry·Hades 식 손맛 피드백) =====================
+const COMBO_RANK = [[100, "천하무쌍", "#ff4d6d"], [60, "신들린 칼", "#ff7a3d"], [35, "일당백", "#ffb547"], [20, "거침없이", "#ffd84a"], [10, "좋아!", "#e8dcc4"]];
+function comboHud() {
+  let el = document.getElementById("combo"); if (!el) { el = document.createElement("div"); el.id = "combo"; el.innerHTML = '<b></b><span></span><i></i>'; (document.getElementById("hud") || document.body).appendChild(el); }
+  const n = G && G.comboT > 0 ? G.combo || 0 : 0;
+  if (n < 5) { if (el.className !== "") el.className = ""; return; }
+  const rk = COMBO_RANK.find(([k]) => n >= k), b = el.firstChild, s = b.nextSibling, bar = s.nextSibling;
+  if (b.textContent !== String(n)) b.textContent = n; const lab = rk ? rk[1] : "연격"; if (s.textContent !== lab) s.textContent = lab;
+  el.style.setProperty("--cc", rk ? rk[2] : "#e8dcc4"); bar.style.width = Math.max(0, (G.comboT / 2.4) * 100) + "%";
+  el.className = "on" + ((G.comboPop || 0) > 0 ? " pop" : "");
+}
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
