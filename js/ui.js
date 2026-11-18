@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.3";
+const GAME_VERSION = "1.9.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -497,6 +497,7 @@ const UI = {
     if (!T || !SAVE || /autotest/.test(location.hash)) return;
     SAVE.tips = SAVE.tips || {}; if (SAVE.tips[key]) return; SAVE.tips[key] = 1; saveGame();
     if (G && !G.over) { // 11-18 판 안에서는 게임을 멈추지 않는 옆 카드로 (전투 중 안내창이 흐름을 끊어 첫 판 이탈 원인)
+      if (UI.modalOpen()) { SAVE.tips[key] = 0; setTimeout(() => { if (SAVE && G && !G.over) UI.tip(key); }, 1500); return; } // 11-19 다른 창 위에 겹치지 않게
       let c = document.getElementById("tipcard"); if (!c) { c = document.createElement("div"); c.id = "tipcard"; document.body.appendChild(c); }
       c.innerHTML = `<button class="tx" aria-label="닫기">×</button><b>${T[0]}</b><p>${T[1]}</p><i></i>`; c.className = "on"; clearTimeout(UI._tipT);
       c.querySelector(".tx").onclick = () => { c.className = ""; }; UI._tipT = setTimeout(() => { c.className = ""; }, 9000); return;
@@ -1028,6 +1029,7 @@ const UI = {
   onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) setTimeout(() => UI.tutorial(), 600); },
   tutorial() {
     if (!G || UI.modalOpen()) return; G.paused = true; const K = keyMap();
+    if (IS_TOUCH) { UI.modal(`<h2>🏮 첫 원정 안내</h2><div style="max-width:600px;margin:0 auto;line-height:1.9"><p>🕹️ <b>왼쪽 아래 원</b>을 끌어 이동 · <b>오른쪽 큰 버튼</b>을 누르고 있으면 기본 공격 (가까운 요괴를 알아서 조준)</p><p>작은 버튼 <b>1~4</b> 스킬 · <b>💨</b> 구르기(잠깐 무적) · 오른쪽 위 <b>⏸</b> 멈춤 · 설정에서 <b>자동 공격</b>을 켜면 공격 버튼을 안 눌러도 돼요</p><p>요괴를 모두 잡으면 문이 열려요. 문 안으로 걸어가면 다음 방. <b style="color:#ff4d4d">붉은 영역</b>은 곧 공격이 떨어지는 자리예요.</p><p>레벨이 오르면 강화 하나를 골라요.</p></div><div class="center"><button class="btn gold" id="tutok">시작하기</button></div>`); $("#tutok").onclick = () => { SAVE.tutorial = true; track("tutorial_done"); saveGame(); UI.closeModal(); if (G) G.paused = false; }; return; } // 11-19 휴대폰은 터치 조작 안내
     UI.modal(`<h2>🏮 첫 원정 안내</h2><div style="max-width:560px;margin:0 auto;line-height:1.9">
       <p>이동 <span class="kbd">${["up", "left", "down", "right"].map((x) => keyLabel(K[x])).join("")}</span> · 기본 공격 <span class="kbd">${keyLabel(K.atk)}</span> 또는 <span class="kbd">${keyLabel(K.atk2)}</span> (마우스 쪽으로)</p>
       <p>스킬 <span class="kbd">${keyLabel(K.s1)}</span><span class="kbd">${keyLabel(K.s2)}</span><span class="kbd">${keyLabel(K.s3)}</span> · 궁극기 <span class="kbd">${keyLabel(K.s4)}</span> · 액티브 <span class="kbd">${keyLabel(K.act)}</span> · 멈춤 <span class="kbd">${keyLabel(K.pause)}</span></p>
@@ -1044,7 +1046,7 @@ const UI = {
     D.streak = D.day === yest ? D.streak + 1 : 1; D.day = today;
     const big = D.streak % 7 === 0, coin = big ? 6 : 2;
     SAVE.coins += coin; saveGame();
-    UI.modal(`<h2>📅 출석 ${D.streak}일째</h2><div class="center" style="gap:8px;flex-wrap:wrap">${Array.from({ length: 7 }, (_, i) => { const n = Math.floor((D.streak - 1) / 7) * 7 + i + 1, done = n <= D.streak; return `<div class="pill" style="${done ? "border-color:var(--gold);color:var(--gold2)" : ""}">${n}일 ${n % 7 === 0 ? "🎁" : "✓"}</div>`; }).join("")}</div>
+    UI.modal(`<h2>📅 출석 ${D.streak}일째</h2><div class="center" style="gap:8px;flex-wrap:wrap">${Array.from({ length: 7 }, (_, i) => { const n = Math.floor((D.streak - 1) / 7) * 7 + i + 1, done = n <= D.streak; return `<div class="pill" style="${done ? "border-color:var(--gold);color:var(--gold2)" : ""}">${n}일 ${done ? "✓" : n % 7 === 0 ? "🎁" : ""}</div>`; }).join("")}</div>
       <p style="text-align:center;font-size:1.2rem">${curIc("coin")} 코인 +${coin}${big ? " — 7일 연속 보너스!" : ""}</p><p class="muted" style="text-align:center">매일 들어오면 받아요. 7일 연속이면 큰 보상</p><div class="center"><button class="btn gold" id="dok">받기</button></div>`);
     $("#dok").onclick = () => { UI.closeModal(); UI.menu(); };
   },
