@@ -489,6 +489,22 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 #combo.pop b{transform:scale(1.25)}#combo span{font-family:var(--display);font-size:1.1rem;color:#fff;text-shadow:0 2px 4px #000;letter-spacing:.08em}
 #combo i{display:block;height:4px;border-radius:2px;background:var(--cc);box-shadow:0 0 8px var(--cc);margin-top:4px;width:0;max-width:120px}
 @media (max-width:640px){#combo{top:26%;right:12px}#combo b{font-size:2.3rem}}
+
+/* 11-18 멈추지 않는 안내 카드 */
+#tipcard{position:fixed;left:16px;bottom:120px;max-width:340px;padding:12px 14px 14px;border:1px solid #b8864b;border-radius:12px;background:linear-gradient(160deg,rgba(46,32,22,.95),rgba(18,13,12,.96));color:#efe3cc;z-index:40;opacity:0;transform:translateX(-30px);transition:opacity .3s,transform .3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#tipcard.on{opacity:1;transform:none;pointer-events:auto}#tipcard b{color:var(--gold2);display:block;margin-bottom:4px}#tipcard p{margin:0;font-size:.85rem;line-height:1.6}
+#tipcard .tx{position:absolute;right:6px;top:4px;background:none;border:0;color:#cbb;font-size:1.2rem;cursor:pointer}
+#tipcard i{position:absolute;left:0;bottom:0;height:3px;background:var(--gold2);border-radius:0 0 0 12px;width:0}#tipcard.on i{animation:tipbar 9s linear forwards}@keyframes tipbar{from{width:100%}to{width:0}}
+@media (max-width:640px){#tipcard{left:8px;right:8px;bottom:auto;top:70px;max-width:none}}
+
+/* 11-18 시련·숙련 */
+#trialt{position:absolute;left:50%;top:64px;transform:translateX(-50%) scale(.9);opacity:0;font-family:var(--display);font-size:1.5rem;color:#ffe08a;text-shadow:0 0 12px rgba(255,180,60,.8),0 2px 0 #000;transition:opacity .2s,transform .2s;pointer-events:none;z-index:5}
+#trialt.on{opacity:1;transform:translateX(-50%) scale(1)}#trialt.hurry{color:#ff6a5a;animation:hurry .5s ease-in-out infinite alternate}#trialt.fail{color:#a99}
+@keyframes hurry{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.12)}}
+.ch .mb{position:absolute;right:6px;bottom:30px;font-size:.68rem;padding:1px 6px;border-radius:8px;border:1px solid var(--mc);color:var(--mc);background:rgba(0,0,0,.6)}
+.mastc .mb{position:static;margin-left:6px}.mastc{padding:8px;margin:6px 0}.mastc .prog{margin:6px 0 4px}
+.mb{font-size:.72rem;padding:1px 6px;border-radius:8px;border:1px solid var(--mc);color:var(--mc);background:rgba(0,0,0,.4)}
+.mres{text-align:center;margin:2px auto 6px;font-size:.9rem}.mres b{color:var(--gold2)}.mres .up{color:#7fe08a;font-weight:700}
 </style>
 </head>
 <body>
@@ -1701,6 +1717,7 @@ function newRun(opt) {
   }
   if (opt.mode !== "duel" && !opt.multi && typeof altarMods === "function") mods.push(...altarMods()); // 11-18 혼불 제단 영구 강화
   if (opt.daily) for (const r of opt.daily.rules) if (r.m) mods.push(r.m);
+  if (opt.mode !== "duel" && !opt.multi && typeof mastMods === "function") mods.push(...mastMods(opt.char)); // 11-18 캐릭터 숙련도
   const startLv = opt.mode === "story" ? 1 + (opt.floor - 1) * 8 : opt.mode === "duel" ? 10 : opt.mode === "raid" ? 12 : opt.mode === "dev" || opt.mode === "practice" ? 20 : 1;
   const p = makeHero(opt.char, { form, lvl: startLv, mods, enh: (S.enh && S.enh[opt.char]) || 0, equip: S.skillEquip[opt.char], skillLv: S.skills, x: RW / 2, y: RH / 2 + 120 });
   G = { mode: opt.mode, floor: opt.floor || 1, stage: 1, p, units: [p], projs: [], zones: [], tele: [], fx: [], parts: [], texts: [], drops: [], orbs: [], timers: [],
@@ -1797,6 +1814,7 @@ function startStage() {
   if (Math.random() < 0.5 + G.floor * 0.05) { const rr = take(rest.slice().sort(() => Math.random() - 0.5)); if (rr) rr.type = "rest"; }
   if ((G.stage >= 2 || G.floor >= 2) && Math.random() < 0.5) { const ev = take(rest.slice().sort(() => Math.random() - 0.5)); if (ev) ev.type = "event"; } // 11-18 괴이한 방
   for (const r of rest) if (r.type === "fight" && Math.random() < 0.06 + G.floor * 0.05) r.type = "elite";
+  if (G.stage >= 2 && !G.opt.multi) for (const r of rest) if (r.type === "fight" && Math.random() < 0.16) r.trial = true; // 11-18 시련의 방
   if (G.stage >= 2 && Math.random() < 0.5) { const t2 = take(rest.slice().sort(() => Math.random() - 0.5)); if (t2) t2.type = "treasure"; }
   rollCurse((G.floor === 1 && G.stage === 1) || G.stage === STAGES_PER_FLOOR);
   enterRoom("0,0", null);
@@ -1962,6 +1980,7 @@ function populate(r) {
     r.pending = r.wave2 ? n - first : 0; r.pool = pool; r.eliteP = eliteP;
     if (r.type === "elite") { spawnMob(pick(pool.filter((x) => x !== "bat")) || "brute", mul, true); spawnMob(pick(pool), mul, true); }
     r.mobStart = G.units.filter((u) => u.team === 1).length;
+    if (r.trial) { G.trial = { room: r, t: Math.round(14 + n * 2.6), max: Math.round(14 + n * 2.6), fail: false }; G.banner = { text: "⏳ 시련의 방", sub: `${G.trial.t}초 안에 모두 정리하면 보물 상자 + 강화 하나`, t: 2.6, boss: true }; sfx("zone"); }
   } else if (r.type === "boss" && !r.cleared) {
     let key, mini;
     if (r.devBoss) { key = r.devBoss; mini = false; }
@@ -2564,6 +2583,7 @@ function bossDown(b) {
 function roomCleared() {
   const r = G.cur; if (r.cleared) return;
   r.cleared = true; G.roomsCleared++; SAVE.stats.rooms = (SAVE.stats.rooms || 0) + 1;
+  if (r.trial && G.trial && G.trial.room === r) { if (!G.trial.fail) { G.drops.push({ type: "chest", x: RW / 2, y: RH / 2, open: false }); G.levelQueue++; addText(G.p.x, G.p.y - 130, "시련 통과! 상자 + 강화", "#ffd84a", 28); sfx("level"); SAVE.stats.trials = (SAVE.stats.trials || 0) + 1; } G.trial = null; }
   if (r.evReward) { r.evReward = false; G.drops.push({ type: "chest", x: RW / 2, y: RH / 2, open: false }, { type: "coin", x: RW / 2 - 60, y: RH / 2 + 50 }, { type: "coin", x: RW / 2 + 60, y: RH / 2 + 50 }); addText(G.p.x, G.p.y - 120, "궤짝 요괴 퇴치! 보상", "#ffd84a", 24); }
   for (const h of G.units) if (h.kind === "hero" && h.alive && h.team === 0) h.celebT = 0.9; /* 방 정복 — 환호 (11-16) */
   if (r.mobStart >= 5 && G.roomT < 10) { SAVE.stats.fastClear = (SAVE.stats.fastClear || 0) + 1; addText(G.p.x, G.p.y - 120, "번개 같은 정리!", "#ffd84a", 24); }
@@ -2635,6 +2655,7 @@ function update(dt) {
   if (G.hitStop > 0) { G.hitStop -= dt; if (!(SAVE && SAVE.settings.hitstop === false)) dt *= 0.06; } // 11-16 타격감: 순간 멈칫
   if (G.kx || G.ky) { const dk = Math.exp(-dt * 16); G.kx = clamp((G.kx || 0) * dk, -12, 12); G.ky = clamp((G.ky || 0) * dk, -12, 12); if (Math.abs(G.kx) + Math.abs(G.ky) < 0.05) G.kx = G.ky = 0; } // 11-18 화면 밀림 되돌리기
   if (G.comboT > 0) { G.comboT -= dt; G.comboPop = Math.max(0, (G.comboPop || 0) - dt); if (G.comboT <= 0) { if (G.combo >= 15 && G.p) { const gg = Math.floor(G.combo / 5) * 2; G.p.gold = (G.p.gold || 0) + gg; addText(G.p.x, G.p.y - 130, `연격 ${G.combo}! 엽전 +${gg}`, "#ffd84a", 24); } G.combo = 0; } } // 11-18 연격이 끊기면 보상
+  if (G.trial && !G.trial.fail && G.cur === G.trial.room && !G.trial.room.cleared) { G.trial.t -= dt; if (G.trial.t <= 0) { G.trial.fail = true; addText(G.p.x, G.p.y - 120, "시련 실패…", "#ff8a8a", 26); } }
   G.time += dt; G.roomT += dt;
   if (G.trans) { G.trans.t -= dt; if (G.trans.t <= 0) { const tr = G.trans; G.trans = null; if (tr.mode === "out") tr.then(); } else if (G.trans.mode === "out") return; }
   if (G.banner) { G.banner.t -= dt; if (G.banner.t <= 0) G.banner = null; }
@@ -3194,6 +3215,7 @@ function endRun(win, storyDone) {
   r.coinRw = runReward(r); SAVE.coins += r.coinRw;
   r.soulInfo = typeof altarEarn === "function" ? altarEarn(r) : null; // 11-18 혼불
   r.daily = typeof dailyEnd === "function" ? dailyEnd(r) : null;
+  r.mast = typeof mastGain === "function" ? mastGain(r) : null;
   if ((G.comboMax || 0) > (SAVE.stats.maxCombo || 0)) SAVE.stats.maxCombo = G.comboMax; r.comboMax = G.comboMax || 0;
   NET.hostEnd(r);
   G.paused = true; checkUnlocks(); saveGame();
@@ -4592,7 +4614,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.7.2";
+const GAME_VERSION = "1.7.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5068,6 +5090,11 @@ const UI = {
     }[key];
     if (!T || !SAVE || /autotest/.test(location.hash)) return;
     SAVE.tips = SAVE.tips || {}; if (SAVE.tips[key]) return; SAVE.tips[key] = 1; saveGame();
+    if (G && !G.over) { // 11-18 판 안에서는 게임을 멈추지 않는 옆 카드로 (전투 중 안내창이 흐름을 끊어 첫 판 이탈 원인)
+      let c = document.getElementById("tipcard"); if (!c) { c = document.createElement("div"); c.id = "tipcard"; document.body.appendChild(c); }
+      c.innerHTML = `<button class="tx" aria-label="닫기">×</button><b>${T[0]}</b><p>${T[1]}</p><i></i>`; c.className = "on"; clearTimeout(UI._tipT);
+      c.querySelector(".tx").onclick = () => { c.className = ""; }; UI._tipT = setTimeout(() => { c.className = ""; }, 9000); return;
+    }
     if (UI.modalOpen()) { setTimeout(() => { if (!SAVE) return; SAVE.tips[key] = 0; UI.tip(key); }, 1500); return; }
     const wasG = G && !G.paused; if (wasG) G.paused = true;
     UI.modal(`<h2>${T[0]}</h2><p style="text-align:center;line-height:1.8">${T[1]}</p><div class="center"><button class="btn gold" id="tipok">알겠어요</button></div>`);
@@ -5201,7 +5228,7 @@ const UI = {
     const card1 = (c) => {
       const own = !!SAVE.chars[c.id], art = charArt(c.id, c.forms ? "wolf" : null);
       return `<button class="ch ${own ? "" : "lock"} ${c.id === sel ? "on" : ""}" data-c="${c.id}" style="background-image:url(${imgSrc("card_" + art)})">
-        <span class="tag"><b style="color:${GRADE_INFO[CHAR_GRADE[c.id]].col}">${CHAR_GRADE[c.id]}</b> ${UNLOCK_TYPE[c.unlock.type]}</span>${own ? "" : '<span class="lk">🔒</span>'}<span class="nm">${c.name}<small>${c.job}${(SAVE.enh || {})[c.id] ? " +" + SAVE.enh[c.id] : ""}</small></span></button>`;
+        <span class="tag"><b style="color:${GRADE_INFO[CHAR_GRADE[c.id]].col}">${CHAR_GRADE[c.id]}</b> ${UNLOCK_TYPE[c.unlock.type]}</span>${own ? "" : '<span class="lk">🔒</span>'}<span class="nm">${c.name}<small>${c.job}${(SAVE.enh || {})[c.id] ? " +" + SAVE.enh[c.id] : ""}</small></span>${own && typeof mastBadge === "function" ? mastBadge(c.id) : ""}</button>`;
     };
     const grid = GR.map((g) => { const cs = vis.filter((c) => (CHAR_GRADE[c.id] || "C") === g).sort((a, b) => (SAVE.chars[b.id] ? 1 : 0) - (SAVE.chars[a.id] ? 1 : 0)); if (!cs.length) return "";
       return `<div class="grhead" style="grid-column:1/-1;border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> <span class="muted">${cs.filter((c) => SAVE.chars[c.id]).length}/${cs.length}</span></div>` + cs.map(card1).join(""); }).join("");
@@ -5230,6 +5257,7 @@ const UI = {
         <h3 style="margin-top:10px">${c.name} · ${c.job} ${(SAVE.enh || {})[id] ? `<span class="stars">+${SAVE.enh[id]}</span>` : ""}</h3>
         ${c.forms ? `<p class="muted">🎲 출발할 때마다 <b>늑대인간(남)</b> 또는 <b>구미호(여)</b> 모습이 랜덤으로 정해져요. 늑대인간은 근접 발톱, 구미호는 여우 구슬(원거리)</p>` : ""}
         <p><span class="grade" style="background:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</span> <span class="muted">체력 ${Math.round(def.hp * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.05 * ((SAVE.enh || {})[id] || 0)))} · 공격 ${Math.round(def.atk * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.05 * ((SAVE.enh || {})[id] || 0)))} · 이동 ${def.spd} · ${def.range} · 사거리 ${CHAR_RANGE[art] || CHAR_RANGE[id] || "-"} · 속성 <b style="color:${(ACT_EL.find((e) => e.k === nearEl(def.col)) || {}).col}">${EL_NAME[nearEl(def.col)] || "-"}</b></span></p>
+        ${own && typeof mastLv === "function" ? (() => { const l = mastLv(id), x = (SAVE.mast || {})[id] || 0, nx = MAST_XP[l]; return `<div class="card mastc"><b>숙련 Lv.${l}</b> ${mastBadge(id)}<div class="prog"><i style="width:${nx ? Math.min(100, ((x - MAST_XP[l - 1]) / (nx - MAST_XP[l - 1])) * 100) : 100}%"></i></div><span class="muted">${nx ? `${x}/${nx} · ` : "최고 단계 · "}이 영웅 공격력·체력 +${((l - 1) * 1.2).toFixed(1)}% (판을 할수록 올라요)</span></div>`; })() : ""}
         ${own ? `<div class="card" style="padding:8px;margin:6px 0;display:flex;gap:10px;align-items:center"><b style="font-family:var(--display);font-size:1.2rem;color:var(--gold2)">강화 +${(SAVE.enh || {})[id] || 0}</b><span class="muted" style="flex:1">조각 ${(SAVE.shards || {})[id] || 0}${((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? " / 다음 강화 " + SHARD.enhCost((SAVE.enh || {})[id] || 0) + " · 성공 " + Math.round(SHARD.enhRate((SAVE.enh || {})[id] || 0) * 100) + "%" : " · 최대"} · 단계마다 공격·체력 +5%</span><button class="btn sm gold" id="enhbtn" ${((SAVE.shards || {})[id] || 0) >= SHARD.enhCost((SAVE.enh || {})[id] || 0) && ((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? "" : "disabled"}>강화</button></div>` : ""}
         <div class="ctabs">${[["sk", "스킬", "📜"], ["job", "전직", "⚔️"], ["info", "정보", "📖"]].map(([k, n, ic]) => `<button class="ctab ${k === UI._ctab ? "on" : ""}" data-ct="${k}"><span class="cti">${ic}</span><span>${n}</span></button>`).join("")}</div>
         <div id="ctsk" ${UI._ctab === "sk" ? "" : "hidden"}><div class="skl"><span class="k">${abIc("sk_" + id + "_b", "🖱️", 30)}<small>좌클릭</small></span><div><b>${def.basic.name}</b> <span class="muted">기본 공격 · ${def.basic.cd}초</span></div></div>${skills}</div>
@@ -5659,7 +5687,7 @@ const UI = {
   },
   flashSlot(s) { const el = document.querySelector(`#hud .sk[data-s="${s}"]`); if (!el) return; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); },
   hud() {
-    comboHud();
+    comboHud(); trialHud();
     if (!G || $("#hud").hidden) return;
     const p = G.p; if (!p || !p.sk || !p.maxHp) return; UI._hudT = (UI._hudT || 0) + 1; if (UI._hudT % 4) return;
     const tt = SAVE.equip.title && G.mode !== "duel" ? TITLES[SAVE.equip.title].name : "";
@@ -5817,7 +5845,7 @@ const UI = {
     const title = r.mode === "practice" ? "🎯 연습 끝" : r.mode === "dev" ? "🛠 개발자 맵 끝" : r.mode === "raid" ? (r.win ? "🐉 보스 레이드 완료!" : "레이드 실패") : r.mode === "duel" ? (r.win ? "🏆 대전 승리!" : "대전 패배") : r.storyDone ? "🌅 스토리 완료!" : r.win ? "원정 성공" : "쓰러졌습니다";
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
-    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}<div class="res">
+    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}층 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
@@ -6351,6 +6379,28 @@ function comboHud() {
   el.style.setProperty("--cc", rk ? rk[2] : "#e8dcc4"); bar.style.width = Math.max(0, (G.comboT / 2.4) * 100) + "%";
   el.className = "on" + ((G.comboPop || 0) > 0 ? " pop" : "");
 }
+
+// ===================== 11-18 1.7.3 시련의 방 시계 · 캐릭터 숙련도 =====================
+// 시련: Hades '혼돈의 문'·Dead Cells '시간 문' → 제한 시간 정리. 숙련도: Hades 무기 숙련·Apex 캐릭터 레벨 → 한 영웅을 오래 쓸수록 그 영웅만 조금씩 강해지고 표식이 바뀜.
+function trialHud() {
+  let el = document.getElementById("trialt"); const T = G && G.trial;
+  if (!T || !G.cur || G.cur !== T.room || T.room.cleared) { if (el) el.className = ""; return; }
+  if (!el) { el = document.createElement("div"); el.id = "trialt"; (document.getElementById("hud") || document.body).appendChild(el); }
+  const s = Math.max(0, Math.ceil(T.t)); el.textContent = T.fail ? "시련 실패" : `⏳ 시련 ${s}초`; el.className = "on" + (T.fail ? " fail" : s <= 5 ? " hurry" : "");
+}
+const MAST_XP = [0, 40, 100, 190, 310, 470, 680, 950, 1300, 1750];
+const MAST_TIER = [[10, "옥", "#7fe0c8"], [7, "금", "#ffd84a"], [4, "은", "#cfd6e6"], [1, "동", "#d08a5a"]];
+const mastLv = (cid) => { const x = ((SAVE && SAVE.mast) || {})[cid] || 0; let l = 1; for (let i = 0; i < MAST_XP.length; i++) if (x >= MAST_XP[i]) l = i + 1; return l; };
+function mastMods(cid) { const l = mastLv(cid) - 1; return l ? [{ atk: 0.012 * l, hp: 0.012 * l }] : []; }
+function mastGain(r) {
+  if (!SAVE || !G || !G.p || !["story", "endless", "raid"].includes(r.mode) || (G.opt && G.opt.multi)) return null;
+  const cid = G.p.id, before = mastLv(cid), boss = Math.max(0, (SAVE.stats.bosses || 0) - ((G && G.bossAtStart) || 0));
+  const xp = (r.rooms || 0) + Math.floor((r.kills || 0) / 10) + boss * 10 + (r.win || r.storyDone ? 30 : 0);
+  SAVE.mast = SAVE.mast || {}; SAVE.mast[cid] = (SAVE.mast[cid] || 0) + xp; const after = mastLv(cid);
+  return { cid, xp, before, after, cur: SAVE.mast[cid], next: MAST_XP[after] || null };
+}
+function mastBadge(cid) { const l = mastLv(cid); if (l < 2) return ""; const t = MAST_TIER.find(([k]) => l >= k); return `<span class="mb" style="--mc:${t[2]}">${t[1]} ${l}</span>`; }
+function mastHtml(m) { if (!m) return ""; const c = CHAR[m.cid]; return `<div class="mres">${c.name} 숙련 <b>Lv.${m.after}</b> ${m.after > m.before ? `<span class="up">↑ 올랐어요! 공격력·체력 +${((m.after - 1) * 1.2).toFixed(1)}%</span>` : ""} <span class="muted">+${m.xp} 경험${m.next ? ` · 다음까지 ${m.next - m.cur}` : " · 최고 단계"}</span></div>`; }
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
