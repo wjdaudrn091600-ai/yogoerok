@@ -3441,6 +3441,11 @@ function drawDoors3D(g, r, dc, dop) {
       g.shadowColor = col; g.shadowBlur = 12 + Math.sin(G.time * 4) * 5;
       g.drawImage(si, -si.naturalWidth * sc / 2, -si.naturalHeight * sc / 2 + bob, si.naturalWidth * sc, si.naturalHeight * sc); g.restore();
     }
+    else if (t && !t.visited && (t.type === "event" || t.trial)) { // 11-18 괴이한 방·시련의 방도 문 너머 미리보기 (Hades 문 보상 표식 재해석)
+      g.save(); g.translate(0, 58); g.rotate(-pos[2]); g.globalAlpha = locked ? 0.6 : 0.65 + k * 0.35; const bob = Math.sin(G.time * 2.4 + pos[2]) * 3, cc = t.trial ? "#ffd84a" : "#a99bff";
+      const gr = g.createRadialGradient(0, bob, 2, 0, bob, 34); gr.addColorStop(0, cc + "cc"); gr.addColorStop(1, cc + "00"); g.fillStyle = gr; g.beginPath(); g.arc(0, bob, 34, 0, 7); g.fill();
+      g.font = "34px serif"; g.textAlign = "center"; g.fillText(t.trial ? "⏳" : "👻", 0, bob + 12); g.restore();
+    }
     if (k > 0.5) { g.globalAlpha = (k - 0.5) * 2 * 0.9;
       const ic = si && si.naturalWidth ? "" : !t || t.visited ? "" : t.type === "boss" ? "☠" : { exit: "⇣", treasure: "✦", shop: "⚖", rest: "♨", elite: "⚔" }[t.type] || "";
       if (ic) { g.rotate(-pos[2]); g.font = "26px sans-serif"; g.textAlign = "center"; g.fillStyle = col; g.fillText(ic, 0, 8); } }
@@ -4675,7 +4680,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.2";
+const GAME_VERSION = "1.8.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
