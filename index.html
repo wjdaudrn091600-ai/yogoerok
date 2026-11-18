@@ -1705,7 +1705,8 @@ function makeHero(cid, o) {
   return u;
 }
 // 엘리트 특성 (11-16): 엘리트마다 하나 — 이름이 머리 위에 보임
-const AFFIX = { swift: { name: "신속", col: "#7fd8ff" }, iron: { name: "강철", col: "#c9d1da" }, split: { name: "분열", col: "#b48cff" }, burst: { name: "폭발", col: "#ff8a3c" }, regen: { name: "재생", col: "#7fe08a" } };
+const AFFIX = { swift: { name: "신속", col: "#7fd8ff" }, iron: { name: "강철", col: "#c9d1da" }, split: { name: "분열", col: "#b48cff" }, burst: { name: "폭발", col: "#ff8a3c" }, regen: { name: "재생", col: "#7fe08a" },
+  vamp: { name: "흡혈", col: "#ff4d6d" }, shield: { name: "보호막", col: "#6fa8ff" }, blink: { name: "순간이동", col: "#d08cff" } }; // 11-18 특성 3종 추가
 function makeMob(type, mul, elite) {
   const m_ = makeMob0(type, mul, elite); if (m_.affix === "swift") m_.spd *= 1.45; if (elite && G && G.p) sfx("elite"); return m_;
 }
@@ -2473,6 +2474,7 @@ function damage(t, d, src, crit, o = {}) {
     d *= drMul(t); if (G.curse === "blood" && t.team === 0) d *= 1.25;
     if (t.shield > 0) { const s = Math.min(t.shield, d); t.shield -= s; d -= s; }
     t.hp -= d; t.hitT = 0.1; if (d > t.maxHp * 0.02) t.hurtT = 0.28;
+    if (src && src.affix === "vamp" && src.alive && src.maxHp) { src.hp = Math.min(src.maxHp, src.hp + d * 0.6); if (Math.random() < 0.4) addText(src.x, src.y - src.r - 30, "+" + Math.round(d * 0.6), "#ff4d6d", 15); } // 엘리트 특성: 흡혈
     if (t === G.p && src && src !== t) G.lastHit = src.kind === "boss" ? src.name : (src.def && src.def.name) || G.lastHit; // 11-18 주모 대사: 누구한테 당했나
     if (t === G.p) { G.stageHit = true; G.shake = Math.max(G.shake, 6); sfx("hurt"); if (d > t.maxHp * 0.08) { G.hitStop = Math.max(G.hitStop || 0, 0.06); if (typeof haptic === "function") haptic("light"); } }
     if (!(SAVE && SAVE.settings.dmgNum === false)) addText(t.x + rnd(-14, 14), t.y - 70, Math.round(d) + "", t === G.p ? "#ff6a6a" : "#ffb0b0", 20);
@@ -2485,6 +2487,7 @@ function damage(t, d, src, crit, o = {}) {
     return d;
   }
   if (G.curse === "armor" && t.team === 1) d *= 0.8;
+  if (t.mshield > 0) { const s = Math.min(t.mshield, d); t.mshield -= s; d -= s; if (t.mshield <= 0) addText(t.x, t.y - t.r - 30, "보호막 깨짐!", "#9fd0ff", 18); } // 엘리트 특성: 보호막
   if (t.affix === "iron") d *= 0.7; // 엘리트 특성: 강철 (11-16 밸런스 0.6→0.7)
   t.hp -= d; t.hitT = 0.12;
   if (src && src.team === 0 && !o.dot) sfx(crit ? "crit" : "hit");
@@ -2756,6 +2759,8 @@ function updateUnit(u, dt) {
   if (u.atkAnim > 0) u.atkAnim -= dt; if (u.skillAnim > 0) u.skillAnim -= dt; if (u.hurtT > 0) u.hurtT -= dt;
   if (u.celebT > 0) u.celebT -= dt; if (u.getupT > 0) u.getupT -= dt;
   if (u.slowT > 0) u.slowT -= dt;
+  if (u.affix === "shield" && u.alive) { u.shT = (u.shT == null ? 1 : u.shT) - dt; if (u.shT <= 0) { u.shT = 6.5; u.mshield = u.maxHp * 0.25; } } // 엘리트 특성: 보호막 (6.5초마다 최대 체력 25%)
+  if (u.affix === "blink" && u.alive && G.p && G.p.alive && !G.client) { u.bT = (u.bT == null ? rnd(2, 3.5) : u.bT) - dt; if (u.bT <= 0) { u.bT = rnd(3.8, 5.2); for (let i = 0; i < 8; i++) spark(u.x, u.y - u.r * 0.5, "#d08cff", 3); const a = Math.random() * 6.28; u.x = clamp(G.p.x + Math.cos(a) * 150, BL + 30, BR - 30); u.y = clamp(G.p.y + Math.sin(a) * 110, BT + 30, BB - 30); for (let i = 0; i < 8; i++) spark(u.x, u.y - u.r * 0.5, "#d08cff", 3); u.st = "idle"; u.t = 0.45; } } // 엘리트 특성: 순간이동
   if (u.affix === "regen" && u.alive && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.018 * dt); // 엘리트 특성: 재생 (11-16 밸런스 2.5→1.8%)
   if (u.markT > 0) u.markT -= dt;
   if (u.burn) { u.burn.t -= dt; u.burn.acc = (u.burn.acc || 0) + dt; if (u.burn.acc >= 0.5) { u.burn.acc = 0; damage(u, u.burn.dps * 0.5 * 2, u.burn.src, false, { dot: true }); } if (u.burn && u.burn.t <= 0) u.burn = null; }
@@ -3765,7 +3770,7 @@ function drawUnit(g, u) {
   g.scale(sq, 1 / sq);
   if (u.kind === "hero" && (u.invT > 0 || hasBuff(u, "inv"))) g.globalAlpha = 0.6 + Math.sin(G.time * 30) * 0.3;
   if (u.kind === "hero" && hasBuff(u, "stealth")) g.globalAlpha = u === G.p ? 0.4 : 0.12;
-  if (u.elite) { g.shadowColor = "#ff4dff"; g.shadowBlur = 22; }
+  if (u.elite) { g.shadowColor = u.mshield > 0 ? "#6fa8ff" : "#ff4dff"; g.shadowBlur = u.mshield > 0 ? 34 : 22; }
   if (u.kind === "boss") { g.shadowColor = u.ph2 ? "#ff3b30" : "#8a6bff"; g.shadowBlur = 30; }
   if (u.kind === "hero" && u.team === 1) { g.shadowColor = "#ff4d4d"; g.shadowBlur = 14; }
   else if (u === G.p && !(SAVE && SAVE.settings.low)) { g.shadowColor = "rgba(255,226,170,0.75)"; g.shadowBlur = 10; } // 11-17 내 캐릭터 테두리 빛
@@ -4670,7 +4675,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.1";
+const GAME_VERSION = "1.8.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5223,7 +5228,7 @@ const UI = {
     // 11-16: 일반 요괴(한 번 잡으면 공개)·엘리트 특성·조합 패시브(한 번 얻으면 공개)
     const mk = SAVE.mk || {}, AI_T = { chase: "쫓아옴", weave: "지그재그로 날아옴", ranged: "멀리서 쏨", charger: "돌진", caster: "발밑에 주술", blinker: "순간이동" };
     const mobs = Object.keys(ENEMIES).map((k) => { const e = ENEMIES[k], n = mk[k] || 0; return `<div class="item ${n ? "" : "off"}" data-lmob="${k}" style="min-height:0;padding:8px;text-align:center"><div style="height:90px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(e.img)}" alt="" style="max-height:88px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div><b>${n ? e.name : "???"}</b><span class="muted" style="font-size:.75rem">${n ? AI_T[e.ai] || "" : "아직 못 만남"}${n ? " · " + n + "번 처치" : ""}</span></div>`; }).join("");
-    const AFX_T = { swift: "빠르게 움직임", iron: "받는 피해 30% 줄임", split: "쓰러지면 작은 요괴 둘로 갈라짐", burst: "쓰러지면 잠시 뒤 폭발 — 피하세요", regen: "체력이 계속 차오름" };
+    const AFX_T = { swift: "빠르게 움직임", iron: "받는 피해 30% 줄임", split: "쓰러지면 작은 요괴 둘로 갈라짐", burst: "쓰러지면 잠시 뒤 폭발 — 피하세요", regen: "체력이 계속 차오름", vamp: "때릴 때마다 체력을 빨아들임 — 맞지 않는 게 최선", shield: "몇 초마다 파란 보호막 — 깨지면 그때 몰아치기", blink: "가까이 순간이동 — 나타난 자리를 바로 치기" };
     const affs = Object.keys(AFFIX).map((a) => `<div class="item" style="min-height:0;padding:8px"><b style="color:${AFFIX[a].col}">${AFFIX[a].name}</b><span class="muted" style="font-size:.8rem">${AFX_T[a]}</span></div>`).join("");
     const duo = SAVE.duo || {}, duos = Object.keys(BOONS).filter((k) => BOONS[k].duo).map((k) => { const b = BOONS[k]; return `<div class="item ${duo[k] ? "" : "off"}" style="min-height:0;padding:8px"><b>${b.ic || ""} ${duo[k] ? b.name : "???"}</b><span class="muted" style="font-size:.8rem">${(b.req || []).map((q) => BOONS[q].name).join(" + ")}${duo[k] ? " → " + b.desc.replace(/^\[조합\][^→]*→\s*/, "") : ""}</span></div>`; }).join("");
     const extra = `<h3 style="margin-top:18px">일반 요괴 <span class="muted">${Object.keys(ENEMIES).filter((k) => mk[k]).length}/${Object.keys(ENEMIES).length}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${mobs}</div>
