@@ -514,6 +514,13 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .mode.starthere{border-color:#ffd27a!important;box-shadow:0 0 0 2px rgba(255,210,122,.6),0 0 28px rgba(255,190,90,.45);animation:sh 1.6s ease-in-out infinite}
 @keyframes sh{0%,100%{box-shadow:0 0 0 2px rgba(255,210,122,.5),0 0 18px rgba(255,190,90,.3)}50%{box-shadow:0 0 0 3px rgba(255,220,140,.9),0 0 38px rgba(255,190,90,.6)}}
 .mode .shere{position:absolute;right:10px;top:10px;z-index:3;font-style:normal;font-family:var(--display);background:linear-gradient(180deg,#ffe08a,#e0a040);color:#2a1606;padding:4px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+/* 11-18 토벌 시즌 */
+.shead{display:flex;gap:16px;align-items:center;justify-content:space-between;max-width:1100px;margin:0 auto 12px;flex-wrap:wrap}.shead h2{margin:0}.slv{min-width:240px;text-align:center}.slv b{font-family:var(--display);font-size:2rem;color:var(--gold2)}
+.strack{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-width:1100px;margin:0 auto}
+.stier{position:relative;padding:10px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-align:center;display:flex;flex-direction:column;gap:4px;min-height:92px}
+.stier b{font-family:var(--display);font-size:1.3rem;color:#c9b9a0}.stier span{font-size:.75rem}.stier i{font-style:normal;font-size:.75rem;color:var(--gold2)}
+.stier.big{border-color:#b8864b;background:linear-gradient(160deg,rgba(80,52,20,.6),rgba(20,14,12,.9))}.stier.can{border-color:#ffd27a;box-shadow:0 0 14px rgba(255,200,100,.45);cursor:pointer}.stier.can b{color:#ffd27a}
+.stier.got{opacity:.55}.stier.lock{opacity:.4}.sres{text-align:center;font-size:.85rem;margin:2px 0}.sres b{color:var(--gold2)}
 </style>
 </head>
 <body>
@@ -2613,7 +2620,7 @@ function bossDown(b) {
 }
 function roomCleared() {
   const r = G.cur; if (r.cleared) return;
-  r.cleared = true; G.roomsCleared++; SAVE.stats.rooms = (SAVE.stats.rooms || 0) + 1;
+  r.cleared = true; G.roomsCleared++; SAVE.stats.rooms = (SAVE.stats.rooms || 0) + 1; if (typeof missionPing === "function") missionPing();
   if (r.trial && G.trial && G.trial.room === r) { if (!G.trial.fail) { G.drops.push({ type: "chest", x: RW / 2, y: RH / 2, open: false }); G.levelQueue++; addText(G.p.x, G.p.y - 130, "시련 통과! 상자 + 강화", "#ffd84a", 28); sfx("level"); SAVE.stats.trials = (SAVE.stats.trials || 0) + 1; } G.trial = null; }
   if (r.evReward) { r.evReward = false; G.drops.push({ type: "chest", x: RW / 2, y: RH / 2, open: false }, { type: "coin", x: RW / 2 - 60, y: RH / 2 + 50 }, { type: "coin", x: RW / 2 + 60, y: RH / 2 + 50 }); addText(G.p.x, G.p.y - 120, "궤짝 요괴 퇴치! 보상", "#ffd84a", 24); }
   for (const h of G.units) if (h.kind === "hero" && h.alive && h.team === 0) h.celebT = 0.9; /* 방 정복 — 환호 (11-16) */
@@ -3256,6 +3263,7 @@ function endRun(win, storyDone) {
   r.soulInfo = typeof altarEarn === "function" ? altarEarn(r) : null; // 11-18 혼불
   r.daily = typeof dailyEnd === "function" ? dailyEnd(r) : null;
   r.mast = typeof mastGain === "function" ? mastGain(r) : null;
+  r.season = typeof seasonGain === "function" ? seasonGain(r) : null;
   if (typeof histAdd === "function") histAdd(r);
   if ((G.comboMax || 0) > (SAVE.stats.maxCombo || 0)) SAVE.stats.maxCombo = G.comboMax; r.comboMax = G.comboMax || 0;
   NET.hostEnd(r);
@@ -4680,7 +4688,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.3";
+const GAME_VERSION = "1.8.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5281,8 +5289,9 @@ const UI = {
           <button class="sub" data-s="howto"><span class="ic">${uiIc("howto", "❓")}</span>플레이 방법</button>
           <button class="sub" data-s="settings"><span class="ic">${uiIc("settings", "⚙️")}</span>설정</button>
           <button class="sub" data-s="history" style="grid-column:span 1;justify-content:center"><span class="ic">📜</span>토벌 기록</button>
+          <button class="sub" data-s="season" style="grid-column:span 1;justify-content:center;border-color:#e0a040"><span class="ic">🏮</span>토벌 시즌${typeof seasonUnclaimed === "function" && seasonUnclaimed() ? '<i class="dot"></i>' : ""}</button>
           <button class="sub" data-s="altar" style="grid-column:span 1;justify-content:center;border-color:#ff9a3d"><span class="ic">🔥</span>혼불 제단 <span class="muted">🔥 ${SAVE.soul || 0}</span>${(() => { const n = altarNext(); return n && (SAVE.soul || 0) >= n.c ? '<i class="dot"></i>' : ""; })()}</button>
-          <button class="sub" data-s="multi" style="grid-column:span 2;justify-content:center;border-color:#5fc8ff"><span class="ic">${uiIc("multi", "👥")}</span>멀티 · 친구와 함께 (협동 / 1대1)</button>
+          <button class="sub" data-s="multi" style="grid-column:span 1;justify-content:center;border-color:#5fc8ff"><span class="ic">${uiIc("multi", "👥")}</span>멀티 · 친구와 함께 (협동 / 1대1)</button>
         </div>
         ${UI.bountyCard()}
         <p class="muted" style="font-size:.75rem;opacity:.7">버전 v${GAME_VERSION}${location.href.startsWith(UPDATE_URL) ? " · 온라인 자동 업데이트" : ""}</p>
@@ -5709,6 +5718,7 @@ const UI = {
   },
   // 매일 출석: 코인 1 + 엽전 200, 7일째마다 코인 5 + 엽전 500
   daily() {
+    if (typeof comebackGift === "function") comebackGift();
     const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString(), D = SAVE.daily || (SAVE.daily = { day: "", streak: 0 });
     if (D.day === today) return;
     D.streak = D.day === yest ? D.streak + 1 : 1; D.day = today;
@@ -5932,7 +5942,7 @@ const UI = {
     const title = r.mode === "practice" ? "🎯 연습 끝" : r.mode === "dev" ? "🛠 개발자 맵 끝" : r.mode === "raid" ? (r.win ? "🐉 보스 레이드 완료!" : "레이드 실패") : r.mode === "duel" ? (r.win ? "🏆 대전 승리!" : "대전 패배") : r.storyDone ? "🌅 스토리 완료!" : r.win ? "원정 성공" : "쓰러졌습니다";
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
-    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}<div class="res">
+    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}층 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
@@ -6596,6 +6606,49 @@ function shareCard(r) {
   c.toBlob((blob) => { if (!blob) return; const f = new File([blob], "요괴록_기록.png", { type: "image/png" });
     if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: "요괴록 토벌 기록" }).catch(() => {});
     else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "요괴록_기록.png"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); UI.toast("📸 기록 카드를 저장했어요"); } }, "image/png");
+}
+
+// ===================== 11-18 1.8.4 토벌 시즌 (무료 시즌 패스) · 복귀 선물 · 미션 달성 알림 =====================
+// 참고: Fortnite·원신 등 시즌 패스(달마다 새 목표) + 모바일 복귀 보상 → 조선식 '토벌 시즌'. 지금은 무료 길만, 출시 때 유료 길을 붙일 자리.
+const SEASON_TIER = 20, SEASON_XP = 60;
+const seasonKey = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
+function seasonRw(i) { // i = 1..20
+  if (i === 20) return { coin: 30, soul: 100, t: "코인 30 · 혼불 100 · 시즌 완주!" };
+  if (i % 5 === 0) return { coin: 8, soul: 40, t: "코인 8 · 혼불 40" };
+  if (i % 2 === 0) return { soul: 25, t: "혼불 25" };
+  if (i % 3 === 0) return { shard: 6, t: "가진 영웅 조각 6" };
+  return { coin: 3, t: "코인 3" };
+}
+function seasonState() { const k = seasonKey(); if (!SAVE.season || SAVE.season.key !== k) SAVE.season = { key: k, xp: 0, claimed: {} }; return SAVE.season; }
+function seasonGain(r) {
+  if (!SAVE || !["story", "endless", "raid"].includes(r.mode) || (G && G.opt && G.opt.multi && NET.client)) return null;
+  const S = seasonState(), before = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP));
+  const xp = Math.min(120, (r.rooms || 0) * 2 + Math.floor((r.kills || 0) / 8) + (r.win || r.storyDone ? 20 : 0) + (G && G.opt && G.opt.daily ? 15 : 0));
+  S.xp += xp; const after = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP));
+  return { xp, before, after };
+}
+const seasonUnclaimed = () => { if (!SAVE) return 0; const S = seasonState(), lv = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP)); let n = 0; for (let i = 1; i <= lv; i++) if (!S.claimed[i]) n++; return n; };
+function seasonHtml(s) { if (!s || !s.xp) return ""; return `<div class="sres">🏮 토벌 시즌 경험 +${s.xp}${s.after > s.before ? ` · <b>${s.after}단계 달성!</b> 보상을 받으세요` : ""}</div>`; }
+UI.season = function () {
+  const S = seasonState(), lv = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP)), cur = S.xp % SEASON_XP, d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 1), left = Math.ceil((end - d) / 864e5);
+  const cells = Array.from({ length: SEASON_TIER }, (_, i) => { const n = i + 1, R = seasonRw(n), got = S.claimed[n], can = n <= lv && !got;
+    return `<div class="stier ${got ? "got" : can ? "can" : n <= lv ? "" : "lock"} ${n % 5 === 0 ? "big" : ""}" ${can ? `data-n="${n}"` : ""}><b>${n}</b><span>${R.t}</span>${got ? "<i>✔ 받음</i>" : can ? "<i>받기</i>" : ""}</div>`; }).join("");
+  UI.frame("🏮 토벌 시즌", `<div class="shead"><div><h2>${d.getMonth() + 1}월 토벌 시즌</h2><p class="muted">판을 할 때마다 경험이 쌓여요 (방·처치·완주·오늘의 괴담). 시즌은 ${left}일 뒤 새로 시작해요.</p></div>
+    <div class="slv"><b>${lv}</b>/${SEASON_TIER}단계<div class="prog"><i style="width:${lv >= SEASON_TIER ? 100 : (cur / SEASON_XP) * 100}%"></i></div><span class="muted">${lv >= SEASON_TIER ? "완주!" : `다음 단계까지 ${SEASON_XP - cur}`}</span></div></div>
+    <div class="strack">${cells}</div><p class="muted" style="text-align:center">${seasonUnclaimed() ? `<button class="btn gold" id="sall">모두 받기 (${seasonUnclaimed()})</button>` : ""}</p>`, () => UI.menu());
+  const claim = (n) => { const R = seasonRw(n); S.claimed[n] = 1; if (R.coin) SAVE.coins += R.coin; if (R.soul) { SAVE.soul = (SAVE.soul || 0) + R.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + R.soul; }
+    if (R.shard) { const own = Object.keys(SAVE.chars), id = pick(own); SAVE.shards = SAVE.shards || {}; SAVE.shards[id] = (SAVE.shards[id] || 0) + R.shard; } };
+  document.querySelectorAll(".stier[data-n]").forEach((c) => (c.onclick = () => { claim(+c.dataset.n); saveGame(); sfx("coin"); UI.toast(`🏮 ${c.dataset.n}단계 보상 · ${seasonRw(+c.dataset.n).t}`); UI.season(); }));
+  if ($("#sall")) $("#sall").onclick = () => { for (let i = 1; i <= lv; i++) if (!S.claimed[i]) claim(i); saveGame(); sfx("level"); UI.toast("🏮 시즌 보상을 모두 받았어요"); UI.season(); };
+};
+function comebackGift() { // 3일 넘게 쉬다 오면 선물 (daily() 앞에서)
+  const now = Date.now(), last = SAVE.lastSeen || 0; SAVE.lastSeen = now;
+  if (last && now - last > 3 * 864e5) { const days = Math.floor((now - last) / 864e5); SAVE.coins += 10; SAVE.soul = (SAVE.soul || 0) + 50; saveGame();
+    setTimeout(() => UI.toast(`🏮 ${days}일 만이네요, 토벌꾼 양반! 주막 선물 — 코인 10 · 혼불 50`, 6000), 1200); }
+}
+function missionPing() { // 판 도중 미션 달성 알림 (한 번씩)
+  if (!SAVE) return; if (!SAVE.mping) { SAVE.mping = {}; for (const m of MISSIONS) if (missionDone(m)) SAVE.mping[m.id] = 1; return; } // 처음엔 이미 된 것은 조용히
+  for (const m of MISSIONS) if (!SAVE.mping[m.id] && !SAVE.missions[m.id] && missionDone(m)) { SAVE.mping[m.id] = 1; UI.toast(`🎯 미션 달성! ${m.secret ? "숨은 업적" : m.name} — 처음 화면 미션에서 받기`, 3500); }
 }
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
