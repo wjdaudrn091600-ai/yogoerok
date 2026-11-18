@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.1";
+const GAME_VERSION = "1.9.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -586,7 +586,7 @@ const UI = {
       <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>' : ""}${isWebPlay() ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
       <div class="body">
         ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold" id="resume" style="width:min(1100px,100%);margin-bottom:8px;font-size:1.1rem">▶ 이어하기 · ${CHAR[SAVE.resume.char].name} · 스토리 ${SAVE.resume.floor}층 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
-        ${typeof dailyCard === "function" ? dailyCard() : ""}
+        ${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
         <div class="modes">
           <button class="mode" data-m="story"><div class="img" style="background-image:url(${imgSrc("ui_mode_story") || imgSrc("cg_end")})"></div><b>📖 스토리 모드</b><span>5개 층 · 층마다 10스테이지 · 도달 ${SAVE.story.maxFloor}층</span></button>
           <button class="mode" data-m="endless"><div class="img" style="background-image:url(${imgSrc("ui_mode_endless") || imgSrc("room_f5_1")})"></div><b>♾️ 무한의 방</b><span>끝없이 이어지는 방 · 최고 기록 ${SAVE.stats.endlessBest || 0}번째 방</span></button>
@@ -621,6 +621,7 @@ const UI = {
       b.onpointermove = (e) => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.transform = `perspective(700px) rotateX(${(-y * 7).toFixed(2)}deg) rotateY(${(x * 9).toFixed(2)}deg) translateY(-3px)`; b.style.setProperty("--mx", (x + 0.5) * 100 + "%"); b.style.setProperty("--my", (y + 0.5) * 100 + "%"); };
       b.onpointerleave = () => { b.style.transform = ""; }; });
     if ($("#dailyb")) $("#dailyb").onclick = () => dailyStart();
+    if ($("#storeb")) $("#storeb").onclick = () => storeClaim();
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
     if (SAVE.bounty) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
@@ -1474,7 +1475,7 @@ function altarEarn(r) { // endRun 에서 부름 → 혼불 계산·저장
   if (r.mode === "story") parts.push([`${r.floor || 1}층 도달`, r.floor || 1, 6]);
   if (r.mode === "endless") parts.push([`무한의 방 ${r.endless || 0}`, Math.floor((r.endless || 0) / 3), 2]);
   if (r.win || r.storyDone) parts.push(["완주", 1, 40]);
-  const dRw = (r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1; // 11-19 높은 난이도 = 혼불 더
+  const dRw = ((r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1) * (typeof isFestival === "function" && isFestival() ? 1.5 : 1); // 주말 축제 ×1.5 // 11-19 높은 난이도 = 혼불 더
   let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
   SAVE.soul = (SAVE.soul || 0) + total; SAVE.soulTotal = (SAVE.soulTotal || 0) + total;
   return { total, bonus, parts: parts.filter(([, n]) => n > 0) };
@@ -1998,6 +1999,20 @@ function pickupHtml() {
   const id = pickupHero(); if (!id) return ""; const c = CHAR[id], g = CHAR_GRADE[id], d = new Date(), left = 7 - ((Math.floor(Date.now() / 864e5) + 3) % 7);
   return `<div class="pickup"><div class="pimg" style="background-image:url(${imgSrc("card_" + charArt(id))})"></div><div><b>⭐ 이번 주 픽업 · ${c.name} (${c.job})</b><span>${g}급 영웅이 나오면 <b>${Math.round(PICKUP_SHARE * 100)}%</b> 확률로 ${c.name} · ${left}일 뒤 바뀜</span></div></div>`;
 }
+
+// ===================== 11-19 2.0 주막 창고(쉬는 동안 쌓이는 혼불) · 주말 혼불 축제 =====================
+// 참고: 탕탕특공대 '순찰 보상'·방치형 게임 오프라인 보상 — 매일 들어올 이유. 최대 12시간이라 하루 두 번 들르면 손해 없음.
+const STORE_CAP_H = 12;
+function storeRate() { return 3 + 1.5 * Math.min(5, SAVE.story.maxFloor || 1) + (typeof altarLv === "function" ? altarLv("spirit") : 0); } // 시간당 혼불
+function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = now; const h = Math.min(STORE_CAP_H, (now - SAVE.storeT) / 36e5); return { h, soul: Math.floor(h * storeRate()), full: h >= STORE_CAP_H }; }
+function storeCard() {
+  if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
+  const s = storeState(), pct = Math.round((s.h / STORE_CAP_H) * 100);
+  return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("npc_jumo")}" alt=""><div class="stx"><b>🏮 주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
+}
+function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아직 쌓인 혼불이 없어요 — 조금 뒤에 다시 와요"); return; } SAVE.soul = (SAVE.soul || 0) + s.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + s.soul; SAVE.storeT = Date.now(); saveGame(); sfx("coin"); track("store_claim", { soul: s.soul, h: Math.round(s.h) }); UI.toast(`🏮 주막 창고에서 혼불 ${s.soul}을 받았어요`); UI.menu(); }
+const isFestival = () => { const d = new Date().getDay(); return d === 0 || d === 6; }; // 토·일
+function festivalBanner() { return isFestival() ? `<div class="fest">🎆 <b>주말 혼불 축제</b> · 오늘은 판에서 얻는 혼불 <b>1.5배</b>!</div>` : ""; }
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
