@@ -521,6 +521,8 @@ table.rt { border-collapse: collapse; font-size: 0.9rem; } table.rt td { border:
 .stier b{font-family:var(--display);font-size:1.3rem;color:#c9b9a0}.stier span{font-size:.75rem}.stier i{font-style:normal;font-size:.75rem;color:var(--gold2)}
 .stier.big{border-color:#b8864b;background:linear-gradient(160deg,rgba(80,52,20,.6),rgba(20,14,12,.9))}.stier.can{border-color:#ffd27a;box-shadow:0 0 14px rgba(255,200,100,.45);cursor:pointer}.stier.can b{color:#ffd27a}
 .stier.got{opacity:.55}.stier.lock{opacity:.4}.sres{text-align:center;font-size:.85rem;margin:2px 0}.sres b{color:var(--gold2)}
+.pickup{display:flex;gap:12px;align-items:center;margin:0 0 10px;padding:10px 12px;border:1px solid #ffd27a;border-radius:12px;background:linear-gradient(100deg,rgba(90,60,20,.85),rgba(20,14,12,.9));box-shadow:0 0 18px rgba(255,200,100,.25)}
+.pickup .pimg{width:70px;height:70px;border-radius:10px;background-size:cover;background-position:center top;flex:none;border:1px solid #ffd27a}.pickup b{color:#ffe08a;display:block}.pickup span{font-size:.85rem}
 </style>
 </head>
 <body>
@@ -1411,6 +1413,13 @@ const PET_RAR_MUL = { 1: 1.0, 2: 1.2, 3: 1.45, 4: 1.8 };
 })();
 
 // 가챠 영웅 등급별 확률 (사용자 요청 11-11): 높은 등급일수록 낮게. 당첨이면 그 영웅 조각 20개 (40개면 해금)
+// 11-19 출시 준비: 캐릭터 순차 공개 (출시일 LAUNCH 를 정하면 RELEASE_PLAN 순서대로 2주마다 2명씩 열림. null 이면 모두 공개 — 지금은 꺼 둠)
+const LAUNCH = null; // 예: "2027-01-15"
+const RELEASE_STEP_DAYS = 14, RELEASE_PER_STEP = 2;
+const RELEASE_PLAN = ["thunder", "fox", "haerang", "danbi", "geommu", "mudang", "hwarang", "eosa", "sorikun", "dolsoe", "pojol", "yakcho", "namu"]; // 일반 순차 공개 순서 (앞 4명 = 첫 배너)
+// 11-19 사용자: 출시 전엔 아무도 모르니 일부를 걸러 시즌 패스 영웅으로 — 시즌 n(출시 달부터 n번째 달)에 SEASON_CHARS[n-1] 이 시즌 패스로 먼저 나오고, 그다음 시즌부터 일반 뽑기에 섞임
+const SEASON_CHARS = ["haemosu", "hwaryeon", "cheonrang", "eulji", "moon", "reaper"];
+const PICKUP_SHARE = 0.5; // 픽업 영웅: 같은 등급이 나왔을 때 50% 확률로 그 영웅
 const GACHA_GRADE_RATE = { C: 0.06, B: 0.04, A: 0.025, S: 0.008, SS: 0.0015 }; // 11-12: C·B 영웅 추가
 const PITY_GRADE = { A: 0.7, S: 0.25, SS: 0.05 };
 
@@ -4695,7 +4704,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.6";
+const GAME_VERSION = "1.8.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5002,7 +5011,8 @@ function pullOne(kind, slot, atLeastRare) {
     const r0 = Math.random(); let gr = null, acc = 0; for (const g of ["SS", "S", "A", "B", "C"]) { acc += GACHA_GRADE_RATE[g] || 0; if (r0 < acc) { gr = g; break; } }
     if (!gr && SAVE.pity >= SHARD.pity) { const q = Math.random(); gr = q < PITY_GRADE.SS ? "SS" : q < PITY_GRADE.SS + PITY_GRADE.S ? "S" : "A"; }
     if (gr) {
-      SAVE.pity = 0; const id = pick(heroes.filter((c) => CHAR_GRADE[c.id] === gr)).id;
+      SAVE.pity = 0; const pu = typeof pickupHero === "function" ? pickupHero() : null, gp = heroes.filter((c) => CHAR_GRADE[c.id] === gr && (typeof isReleased !== "function" || isReleased(c.id)));
+      const id = pu && CHAR_GRADE[pu] === gr && Math.random() < PICKUP_SHARE ? pu : pick(gp.length ? gp : heroes.filter((c) => CHAR_GRADE[c.id] === gr)).id; // 11-19 주간 픽업
       // 아주 낮은 확률: 조각 없이 영웅 바로 획득 (아직 없는 영웅만) → 결과엔 고화질 일러 + 이름만
       if (!SAVE.chars[id] && Math.random() < SHARD.direct[gr]) { SAVE.chars[id] = 1; return { kind: "char", id, rar: 4, grade: gr, isNew: true, direct: true, label: CHAR[id].name }; }
       const [lo, hi] = SHARD.per[gr], got = rint(lo, hi); SAVE.shards[id] = (SAVE.shards[id] || 0) + got;
@@ -5326,7 +5336,7 @@ const UI = {
     const mode = opt.mode, sel = opt.sel || SAVE.sel; UI._ctab = UI._ctab || "sk";
     const title = mode ? { story: "📖 스토리 모드 · 캐릭터 선택", endless: "♾️ 무한의 방 · 캐릭터 선택", duel: "⚔️ 1대1 대전 · 캐릭터 선택", raid: "🐉 보스 레이드 · 캐릭터 선택", dev: "🛠 개발자 맵 · 캐릭터 선택", practice: "🎯 연습장 · 모든 캐릭터 체험" }[mode] : "캐릭터";
     // 등급별로 묶어서 (사용자 요청 11-12): SS → S → A → B → C, 등급 안에서는 가진 캐릭터 먼저
-    const GR = ["SS", "S", "A", "B", "C"], vis = CHARS.filter((c) => !c.unlock.secret || SAVE.chars[c.id]);
+    const GR = ["SS", "S", "A", "B", "C"], vis = CHARS.filter((c) => (!c.unlock.secret || SAVE.chars[c.id]) && (SAVE.chars[c.id] || typeof isReleased !== "function" || isReleased(c.id)));
     const card1 = (c) => {
       const own = !!SAVE.chars[c.id], art = charArt(c.id, c.forms ? "wolf" : null);
       return `<button class="ch ${own ? "" : "lock"} ${c.id === sel ? "on" : ""}" data-c="${c.id}" style="background-image:url(${imgSrc("card_" + art)})">
@@ -5439,7 +5449,7 @@ const UI = {
     const pctRow = (rates) => Object.entries(rates).sort((a, b) => b[0] - a[0]).map(([r, p]) => `<span class="pill" style="border-color:${RARITY[r].col}"><b style="color:${RARITY[r].col}">${RARITY[r].name}</b> ${(p * 100).toFixed(1)}%</span>`).join("");
     if (tab === "char") {
       const heroes = CHARS.filter((c) => c.unlock.type === "gacha");
-      body = `<div class="banner"><h3>🧑 캐릭터 뽑기</h3>${cntPill("char")}<div class="grcount">${["SS", "S", "A", "B", "C"].map((g) => { const hs = heroes.filter((c) => CHAR_GRADE[c.id] === g); return `<span style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}</b> ${hs.filter((c) => SAVE.chars[c.id]).length}/${hs.length}</span>`; }).join("")}</div>
+      body = `${typeof pickupHtml === "function" ? pickupHtml() : ""}<div class="banner"><h3>🧑 캐릭터 뽑기</h3>${cntPill("char")}<div class="grcount">${["SS", "S", "A", "B", "C"].map((g) => { const hs = heroes.filter((c) => CHAR_GRADE[c.id] === g); return `<span style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}</b> ${hs.filter((c) => SAVE.chars[c.id]).length}/${hs.length}</span>`; }).join("")}</div>
         <div class="chars" style="grid-template-columns:repeat(auto-fill,minmax(110px,140px))">${heroes.sort((a, b) => ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[a.id]) - ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[b.id])).map((c) => `<div class="ch anim-card ${SAVE.chars[c.id] ? "" : "lock"}">${animCard(c.id)}<span class="tag" style="z-index:2"><b style="color:${GRADE_INFO[CHAR_GRADE[c.id]].col}">${CHAR_GRADE[c.id]}급</b></span><span class="nm" style="z-index:2">${c.name}<small>${c.job} · ${SAVE.chars[c.id] ? "보유" : "조각 " + ((SAVE.shards || {})[c.id] || 0) + "/" + shardNeed(c.id)}</small></span></div>`).join("")}</div>
         <div class="rates">${["SS", "S", "A", "B", "C"].map((g) => `<span class="pill" style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> ${(GACHA_GRADE_RATE[g] * 100).toFixed(2)}% · 조각 ${SHARD.per[g][0]}~${SHARD.per[g][1]}개 (해금 ${SHARD.need[g]}개) · 바로 획득 ${(GACHA_GRADE_RATE[g] * SHARD.direct[g] * 100).toFixed(3)}%</span>`).join("")}<span class="pill">나머지: 가진 캐릭터 조각 2~5개 (강화용)</span><span class="pill">천장 ${SHARD.pity}회 · 지금 <b>${SAVE.pity || 0}</b>회째</span></div>
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${GACHA.char.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${GACHA.char.cost10}</button></div></div>`;
@@ -6064,6 +6074,7 @@ function probTables() {
   rows.push(["가진 캐릭터 조각 2~5개", pct(1 - sum), "-", "강화 재료"]);
   h += `<h3>🎰 캐릭터 뽑기 (1회 코인 ${pullCost("char", 1)} · 10회 ${pullCost("char", 10)})</h3>` + T(rows, ["결과", "1회 확률", "영웅 1명당", "내용"]);
   h += `<p class="muted">천장: 영웅이 ${SHARD.pity}번 연속 안 나오면 ${SHARD.pity}번째에 반드시 영웅 (A급 ${pct(PITY_GRADE.A)} · S급 ${pct(PITY_GRADE.S)} · SS급 ${pct(PITY_GRADE.SS)}). 영웅이 나오면 천장 횟수는 0으로 돌아가요.</p>`;
+  { const pu = pickupHero(); if (pu) h += `<p class="muted">⭐ 이번 주 픽업: ${CHAR[pu].name}(${CHAR_GRADE[pu]}급) — ${CHAR_GRADE[pu]}급이 나오면 ${Math.round(PICKUP_SHARE * 100)}%는 ${CHAR[pu].name}, 나머지는 같은 등급 다른 영웅이 고르게. 1회 ${CHAR[pu].name} 확률 ${pct((GACHA_GRADE_RATE[CHAR_GRADE[pu]] || 0) * (PICKUP_SHARE + (1 - PICKUP_SHARE) / CHARS.filter((c) => c.unlock.type === "gacha" && CHAR_GRADE[c.id] === CHAR_GRADE[pu]).length))}</p>`; }
   h += `<details><summary>영웅 목록</summary><p class="muted">${GR.map((g) => `${g}: ` + heroes.filter((c) => CHAR_GRADE[c.id] === g).map((c) => c.name).join(", ")).join("<br>")}</p></details>`;
   // 스킬 뽑기
   const sg = ["S", "A", "B", "C", "D"];
@@ -6402,7 +6413,7 @@ const DAILY_BAD = [
 const dayKey = (d = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 function mulberry(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function dailyInfo() {
-  const key = dayKey(), R = mulberry(key * 2654435761), pool = CHARS.filter((c) => !c.unlock.secret && !c.forms);
+  const key = dayKey(), R = mulberry(key * 2654435761), pool = CHARS.filter((c) => !c.unlock.secret && !c.forms && (typeof isReleased !== "function" || isReleased(c.id)));
   const ch = pool[Math.floor(R() * pool.length)], g = DAILY_GOOD[Math.floor(R() * DAILY_GOOD.length)], b = DAILY_BAD[Math.floor(R() * DAILY_BAD.length)];
   return { key, seed: Math.floor(R() * 1e9), char: ch.id, rules: [g, b] };
 }
@@ -6622,7 +6633,7 @@ function shareCard(r) {
 const SEASON_TIER = 20, SEASON_XP = 60;
 const seasonKey = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
 function seasonRw(i) { // i = 1..20
-  if (i === 20) return { coin: 30, soul: 100, t: "코인 30 · 혼불 100 · 시즌 완주!" };
+  if (i === 20) { const sh = typeof seasonHero === "function" ? seasonHero() : null; return sh ? { coin: 30, soul: 100, hero: sh, t: `시즌 영웅 ${CHAR[sh].name} · 코인 30 · 혼불 100` } : { coin: 30, soul: 100, t: "코인 30 · 혼불 100 · 시즌 완주!" }; } // 11-19 시즌 영웅 (출시 후 유료 줄로 옮길 자리)
   if (i % 5 === 0) return { coin: 8, soul: 40, t: "코인 8 · 혼불 40" };
   if (i % 2 === 0) return { soul: 25, t: "혼불 25" };
   if (i % 3 === 0) return { shard: 6, t: "가진 영웅 조각 6" };
@@ -6646,6 +6657,7 @@ UI.season = function () {
     <div class="slv"><b>${lv}</b>/${SEASON_TIER}단계<div class="prog"><i style="width:${lv >= SEASON_TIER ? 100 : (cur / SEASON_XP) * 100}%"></i></div><span class="muted">${lv >= SEASON_TIER ? "완주!" : `다음 단계까지 ${SEASON_XP - cur}`}</span></div></div>
     <div class="strack">${cells}</div><p class="muted" style="text-align:center">${seasonUnclaimed() ? `<button class="btn gold" id="sall">모두 받기 (${seasonUnclaimed()})</button>` : ""}</p>`, () => UI.menu());
   const claim = (n) => { const R = seasonRw(n); S.claimed[n] = 1; if (R.coin) SAVE.coins += R.coin; if (R.soul) { SAVE.soul = (SAVE.soul || 0) + R.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + R.soul; }
+    if (R.hero && CHAR[R.hero]) { if (SAVE.chars[R.hero]) { SAVE.shards = SAVE.shards || {}; SAVE.shards[R.hero] = (SAVE.shards[R.hero] || 0) + 20; } else SAVE.chars[R.hero] = 1; }
     if (R.shard) { const own = Object.keys(SAVE.chars), id = pick(own); SAVE.shards = SAVE.shards || {}; SAVE.shards[id] = (SAVE.shards[id] || 0) + R.shard; } };
   document.querySelectorAll(".stier[data-n]").forEach((c) => (c.onclick = () => { claim(+c.dataset.n); saveGame(); sfx("coin"); UI.toast(`🏮 ${c.dataset.n}단계 보상 · ${seasonRw(+c.dataset.n).t}`); UI.season(); }));
   if ($("#sall")) $("#sall").onclick = () => { for (let i = 1; i <= lv; i++) if (!S.claimed[i]) claim(i); saveGame(); sfx("level"); UI.toast("🏮 시즌 보상을 모두 받았어요"); UI.season(); };
@@ -6667,6 +6679,24 @@ function powerScore(cid) {
 }
 function recDiff(cid, keys) { const p = powerScore(cid), k = p >= 1.75 && keys.includes("hell") ? "hell" : p >= 1.35 && keys.includes("hard") ? "hard" : null;
   return k ? `<br><span style="font-size:.8rem;color:${DIFF[k].col}">⚔️ 이 영웅은 충분히 강해요 — 추천 난이도 <b>${DIFF[k].name}</b> (혼불·엽전 ×${DIFF[k].rw})</span>` : ""; }
+
+// ===================== 11-19 출시 준비: 순차 공개 · 주간 픽업 =====================
+function seasonNo() { if (!LAUNCH) return 0; const a = new Date(LAUNCH + "T00:00:00"), b = new Date(); return (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() + 1; }
+function seasonHero() { const n = seasonNo(); return n >= 1 && n <= SEASON_CHARS.length ? SEASON_CHARS[n - 1] : null; } // 이번 달 시즌 패스 영웅
+function isReleased(id) { // LAUNCH 가 없으면 모두 공개
+  if (!LAUNCH) return true; const si = SEASON_CHARS.indexOf(id); if (si >= 0) return seasonNo() > si + 1; // 시즌 영웅: 자기 시즌 다음 달부터 뽑기에
+  const i = RELEASE_PLAN.indexOf(id); if (i < 0) return true; const first = 4; if (i < first) return true;
+  const days = (Date.now() - new Date(LAUNCH + "T00:00:00").getTime()) / 864e5; return days >= 0 && Math.floor(days / RELEASE_STEP_DAYS) * RELEASE_PER_STEP >= i - first + 1;
+}
+function releaseDay(id) { const i = RELEASE_PLAN.indexOf(id); if (!LAUNCH || i < 4) return null; const step = Math.ceil((i - 3) / RELEASE_PER_STEP); const d = new Date(new Date(LAUNCH + "T00:00:00").getTime() + step * RELEASE_STEP_DAYS * 864e5); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
+function pickupHero() { // 주마다 바뀌는 픽업 (공개된 가챠 영웅 중, 주 번호로 돌림)
+  const hs = CHARS.filter((c) => c.unlock.type === "gacha" && isReleased(c.id)); if (!hs.length) return null;
+  const wk = Math.floor((Date.now() / 864e5 + 3) / 7); return hs[wk % hs.length].id;
+}
+function pickupHtml() {
+  const id = pickupHero(); if (!id) return ""; const c = CHAR[id], g = CHAR_GRADE[id], d = new Date(), left = 7 - ((Math.floor(Date.now() / 864e5) + 3) % 7);
+  return `<div class="pickup"><div class="pimg" style="background-image:url(${imgSrc("card_" + charArt(id))})"></div><div><b>⭐ 이번 주 픽업 · ${c.name} (${c.job})</b><span>${g}급 영웅이 나오면 <b>${Math.round(PICKUP_SHARE * 100)}%</b> 확률로 ${c.name} · ${left}일 뒤 바뀜</span></div></div>`;
+}
 
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
