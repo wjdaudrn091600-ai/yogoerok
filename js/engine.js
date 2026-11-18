@@ -2534,7 +2534,7 @@ let lastT = 0;
 // 자동 화질 (11-14 사용자: 모바일에서 렉이 살짝씩) — 판 도중 4초 동안 한 장 평균이 22ms(약 45fps 아래)를 넘으면 해상도를 한 단계 낮춘다
 const perfWin = { n: 0, sum: 0, t0: 0 };
 function perfWatch(ms) {
-  if (!G || G.paused || document.hidden || ms > 250) return;
+  if (!G || G.paused || document.hidden || ms > 250 || (SAVE && SAVE.settings && SAVE.settings.fps30)) return; // 절전 모드는 일부러 느리게 그리므로 자동 낮춤 안 함
   perfWin.n++; perfWin.sum += ms; if (!perfWin.t0) perfWin.t0 = performance.now();
   if (performance.now() - perfWin.t0 < 4000) return;
   const avg = perfWin.sum / perfWin.n; perfWin.n = perfWin.sum = perfWin.t0 = 0;
@@ -2552,6 +2552,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pagehide", () => { const a = document.getElementById("bgm"); if (a) { a.pause(); a._bgPaused = true; } });
 document.addEventListener("visibilitychange", () => { try { if (document.hidden && G && !G.over && !(G.opt && G.opt.multi) && !G.client && !UI.modalOpen() && !/autotest/.test(location.hash)) UI.togglePause(); } catch (e) { } }); // 11-19 앱을 내리면 멈춤 창 (돌아왔을 때 바로 맞지 않게)
 function loop(t) {
+  if (SAVE && SAVE.settings && SAVE.settings.fps30 && t - lastT < 30) { requestAnimationFrame(loop); return; } // 11-19 절전 모드
   const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); perfWatch(t - lastT); lastT = t;
   try { pollPad(); } catch (e) { }
   try { update(dt); NET.hostTick(dt); render(); UI.hud(); } catch (err) { console.error(err); UI.error && UI.error(err); }

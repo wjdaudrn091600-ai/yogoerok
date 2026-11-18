@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.7";
+const GAME_VERSION = "1.9.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -884,6 +884,7 @@ const UI = {
       <p><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> 자동 공격 (켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접)</label></p>
       <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
+      <p><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> 절전 모드 (초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때)</label></p>
       <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
@@ -905,6 +906,7 @@ const UI = {
     $("#fxa").oninput = (e) => { s.fxAmt = +e.target.value; saveGame(); };
     $("#pkr").oninput = (e) => { s.pickR = +e.target.value; $("#pkrv").textContent = "×" + s.pickR; saveGame(); };
     $("#hqfx").onchange = (e) => { s.hq = e.target.checked; saveGame(); UI.toast(s.hq ? "고급 그래픽 켬" : "고급 그래픽 끔"); };
+    $("#fps30").onchange = (e) => { s.fps30 = e.target.checked; saveGame(); UI.toast(s.fps30 ? "절전 모드 켬 (30프레임)" : "절전 모드 끔"); };
     $("#lowfx").onchange = (e) => { s.low = e.target.checked; saveGame(); resize(); UI.toast(s.low ? "저사양 모드 켬" : "저사양 모드 끔"); };
     $("#sfv").oninput = (e) => { s.sfx = +e.target.value; sfxVol = s.sfx; saveGame(); sfx("coin"); };
     $("#bsv").oninput = (e) => { s.bossVol = +e.target.value; saveGame(); };
