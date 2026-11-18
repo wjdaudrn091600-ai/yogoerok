@@ -4704,7 +4704,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.8";
+const GAME_VERSION = "1.8.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5061,16 +5061,18 @@ function doPull(kind, n, slot, useYeop) {
 // ---------- 익명 오류·통계 (11-16) ----------
 // Sentry: 실제 플레이어 폰에서 난 오류 / PostHog: 어떤 캐릭터로 어디까지 갔는지 같은 플레이 통계.
 // 아이디·닉네임·이메일은 보내지 않음(기기마다 무작위 번호). 설정에서 끌 수 있음. 아래 키가 비어 있으면 아무것도 보내지 않음.
-const ANALYTICS = { sentryDsn: "", posthogKey: "phc_xxoAUBrr4VDZxAVBsF45Bj9D7RmHBm3xsN2A5ZQJMgEe", posthogHost: "https://us.i.posthog.com" }; // 11-19 PostHog 연결 (공개용 쓰기 전용 키)
+const ANALYTICS = { sentryDsn: "https://558a3e0c2fcf39007b1380b88b7d0c8a@o4512453670600704.ingest.us.sentry.io/4512453693669376", posthogKey: "phc_xxoAUBrr4VDZxAVBsF45Bj9D7RmHBm3xsN2A5ZQJMgEe", posthogHost: "https://us.i.posthog.com" }; // 11-19 PostHog 연결 (공개용 쓰기 전용 키)
 let _anaOn = false;
 function analyticsOk() { return !/autotest/.test(location.hash) && navigator.onLine !== false && !(SAVE && SAVE.settings && SAVE.settings.analytics === false); }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.async = true; s.crossOrigin = "anonymous"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
 function analyticsInit() {
   if (_anaOn || !analyticsOk()) return; _anaOn = true;
   const rel = "yogoerok@" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : "?");
-  if (ANALYTICS.sentryDsn) loadScript("https://browser.sentry-cdn.com/8.38.0/bundle.min.js").then(() => {
+  if (ANALYTICS.sentryDsn) loadScript("https://browser.sentry-cdn.com/11.14.0/bundle.tracing.min.js").then(() => { // 11-19 Sentry 11.14 (오류 + 성능 추적)
     if (!window.Sentry) return;
-    Sentry.init({ dsn: ANALYTICS.sentryDsn, release: rel, sampleRate: 1, sendDefaultPii: false,
+    const env = /github\.io$/.test(location.hostname) ? "production" : "development";
+    Sentry.init({ dsn: ANALYTICS.sentryDsn, release: rel, environment: env, sampleRate: 1, sendDefaultPii: false,
+      integrations: [Sentry.browserTracingIntegration()], tracesSampleRate: env === "production" ? 0.1 : 1.0,
       beforeSend(ev) { delete ev.user; if (ev.request) delete ev.request.cookies; ev.tags = Object.assign({}, ev.tags, { mode: G && G.mode, char: G && G.p && G.p.id, floor: G && G.floor }); return ev; } });
   }).catch(() => {});
   if (ANALYTICS.posthogKey) loadScript(ANALYTICS.posthogHost.replace("//us.i.", "//us-assets.i.").replace("//eu.i.", "//eu-assets.i.") + "/static/array.js").then(() => {
