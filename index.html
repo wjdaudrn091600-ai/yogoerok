@@ -4704,7 +4704,7 @@ const NET = {
 <script>
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.8.7";
+const GAME_VERSION = "1.8.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -5055,13 +5055,13 @@ function doPull(kind, n, slot, useYeop) {
   if (useYeop) { if (SAVE.gold < cost * COIN_YEOP) { UI.toast("엽전이 모자라요"); return; } SAVE.gold -= cost * COIN_YEOP; }
   else { if (SAVE.coins < cost) { UI.toast("코인이 모자라요 — 엽전으로도 뽑을 수 있어요"); return; } SAVE.coins -= cost; }
   const res = []; for (let i = 0; i < n; i++) res.push(pullOne(kind, slot, n === 10 && i === 9 && ["art", "pet", "title"].includes(kind) && !res.some((r) => r.rar >= 2)));
-  checkUnlocks(); saveGame(); UI.showPulls(res, () => UI.open("gacha", { tab: kind === "skill" ? "skill" : kind, slot }));
+  track("gacha_pull", { kind, n, yeop: !!useYeop }); checkUnlocks(); saveGame(); UI.showPulls(res, () => UI.open("gacha", { tab: kind === "skill" ? "skill" : kind, slot }));
 }
 
 // ---------- 익명 오류·통계 (11-16) ----------
 // Sentry: 실제 플레이어 폰에서 난 오류 / PostHog: 어떤 캐릭터로 어디까지 갔는지 같은 플레이 통계.
 // 아이디·닉네임·이메일은 보내지 않음(기기마다 무작위 번호). 설정에서 끌 수 있음. 아래 키가 비어 있으면 아무것도 보내지 않음.
-const ANALYTICS = { sentryDsn: "", posthogKey: "", posthogHost: "https://us.i.posthog.com" };
+const ANALYTICS = { sentryDsn: "", posthogKey: "phc_xxoAUBrr4VDZxAVBsF45Bj9D7RmHBm3xsN2A5ZQJMgEe", posthogHost: "https://us.i.posthog.com" }; // 11-19 PostHog 연결 (공개용 쓰기 전용 키)
 let _anaOn = false;
 function analyticsOk() { return !/autotest/.test(location.hash) && navigator.onLine !== false && !(SAVE && SAVE.settings && SAVE.settings.analytics === false); }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.async = true; s.crossOrigin = "anonymous"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
@@ -5076,7 +5076,7 @@ function analyticsInit() {
   if (ANALYTICS.posthogKey) loadScript(ANALYTICS.posthogHost.replace("//us.i.", "//us-assets.i.").replace("//eu.i.", "//eu-assets.i.") + "/static/array.js").then(() => {
     if (!window.posthog) return;
     posthog.init(ANALYTICS.posthogKey, { api_host: ANALYTICS.posthogHost, autocapture: false, capture_pageview: true, disable_session_recording: true, persistence: "localStorage", ip: false });
-    posthog.register({ version: rel });
+    posthog.register({ version: rel }); setTimeout(() => { try { while (_anaQ.length) { const [e, p] = _anaQ.shift(); posthog.capture(e, p); } } catch (e) { } }, 500);
   }).catch(() => {});
 }
 // ---------- 앱(Capacitor) 전용: 진동·화면 켜 두기·상태바 (11-16) ----------
@@ -5086,7 +5086,8 @@ function haptic(kind) { try { if (SAVE && SAVE.settings && SAVE.settings.haptic 
   if (!NATIVE || !NATIVE.Haptics) return; if (kind === "heavy") NATIVE.Haptics.impact({ style: "HEAVY" }); else NATIVE.Haptics.impact({ style: "LIGHT" }); } catch (e) { } }
 function keepAwake(on) { try { if (NATIVE && NATIVE.KeepAwake) (on ? NATIVE.KeepAwake.keepAwake() : NATIVE.KeepAwake.allowSleep()).catch(() => {}); } catch (e) { } }
 try { if (NATIVE && NATIVE.StatusBar) NATIVE.StatusBar.hide().catch(() => {}); } catch (e) { }
-function track(ev, props) { try { if (_anaOn && window.posthog && posthog.capture && analyticsOk()) posthog.capture(ev, props || {}); } catch (e) { } }
+const _anaQ = []; // 11-19 PostHog 가 불러와지기 전 기록은 모아 뒀다가 보냄
+function track(ev, props) { try { if (!_anaOn || !analyticsOk()) return; if (window.posthog && posthog.__loaded) posthog.capture(ev, props || {}); else if (_anaQ.length < 50) _anaQ.push([ev, props || {}]); } catch (e) { } }
 function reportError(err) { try { if (_anaOn && window.Sentry && Sentry.captureException && analyticsOk()) Sentry.captureException(err); } catch (e) { } }
 
 // ---------- 음악 ----------
@@ -5273,7 +5274,7 @@ const UI = {
   // ----- 메인 메뉴 -----
   menu() {
     if (window._rndOrig) { Math.random = window._rndOrig; window._rndOrig = null; }
-    G = null; $("#hud").hidden = true; UI.closeModal(); music("menu");
+    G = null; $("#hud").hidden = true; UI.closeModal(); music("menu"); if (typeof analyticsInit === "function") analyticsInit(); // 11-19 메인 화면부터 통계
     const cur = CHAR[SAVE.sel] && SAVE.chars[SAVE.sel] ? SAVE.sel : "musa"; SAVE.sel = cur;
     const mc = unclaimed();
     // 11-18 처음 하는 사람에게 시스템이 한꺼번에 쏟아지지 않게: 진행하면 하나씩 열림 (예전부터 하던 계정은 이미 다 열려 있음)
@@ -5732,7 +5733,7 @@ const UI = {
       <p>몬스터를 모두 잡으면 문이 열려요. 문 안으로 걸어가면 다음 방. <b style="color:#ff4d4d">붉은 영역</b>은 곧 공격이 떨어지는 자리예요.</p>
       <p>레벨업 때 강화 3개 중 하나를 골라요. 키는 설정에서 바꿀 수 있어요.</p></div>
       <div class="center"><button class="btn gold" id="tutok">시작하기</button></div>`);
-    $("#tutok").onclick = () => { SAVE.tutorial = true; saveGame(); UI.closeModal(); if (G) G.paused = false; };
+    $("#tutok").onclick = () => { SAVE.tutorial = true; track("tutorial_done"); saveGame(); UI.closeModal(); if (G) G.paused = false; };
   },
   // 매일 출석: 코인 1 + 엽전 200, 7일째마다 코인 5 + 엽전 500
   daily() {
@@ -6203,7 +6204,7 @@ UI.altar = function () {
   UI.frame("🔥 혼불 제단", `<div class="altarhead"><div class="flame"></div><div><h2>등불 사당의 제단</h2><p class="muted">쓰러뜨린 요괴의 넋은 혼불이 되어 남아요. 판에서 쓰러져도 혼불은 그대로 — 바쳐서 토벌대 모두를 강하게.</p><p class="soulnow">가진 혼불 <b>🔥 ${S.soul || 0}</b> <span class="muted">· 지금까지 모은 혼불 ${S.soulTotal || 0}</span></p></div></div>
     <div class="agrid">${ALTAR.map(card).join("")}</div><p class="muted" style="text-align:center">제단 강화는 모든 캐릭터에게 적용돼요 (1대1 대전·멀티 제외)</p>`, () => UI.menu());
   document.querySelectorAll(".acard button[data-a]").forEach((b) => (b.onclick = () => { const a = ALTAR.find((x) => x.k === b.dataset.a), l = altarLv(a.k); if (l >= a.max || (S.soul || 0) < a.cost[l]) return;
-    S.soul -= a.cost[l]; S.altar[a.k] = l + 1; saveGame(); sfx("level"); UI.toast(`${a.ic} ${a.name} ${l + 1}단계 — ${a.desc(l + 1)}`, 2600); UI.altar(); }));
+    S.soul -= a.cost[l]; S.altar[a.k] = l + 1; track("altar_buy", { k: a.k, lv: l + 1 }); saveGame(); sfx("level"); UI.toast(`${a.ic} ${a.name} ${l + 1}단계 — ${a.desc(l + 1)}`, 2600); UI.altar(); }));
 };
 
 // ===================== 11-18 1.7.1 괴이한 방 (선택 이벤트) =====================
@@ -6277,7 +6278,7 @@ Object.assign(EVENTS, { // 11-18 1.8.1 괴이한 방 6종 추가 (총 14)
 });
 function pickEvent() { const seen = (G.evSeen = G.evSeen || []), ks = Object.keys(EVENTS).filter((k) => !seen.includes(k)); const k = pick(ks.length ? ks : Object.keys(EVENTS)); seen.push(k); return k; }
 UI.event = function (k) {
-  const E = EVENTS[k]; if (!E || !G) return; G.paused = true; input.atkHeld = false; input.moveHeld = false; SAVE.stats.events = (SAVE.stats.events || 0) + 1;
+  const E = EVENTS[k]; if (!E || !G) return; track("event_room", { k }); G.paused = true; input.atkHeld = false; input.moveHeld = false; SAVE.stats.events = (SAVE.stats.events || 0) + 1;
   let ch = E.ch;
   if (E.quiz) { const [q, a] = pick(QUIZ), opts = a.map((t, i) => ({ t, i })).sort(() => Math.random() - 0.5);
     E._q = q; ch = opts.map((o) => ({ t: o.t, s: "", run: () => o.i === 0 ? ((SAVE.soul = (SAVE.soul || 0) + 15), evGold(100), "\"옳거니!\" 장승이 길을 비킨다 · 엽전 +100 · 혼불 +15") : (evHurt(0.15), `"틀렸다!" 장승의 호통에 몸이 휘청인다 · 체력 -15% (정답: ${a[0]})`) })); }
@@ -6424,7 +6425,7 @@ function dailyCard() {
   return `<div class="dailyc" id="dailyb" role="button" tabindex="0"><div class="dimg" style="background-image:url(${imgSrc("card_" + charArt(c.id))})"></div><div class="dtx"><b>🌙 오늘의 괴담</b><span>오늘의 영웅 <em>${c.name} · ${c.job}</em>${SAVE.chars[c.id] ? "" : " (체험)"}</span>
     <span class="drules">${D.rules.map((r, i) => `<i class="${i ? "bad" : "good"}">${r.n} — ${r.d}</i>`).join("")}</span></div><div class="dsc">${rec ? `오늘 최고<br><b>${rec.best}</b>점` : "오늘 첫 도전<br><b>보상 ×2</b>"}</div></div>`;
 }
-function dailyStart() { const D = dailyInfo(); UI.startRun({ mode: "story", char: D.char, floor: 1, diff: "normal", daily: D }); }
+function dailyStart() { const D = dailyInfo(); track("daily_start", { char: D.char }); UI.startRun({ mode: "story", char: D.char, floor: 1, diff: "normal", daily: D }); }
 function dailyEnd(r) { // endRun 에서: 점수·보상
   const D = G && G.opt && G.opt.daily; if (!D) return null;
   const score = (r.stage - 1) * 100 + (r.win ? 600 : 0) + r.kills * 2 + (r.lvl || 1) * 10;
