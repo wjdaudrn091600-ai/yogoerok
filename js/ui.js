@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.0.2";
+const GAME_VERSION = "2.0.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -585,7 +585,7 @@ const UI = {
     if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "멀티", gacha: "가챠", bag: "아티팩트·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
     for (const k of opened) SAVE.gateSeen[k] = 1; if (!Object.keys(SAVE.gateSeen).length) SAVE.gateSeen._ = 1;
     $("#screens").innerHTML = `<div class="screen" id="menu"><div class="hero-bg kb" style="background-image:url(${imgSrc(ASSETS.img.ui_menu_bg ? "ui_menu_bg" : "cg_open")})"></div><canvas id="tparts" class="mparts"></canvas>
-      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>' : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
+      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? (PLAY_URL ? `<a class="back" href="${PLAY_URL}" target="_blank" rel="noopener" style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>` : '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>') : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
       <div class="body">
         ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold" id="resume" style="width:min(1100px,100%);margin-bottom:8px;font-size:1.1rem">▶ 이어하기 · ${CHAR[SAVE.resume.char].name} · 스토리 ${SAVE.resume.floor}층 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
         ${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
@@ -2027,6 +2027,7 @@ const isFestival = () => { const d = new Date().getDay(); return d === 0 || d ==
 function festivalBanner() { return isFestival() ? `<div class="fest">🎆 <b>주말 혼불 축제</b> · 오늘은 판에서 얻는 혼불 <b>1.5배</b>!</div>` : ""; }
 
 try { const m = location.hash.match(/autotest[^#]*&ff=(\d)/); if (m) window._ff = Math.min(6, +m[1]); } catch (e) { } // 시험 봇 빨리 감기
+const PLAY_URL = ""; // 11-19 플레이스토어에 올라가면 여기에 주소(https://play.google.com/store/apps/details?id=com.yogoerok.game) → 휴대폰 브라우저의 '앱 받기'가 스토어로
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
