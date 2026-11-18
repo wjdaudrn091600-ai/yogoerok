@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "1.9.4";
+const GAME_VERSION = "1.9.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -624,7 +624,9 @@ const UI = {
     if ($("#dailyb")) $("#dailyb").onclick = () => dailyStart();
     if ($("#storeb")) $("#storeb").onclick = () => storeClaim();
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
-    if (SAVE.bounty) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
+    const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID; // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
+    if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
+    if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
     if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel)).then(() => needPack("f1")).then(() => needPack("g")); }, 1500); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
@@ -1040,6 +1042,7 @@ const UI = {
   },
   // 매일 출석: 코인 1 + 엽전 200, 7일째마다 코인 5 + 엽전 500
   daily() {
+    if ((SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID) { SAVE.daily = SAVE.daily || { day: "", streak: 0 }; return; } // 첫 판 뒤 메뉴에서 받음
     if (typeof comebackGift === "function") comebackGift();
     const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString(), D = SAVE.daily || (SAVE.daily = { day: "", streak: 0 });
     if (D.day === today) return;

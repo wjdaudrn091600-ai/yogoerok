@@ -244,7 +244,7 @@ function startStage() {
   enterRoom("0,0", null);
   UI.music(theme().bgm);
   G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: curseSub(), t: 3.5, boss: true } : { text: `${G.floor}층 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 층 최종보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
-  if (!G.opt.multi) setTimeout(() => { if (G && !G.over) UI.tip("elem"); }, 3800);
+  if (!G.opt.multi && (G.floor > 1 || G.stage >= 3)) setTimeout(() => { if (G && !G.over) UI.tip("elem"); }, 3800);
   const sc = G.stage === 5 ? `f${G.floor}_mid` : G.stage === STAGES_PER_FLOOR ? `f${G.floor}_boss` : null;
   if (sc && STORY[sc] && !G.opt.multi && !(SAVE.story.seen || {})[sc]) { SAVE.story.seen = SAVE.story.seen || {}; SAVE.story.seen[sc] = 1; saveGame(); setTimeout(() => { if (G && !G.over) UI.story(sc, () => { if (G) G.paused = false; }); }, 600); }
 }
