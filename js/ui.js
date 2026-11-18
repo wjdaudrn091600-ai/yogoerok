@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.0.1";
+const GAME_VERSION = "2.0.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -585,7 +585,7 @@ const UI = {
     if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "멀티", gacha: "가챠", bag: "아티팩트·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
     for (const k of opened) SAVE.gateSeen[k] = 1; if (!Object.keys(SAVE.gateSeen).length) SAVE.gateSeen._ = 1;
     $("#screens").innerHTML = `<div class="screen" id="menu"><div class="hero-bg kb" style="background-image:url(${imgSrc(ASSETS.img.ui_menu_bg ? "ui_menu_bg" : "cg_open")})"></div><canvas id="tparts" class="mparts"></canvas>
-      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>' : ""}${isWebPlay() ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
+      <div class="top"><h2>요괴록 · 조선 요괴 토벌기</h2><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}">👤 <b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? '<a class="back" href="요괴록.apk" download style="border-color:#7fe08a;color:#a8f0a0">📱 앱 받기</a>' : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst" style="border-color:#5fc8ff;color:#9fe0ff">💻 PC 앱으로 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
       <div class="body">
         ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold" id="resume" style="width:min(1100px,100%);margin-bottom:8px;font-size:1.1rem">▶ 이어하기 · ${CHAR[SAVE.resume.char].name} · 스토리 ${SAVE.resume.floor}층 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
         ${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
@@ -625,6 +625,7 @@ const UI = {
     if ($("#dailyb")) $("#dailyb").onclick = () => dailyStart();
     if ($("#storeb")) $("#storeb").onclick = () => storeClaim();
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
+    document.documentElement.classList.toggle("bigtxt", !!(SAVE.settings && SAVE.settings.bigText)); // 11-19 글자 크게
     const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID;
     if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.story.maxFloor || 1) >= 2 && (SAVE.hist || []).length >= 3) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 1층 보스를 잡은 뒤 한 번만 구글 별점 창 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
@@ -886,6 +887,7 @@ const UI = {
       <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> 절전 모드 (초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때)</label></p>
+      <p><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> 글자 크게 (작은 휴대폰에서 읽기 편하게)</label></p>
       <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
@@ -907,6 +909,7 @@ const UI = {
     $("#fxa").oninput = (e) => { s.fxAmt = +e.target.value; saveGame(); };
     $("#pkr").oninput = (e) => { s.pickR = +e.target.value; $("#pkrv").textContent = "×" + s.pickR; saveGame(); };
     $("#hqfx").onchange = (e) => { s.hq = e.target.checked; saveGame(); UI.toast(s.hq ? "고급 그래픽 켬" : "고급 그래픽 끔"); };
+    $("#bigtxt").onchange = (e) => { s.bigText = e.target.checked; saveGame(); document.documentElement.classList.toggle("bigtxt", s.bigText); };
     $("#fps30").onchange = (e) => { s.fps30 = e.target.checked; saveGame(); UI.toast(s.fps30 ? "절전 모드 켬 (30프레임)" : "절전 모드 끔"); };
     $("#lowfx").onchange = (e) => { s.low = e.target.checked; saveGame(); resize(); UI.toast(s.low ? "저사양 모드 켬" : "저사양 모드 끔"); };
     $("#sfv").oninput = (e) => { s.sfx = +e.target.value; sfxVol = s.sfx; saveGame(); sfx("coin"); };
@@ -2017,7 +2020,7 @@ function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = 
 function storeCard() {
   if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
   const s = storeState(), pct = Math.round((s.h / STORE_CAP_H) * 100);
-  return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("npc_jumo")}" alt=""><div class="stx"><b>🏮 주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
+  return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("npc_jumo")}" alt=""><div class="stx"><b>주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
 }
 function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아직 쌓인 혼불이 없어요 — 조금 뒤에 다시 와요"); return; } SAVE.soul = (SAVE.soul || 0) + s.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + s.soul; SAVE.storeT = Date.now(); saveGame(); sfx("coin"); track("store_claim", { soul: s.soul, h: Math.round(s.h) }); UI.toast(`🏮 주막 창고에서 혼불 ${s.soul}을 받았어요`); UI.menu(); }
 const isFestival = () => { const d = new Date().getDay(); return d === 0 || d === 6; }; // 토·일
