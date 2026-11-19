@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.8";
+const GAME_VERSION = "2.3.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -448,13 +448,14 @@ const UI = {
       ${hasLogo ? `<img class="tlogo" src="${imgSrc("ui_logo")}" alt="요괴록 · 조선 요괴 토벌기">` : ""}
       <form class="box" id="lf" autocomplete="off">
         ${hasLogo ? "" : `<div class="logo">요괴록<small>조선 요괴 토벌기</small></div>`}
+        ${last ? "" : `<button class="btn gold lgo" type="button" id="lguest2">바로 시작</button><p class="muted lgsub">가입 없이 바로 시작해요 · 나중에 설정에서 계정으로 바꿀 수 있어요</p><details class="lacc"><summary>계정으로 로그인 · 새 계정</summary>`}
         <div class="field"><label for="lid">아이디</label><input id="lid" maxlength="20" value="${esc(last)}" autocomplete="username"></div>
         <div class="field"><label for="lpw">비밀번호</label><input id="lpw" type="password" maxlength="30" autocomplete="current-password"></div>
         <div class="field"><label for="lnick">닉네임 <span class="muted">(새 계정 만들 때 · 12자까지, 나중에 설정에서 바꿀 수 있어요)</span></label><input id="lnick" maxlength="12" placeholder="게임에서 보일 이름"></div>
         <label class="autochk"><input type="checkbox" id="lauto" ${ls.get("ygr_auto_off") ? "" : "checked"}> 자동 로그인 (다음부터 바로 시작)</label>
         <div class="err" id="lerr"></div>
         <div class="center"><button class="btn gold" type="submit">로그인</button><button class="btn" type="button" id="lnew">새 계정 만들기</button></div>
-        <div class="center" style="margin-top:6px"><button class="btn gold" type="button" id="lguest" style="min-width:220px">▶ 바로 시작 (게스트)</button></div>
+        ${last ? `<div class="center" style="margin-top:6px"><button class="btn gold" type="button" id="lguest" style="min-width:220px">▶ 바로 시작 (게스트)</button></div>` : `<button type="button" id="lguest" hidden></button></details>`}
         <p class="muted" style="text-align:center;margin:12px 0 0">☁️ 같은 아이디로 로그인하면 PC·폰 어디서든 이어서 해요 · v${GAME_VERSION}</p>
       </form></div>`;
     titleParts();
@@ -466,6 +467,7 @@ const UI = {
     const go = async (create) => { if (busy) return; busy = true; $("#lerr").textContent = "☁️ 접속 중…"; const id = $("#lid").value, pw = $("#lpw").value; const e = await loginCloud(id, pw, create, $("#lnick").value); busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; } rememberLogin($("#lauto").checked, id, pw); afterLogin(); };
     $("#lf").onsubmit = (e) => { e.preventDefault(); go(false); };
     $("#lnew").onclick = () => go(true);
+    if ($("#lguest2")) $("#lguest2").onclick = () => $("#lguest").click(); // 11-20 처음 온 사람은 '바로 시작'이 맨 위 큰 버튼, 계정 로그인은 접어 둠
     $("#lguest").onclick = async () => { // 11-18 가입 없이 바로 시작 — 아이디·비밀번호는 자동으로 만들고 설정 화면에서 볼 수 있음
       if (busy) return; busy = true; $("#lerr").textContent = "☁️ 준비 중…";
       let G0 = null; try { G0 = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { }
@@ -622,7 +624,7 @@ const UI = {
       <p class="hubver">v${GAME_VERSION}</p></div>`;
     if (!(st.rooms || 0) && !dev) { const sm = document.querySelector('.mode[data-m="story"]'); if (sm) { sm.classList.add("starthere"); const e = document.createElement("em"); e.className = "shere"; e.textContent = "▶ 여기서 시작!"; sm.appendChild(e); } } // 11-18 처음 온 사람 길잡이
     document.querySelectorAll(".mode,.sub").forEach((b) => { const k = b.dataset.m || b.dataset.s; if (GATE[k]) { b.classList.add("lock"); const e = document.createElement("em"); e.className = "lkb"; e.textContent = "🔒 " + GATE[k]; b.appendChild(e); } });
-    document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : b.dataset.m === "story" ? UI.saga() : UI.chars({ mode: b.dataset.m })));
+    document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : b.dataset.m === "story" ? ((SAVE.stats.rooms || 0) < 3 && !SAVE.resume && SAVE.chars[SAVE.sel] ? UI.startRun({ mode: "story", char: SAVE.sel, floor: 1, diff: "normal" }) : UI.saga()) : UI.chars({ mode: b.dataset.m })));
     setArtVars(); titleParts(); // 11-17 하이엔드 메뉴: 떠오르는 풍등 + 카드가 마우스를 따라 기울고 금빛이 훑음
     if (matchMedia("(hover: hover)").matches) document.querySelectorAll(".mode").forEach((b) => {
       b.onpointermove = (e) => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.transform = `perspective(700px) rotateX(${(-y * 7).toFixed(2)}deg) rotateY(${(x * 9).toFixed(2)}deg) translateY(-3px)`; b.style.setProperty("--mx", (x + 0.5) * 100 + "%"); b.style.setProperty("--my", (y + 0.5) * 100 + "%"); };
@@ -636,7 +638,7 @@ const UI = {
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
-    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen()) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
+    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen() && (SAVE.stats.rooms || 0) >= 10) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
     dlPill(); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
@@ -2281,6 +2283,7 @@ function coachStart() {
     if (G.paused) return;
     c.moved += Math.hypot(G.p.x - c.lx, G.p.y - c.ly); c.lx = G.p.x; c.ly = G.p.y; if (G.cur !== c.lastRoom) { c.lastRoom = G.cur; c.rooms++; }
     const s = steps[c.i]; if (!s) { el.classList.add("done"); el.innerHTML = "<b>좋아요!</b> 이제 혼자서도 충분해요"; setTimeout(() => el.remove(), 2600); clearInterval(UI._coachT); SAVE.tutorial = true; if (typeof track === "function") track("tutorial_done"); saveGame(); return; }
+    if (G.banner && !c.shownT) return; // 스테이지 제목이 사라진 뒤에 (겹침 방지)
     if (s.wait && !s.wait() && !c.shownT) { el.classList.remove("on"); return; }
     if (!c.shownT) { c.shownT = performance.now(); el.innerHTML = `<small>${c.i + 1} / ${steps.length}</small> ${typeof s.t === "function" ? s.t() : s.t}`; el.classList.add("on"); }
     if (s.ok(c) && performance.now() - c.shownT > 900) { c.i++; c.shownT = 0; el.classList.remove("on"); sfx("pick"); }
