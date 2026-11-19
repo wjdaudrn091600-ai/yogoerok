@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.6";
+const GAME_VERSION = "2.3.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1895,7 +1895,33 @@ function buildHtml() {
   const st = `공격력 ${Math.round(atkOf(p))} · 치명타 ${Math.round(p.crit * 100)}% · 받는 피해 ${(p.drBase || 0) >= 0 ? "-" : "+"}${Math.abs(Math.round((p.drBase || 0) * 100))}% · 이동 ${Math.round(spdOf(p))}${p.revive ? ` · 부활 ${p.revive}` : ""}`;
   return `<div class="card buildc"><h3>📜 이번 판 강화 <span class="muted">${p.boons.length}개 · Lv.${p.lvl}</span></h3><p class="muted">${st}</p><div class="bchips">${bs || '<span class="muted">아직 없음</span>'}</div></div>`;
 }
+// ===================== 11-20 주간 순위표 (무한의 방 이번 주 최고 방) =====================
+// 참고: Slay the Spire·Dead Cells 일일/주간 순위, 모바일 히트작 주간 랭킹. Firestore weekly/<주>/rows/<uid>. 규칙이 아직 없으면 '준비 중'.
+const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())), day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(), w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7); return y + "w" + String(w).padStart(2, "0"); };
+const BOARD = {
+  url(wk) { return `https://firestore.googleapis.com/v1/projects/${CLOUD.proj}/databases/(default)/documents/weekly/${wk}`; },
+  async put(score, ch) {
+    if (!CLOUD.on || !CLOUD.uid || !ACCOUNT || ACCOUNT === DEV_ID) return;
+    const wk = weekKey(); SAVE.wkBest = SAVE.wkBest || {}; if ((SAVE.wkBest[wk] || 0) >= score) return; SAVE.wkBest[wk] = score; for (const k in SAVE.wkBest) if (k !== wk) delete SAVE.wkBest[k];
+    try { await fetch(this.url(wk) + "/rows/" + CLOUD.uid, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: "Bearer " + (await CLOUD.token()) }, body: JSON.stringify({ fields: { nick: { stringValue: nick().slice(0, 12) }, score: { integerValue: String(score) }, ch: { stringValue: ch || "" }, t: { integerValue: String(Date.now()) } } }) }); } catch (e) { }
+  },
+  async top(n = 50) {
+    const wk = weekKey(), r = await fetch(this.url(wk) + ":runQuery", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + (await CLOUD.token()) }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "rows" }], orderBy: [{ field: { fieldPath: "score" }, direction: "DESCENDING" }], limit: n } }) });
+    if (!r.ok) throw new Error(r.status); const j = await r.json();
+    return j.filter((x) => x.document).map((x) => { const f = x.document.fields; return { me: x.document.name.endsWith("/" + CLOUD.uid), nick: f.nick.stringValue, score: +f.score.integerValue, ch: f.ch && f.ch.stringValue }; });
+  },
+};
+UI.board = async function () {
+  const wk = weekKey(), mine = (SAVE.wkBest || {})[wk] || 0;
+  const show = (inner) => UI.frame("주간 순위표", `<div class="card board" style="max-width:640px;margin:0 auto"><p class="muted">무한의 방 · 이번 주 가장 깊이 내려간 방 · 월요일마다 새로 · 내 기록 <b>${mine}</b>번째 방</p>${inner}</div>`, () => UI.history());
+  show('<p class="muted">불러오는 중…</p>');
+  if (!CLOUD.on) { show('<p>순위표는 로그인(계정 연동)해야 볼 수 있어요.</p>'); return; }
+  try { const L = await BOARD.top(50); if (UI._frameTitle !== "주간 순위표") return;
+    show(L.length ? `<ol class="brd">${L.map((x, i) => `<li class="${x.me ? "me" : ""}"><span class="rk">${i + 1}</span><span class="nm">${esc(x.nick)}</span><span class="cc">${CHAR[x.ch] ? esc(CHAR[x.ch].name) : ""}</span><b>${x.score}</b></li>`).join("")}</ol>` : '<p>이번 주 첫 기록을 남겨 보세요!</p>');
+  } catch (e) { if (UI._frameTitle === "주간 순위표") show('<p>순위표를 준비하고 있어요. 곧 열려요.</p>'); }
+};
 function histAdd(r) {
+  if (r && r.mode === "endless" && typeof BOARD !== "undefined" && !(G && G.opt && (G.opt.multi || G.opt.daily)) && (r.endless || 0) > 0) BOARD.put(r.endless, G && G.p && G.p.id);
   if (!SAVE || !G || !G.p || !["story", "endless", "raid", "duel"].includes(r.mode)) return;
   SAVE.hist = SAVE.hist || []; const d = new Date();
   SAVE.hist.unshift({ t: `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`, c: G.p.id, m: r.mode, dy: !!(G.opt && G.opt.daily), w: !!(r.win || r.storyDone), f: r.floor, s: r.stage, e: r.endless, k: r.kills, l: r.lvl, so: r.soulInfo ? r.soulInfo.total : 0, cb: r.comboMax || 0, sec: Math.round(G.time || 0) });
@@ -1905,10 +1931,12 @@ UI.history = function () {
   const H = SAVE.hist || [], MN = { story: "스토리", endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전" };
   const best = (f) => H.reduce((a, x) => Math.max(a, f(x) || 0), 0);
   const rows = H.map((x) => `<tr><td>${x.t}</td><td>${CHAR[x.c] ? CHAR[x.c].name : x.c}</td><td>${x.dy ? "🌙 괴담" : MN[x.m] || x.m}</td><td>${x.m === "endless" ? x.e + "번째 방" : x.m === "story" ? `${x.f}층 ${x.s}` : "-"}</td><td>${x.w ? "✅" : "💀"}</td><td>${x.k}</td><td>Lv.${x.l}</td><td>${x.cb || "-"}</td><td>${x.so ? "🔥" + x.so : "-"}</td><td>${Math.floor(x.sec / 60)}분</td></tr>`).join("");
-  UI.frame("📜 토벌 기록", `<div class="card" style="max-width:980px;margin:0 auto"><p class="muted">최근 ${H.length}판 · 가장 많이 잡은 판 ${best((x) => x.k)}마리 · 최고 연격 ${Math.max(best((x) => x.cb), SAVE.stats.maxCombo || 0)} · 최고 무한의 방 ${SAVE.stats.endlessBest || 0}</p>
+  UI.frame("📜 토벌 기록", `<div class="card" style="max-width:980px;margin:0 auto"><p><button class="btn sm gold" id="toBoard">주간 순위표 (무한의 방)</button></p><p class="muted">최근 ${H.length}판 · 가장 많이 잡은 판 ${best((x) => x.k)}마리 · 최고 연격 ${Math.max(best((x) => x.cb), SAVE.stats.maxCombo || 0)} · 최고 무한의 방 ${SAVE.stats.endlessBest || 0}</p>
     ${H.length ? `<div style="overflow-x:auto"><table class="ptab"><tr><th>때</th><th>영웅</th><th>모드</th><th>도달</th><th>결과</th><th>처치</th><th>레벨</th><th>연격</th><th>혼불</th><th>시간</th></tr>${rows}</table></div>` : '<p class="muted">아직 기록이 없어요. 첫 토벌을 떠나 보세요!</p>'}</div>`, () => UI.menu());
 };
 
+// 순위표 버튼은 기록 화면에서
+document.addEventListener("click", (e) => { if (e.target && e.target.id === "toBoard") UI.board(); });
 // ===================== 11-18 1.7.7 이야기 다시 보기 · 조합 힌트 =====================
 function storyOrder() { const o = ["open"]; for (let f = 1; f <= 5; f++) o.push(String(f), `f${f}_s3`, `f${f}_mid`, `f${f}_s7`, `f${f}_boss`, `f${f}_clear`); o.push("end"); return o.filter((k) => STORY[k]); }
 function storyOpen(k) { const S = SAVE.story || {}, mf = S.maxFloor || 1, seen = S.seen || {};
