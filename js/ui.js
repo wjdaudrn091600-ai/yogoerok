@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.4.4";
+const GAME_VERSION = "2.4.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -683,6 +683,7 @@ const UI = {
       }
       $("#cdet").innerHTML = `<div class="big anim-card">${animCard(art, true)}</div>
         <h3 style="margin-top:10px">${c.name} · ${c.job} ${(SAVE.enh || {})[id] ? `<span class="stars">+${SAVE.enh[id]}</span>` : ""}</h3>
+        ${HERO_LINES[id] ? `<p class="hline">“${esc(HERO_LINES[id][0])}”</p>` : ""}
         ${c.forms ? `<p class="muted">🎲 출발할 때마다 <b>늑대인간(남)</b> 또는 <b>구미호(여)</b> 모습이 랜덤으로 정해져요. 늑대인간은 근접 발톱, 구미호는 여우 구슬(원거리)</p>` : ""}
         <p><span class="grade" style="background:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</span> <span class="muted">체력 ${Math.round(def.hp * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.04 * ((SAVE.enh || {})[id] || 0)))} · 공격 ${Math.round(def.atk * GRADE_INFO[CHAR_GRADE[id]].mul * (1 + 0.04 * ((SAVE.enh || {})[id] || 0)))} · 이동 ${def.spd} · ${def.range} · 사거리 ${CHAR_RANGE[art] || CHAR_RANGE[id] || "-"} · 속성 <b style="color:${(ACT_EL.find((e) => e.k === nearEl(def.col)) || {}).col}">${EL_NAME[nearEl(def.col)] || "-"}</b></span></p>
         ${own && typeof mastLv === "function" ? (() => { const l = mastLv(id), x = (SAVE.mast || {})[id] || 0, nx = MAST_XP[l]; return `<div class="card mastc"><b>숙련 Lv.${l}</b> ${mastBadge(id)}<div class="prog"><i style="width:${nx ? Math.min(100, ((x - MAST_XP[l - 1]) / (nx - MAST_XP[l - 1])) * 100) : 100}%"></i></div><span class="muted">${nx ? `${x}/${nx} · ` : "최고 단계 · "}이 영웅 공격력·체력 +${l - 1}% (판을 할수록 올라요)</span></div>`; })() : ""}
@@ -1037,7 +1038,7 @@ const UI = {
   },
 
   // ----- 원정 중 -----
-  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) { if (G.mode === "story" || G.mode === "endless") coachStart(); else setTimeout(() => UI.tutorial(), 600); } else if (wishOk()) setTimeout(() => { if (G && !G.over && !UI.modalOpen()) UI.wish(); }, 900); },
+  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); { const hl = G && G.p && HERO_LINES[G.p.id]; if (hl && !(G.opt && G.opt.multi)) setTimeout(() => { if (G && G.p && !G.over) addText(G.p.x, G.p.y - 110, hl[1], "#f3e3c0", 20); }, 1600); } if (!SAVE.tutorial && !G.opt.multi) { if (G.mode === "story" || G.mode === "endless") coachStart(); else setTimeout(() => UI.tutorial(), 600); } else if (wishOk()) setTimeout(() => { if (G && !G.over && !UI.modalOpen()) UI.wish(); }, 900); },
   tutorial() {
     if (!G || UI.modalOpen()) return; G.paused = true; const K = keyMap();
     if (IS_TOUCH) { UI.modal(`<h2>🏮 첫 원정 안내</h2><div style="max-width:600px;margin:0 auto;line-height:1.9"><p>🕹️ <b>왼쪽 아래 원</b>을 끌어 이동 · <b>오른쪽 큰 버튼</b>을 누르고 있으면 기본 공격 (가까운 요괴를 알아서 조준)</p><p>작은 버튼 <b>1~4</b> 스킬 · <b>💨</b> 구르기(잠깐 무적) · 오른쪽 위 <b>⏸</b> 멈춤 · 설정에서 <b>자동 공격</b>을 켜면 공격 버튼을 안 눌러도 돼요</p><p>요괴를 모두 잡으면 문이 열려요. 문 안으로 걸어가면 다음 방. <b style="color:#ff4d4d">붉은 영역</b>은 곧 공격이 떨어지는 자리예요.</p><p>레벨이 오르면 강화 하나를 골라요.</p></div><div class="center"><button class="btn gold" id="tutok">시작하기</button></div>`); $("#tutok").onclick = () => { SAVE.tutorial = true; track("tutorial_done"); saveGame(); UI.closeModal(); if (G) G.paused = false; }; return; } // 11-19 휴대폰은 터치 조작 안내
@@ -2324,6 +2325,7 @@ function todayCard() {
   const left = items.filter((x) => !x.ok).length;
   return `<div class="today"><div class="tdh"><b>오늘 할 일</b><span>${left ? `${left}개 남음` : "모두 끝!"}</span></div><div class="tdl">${items.map((x) => `<button class="tdi${x.ok ? " ok" : ""}" ${x.go && !x.ok ? `data-go="${x.go}"` : "disabled"}><i></i>${esc(x.t)}</button>`).join("")}</div></div>`;
 }
+const HERO_LINES = {musa: ["칼은 무겁게, 마음은 가볍게. 그게 내 아버지의 가르침이었다.", "앞장서겠소. 뒤는 맡기지."], archer: ["바람 소리를 읽으면 화살은 저절로 간다.", "숨 한 번, 시위 한 번."], spear: ["창끝이 닿는 데까지가 내 땅이다.", "길이에서 이기면 반은 이긴 거요."], monk: ["주먹은 미움이 아니라 고요에서 나온다.", "나무아미타불… 그럼 시작해 볼까."], gunner: ["화약 냄새가 나야 잠이 온다니까.", "심지 붙였어. 다들 귀 막아!"], priest: ["방울이 울리면, 길 잃은 넋도 돌아온다.", "신령님, 오늘도 길을 밝혀 주소서."], necro: ["죽은 자는 거짓말을 하지 않지. 산 자보다 낫다.", "일어나라. 아직 할 일이 남았다."], assassin: ["달이 없는 밤이 내 편이다.", "…소리 내지 마."], dosa: ["부적 한 장에 하늘과 땅의 이치가 다 들었다.", "급급여율령!"], yinyang: ["음이 다하면 양이 오고, 양이 다하면 음이 온다.", "오늘의 점괘는… 대길."], summoner: ["난 혼자 싸운 적이 없어. 늘 친구들이 있었지.", "얘들아, 나와!"], berserker: ["생각은 끝나고 하는 거다.", "으아아아! 덤벼라!"], moon: ["달빛 아래 한 번의 칼춤이면 충분해요.", "달이 밝네요. 베기 좋은 밤이에요."], thunder: ["하늘이 노하면, 내가 그 노여움이다.", "천둥 소리가 들리면 이미 늦은 거다."], fox: ["천 년을 기다렸어. 사람의 마음 하나 알려고.", "여우비 오는 날엔 조심하는 게 좋아."], reaper: ["명부에 적힌 이름은 지워지지 않는다. 대개는.", "때가 되었다."], haerang: ["바다에서 살아남은 놈은 어디서든 살아남지.", "닻 올려라!"], danbi: ["매가 먼저 본다. 나는 따라갈 뿐.", "가자, 해동청."], cheonrang: ["백두의 눈보라가 나를 길렀다.", "산의 주인이 내려간다."], hwaryeon: ["재가 되어도 다시 피어나는 게 주작이에요.", "불꽃이여, 춤을 춰라."], dolsoe: ["논밭 지키던 낫으로 나라도 지킨다.", "이까짓 거, 모내기보다 쉽지!"], pojol: ["순라 돌다 보면 별의별 놈을 다 만나지.", "게 섰거라!"], yakcho: ["독도 약도 한 뿌리에서 나와요.", "다치면 말해요. 약은 넉넉해요."], namu: ["나무는 결 따라 쪼개야 잘 쪼개지는 법.", "어디, 한 번 패 볼까."], geommu: ["춤이 칼이 되고, 칼이 춤이 되는 거예요.", "장단 맞춰 주세요."], mudang: ["굿판엔 산 사람과 죽은 사람이 함께 서지.", "어허, 신이 내리신다!"], hwarang: ["세속오계, 그중 임전무퇴.", "물러서지 않는다."], eosa: ["마패 하나면 탐관오리도 요괴도 다 무릎 꿇지.", "암행어사 출두야!"], sorikun: ["한 소리에 울고, 한 소리에 웃게 하는 게 소리꾼이오.", "얼씨구, 한번 놀아 보세!"], eulji: ["싸움에서 이기려면 먼저 마음에서 이겨야 한다.", "적의 계략은 이미 읽었다."], haemosu: ["하늘의 수레를 타고 내려온 지 오래구나.", "하늘이 보고 있다."], jipsin: ["새를 쫓던 허수아비가 이젠 요괴를 쫓는다네.", "바람아, 도와다오!"], bong: ["봉인 속에서 오래 잤더니 몸이 근질근질해.", "냥! 아니, 크르릉!"]}; // 11-20 영웅마다 한마디 (Hades 처럼 인물 개성) [0] 고르는 화면 [1] 출발할 때
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
