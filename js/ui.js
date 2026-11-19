@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.5";
+const GAME_VERSION = "2.3.6";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2219,7 +2219,12 @@ function meterHtml(died) {
   const rows = top.map(([k, v]) => { const pc = (v / tot) * 100; return `<div class="mtr"><span class="mtn">${esc(k)}</span><span class="mtb"><i style="width:${pc.toFixed(1)}%"></i></span><span class="mtv">${pc.toFixed(0)}%</span></div>`; }).join("");
   const hurt = G.hurtBy ? Object.entries(G.hurtBy).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
   const why = died && G.lastHurt ? `<p class="mtwhy">쓰러뜨린 것 <b>${esc(G.lastHurt)}</b>${hurt.length ? ` · 가장 아팠던 것 <b>${esc(hurt[0][0])}</b> (받은 피해의 ${Math.round((hurt[0][1] / Math.max(1, hurt.reduce((a, x) => a + x[1], 0))) * 100)}%)` : ""}</p>` : "";
-  return `<div class="card meter"><h3>피해 기록 <small>초당 ${Math.round(tot / sec)}</small></h3>${rows}${why}</div>`;
+  // 11-20 다음엔 이렇게 (Hades·Dead Cells 처럼 쓰러진 원인에 맞춘 한 줄 공략)
+  let tip = ""; const s = G.lastHurtSrc;
+  if (died && s) { if (s.kind === "boss" && s.def && s.def.pats && typeof PAT_TIP !== "undefined") { const pt = s.def.pats.map((k) => PAT_TIP[k]).filter(Boolean); if (pt.length) tip = pt[Math.floor(Math.random() * pt.length)]; }
+    else if (s.def && s.def.ai && typeof AI_TIP !== "undefined" && AI_TIP[s.def.ai]) tip = AI_TIP[s.def.ai]; }
+  if (died && !tip && (!G.p.dodgeN || G.p.dodgeN < 3)) tip = `구르기(${IS_TOUCH ? "구르기 버튼" : keyLabel(keyMap().dodge)})는 잠깐 무적이에요. 붉은 영역이 사라지기 직전에 굴러 보세요.`;
+  return `<div class="card meter"><h3>피해 기록 <small>초당 ${Math.round(tot / sec)}</small></h3>${rows}${why}${tip ? `<p class="mttip"><b>다음엔</b> ${esc(tip)}</p>` : ""}</div>`;
 }
 // ===================== 11-20 첫 판 길잡이 (글 상자 대신, 할 때가 되면 한 줄씩) =====================
 // 참고: Dead Cells·Hades 첫 판 — 멈추고 설명을 읽히지 않고, 화면 위 한 줄 안내 → 해내면 다음. 처음 10분 이탈을 줄이려고.

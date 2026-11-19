@@ -691,7 +691,7 @@ function dodge(u, at) {
   if (u === G.p && (input.kx || input.ky)) { ax = input.kx; ay = input.ky; } else if (!at) { const ap = aimPoint(u); ax = ap.x - u.x; ay = ap.y - u.y; }
   const L = Math.hypot(ax, ay) || 1, D = 190;
   castFx(u, [{ t: "dash", dist: D, d: 0, inv: 0.3, col: "#cfe8ff" }], 1, { x: u.x + (ax / L) * D, y: u.y + (ay / L) * D });
-  u.cd.D = DODGE_CD; if (u.cdMax) u.cdMax.D = DODGE_CD; if (u === G.p) u.dodgeAt = G.time; return true;
+  u.cd.D = DODGE_CD; if (u.cdMax) u.cdMax.D = DODGE_CD; if (u === G.p) { u.dodgeAt = G.time; u.dodgeN = (u.dodgeN || 0) + 1; } return true;
 }
 function slotFx(u, slot) { if (slot === "A") return u.active ? ACTIVES[u.active.k].fx : null; const s = u.sk && u.sk[slot]; return s ? s.fx : null; }
 function placeInfo(u, slot) {
@@ -954,7 +954,7 @@ function damage(t, d, src, crit, o = {}) {
     if (t === G.p && d > 0 && assistOn()) d *= 1 - assistDr(); // 도움 모드
     if (t.shield > 0) { const s = Math.min(t.shield, d); t.shield -= s; d -= s; }
     t.hp -= d; t.hitT = 0.1; if (d > t.maxHp * 0.02) t.hurtT = 0.28;
-    if (t === G.p && d > 0) { const hn = (src && (src.name || (src.def && src.def.name))) || "함정·지형"; (G.hurtBy = G.hurtBy || {})[hn] = (G.hurtBy[hn] || 0) + d; G.lastHurt = hn; }
+    if (t === G.p && d > 0) { const hn = (src && (src.name || (src.def && src.def.name))) || "함정·지형"; (G.hurtBy = G.hurtBy || {})[hn] = (G.hurtBy[hn] || 0) + d; G.lastHurt = hn; G.lastHurtSrc = src || null; }
     if (t === G.p) { G.dmgIn = (G.dmgIn || 0) + d; G.hpMin = Math.min(G.hpMin == null ? 1 : G.hpMin, Math.max(0, t.hp) / t.maxHp); } // 11-19 밸런스 측정
     if (src && src.affix === "vamp" && src.alive && src.maxHp) { src.hp = Math.min(src.maxHp, src.hp + d * 0.6); if (Math.random() < 0.4) addText(src.x, src.y - src.r - 30, "+" + Math.round(d * 0.6), "#ff4d6d", 15); } // 엘리트 특성: 흡혈
     if (t === G.p && src && src !== t) G.lastHit = src.kind === "boss" ? src.name : (src.def && src.def.name) || G.lastHit; // 11-18 주모 대사: 누구한테 당했나
