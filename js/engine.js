@@ -2019,9 +2019,15 @@ function drawTeleImg(g, t, k) {
   } else { g.restore(); return false; }
   g.restore(); return true;
 }
+// 11-20 접근성: '공격 예고 진하게'(Dead Cells·Hades 접근성 옵션) — 적 공격 영역에 굵은 검정+노랑 테두리
+function teleOutline(g, t) {
+  if (t.friendly || !(SAVE && SAVE.settings && SAVE.settings.teleBold)) return;
+  g.save(); const path = () => { g.beginPath(); if (t.shape === "circle" || t.shape === "ring") g.ellipse(t.x, t.y, t.r, t.r * 0.7, 0, 0, 7); else if (t.shape === "arc") { g.moveTo(t.x, t.y); g.arc(t.x, t.y, t.r, t.a - t.w / 2, t.a + t.w / 2); g.closePath(); } else if (t.shape === "line") { g.translate(t.x, t.y); g.rotate(t.a); g.rect(0, -t.w / 2, t.len, t.w); } };
+  path(); g.lineWidth = 7; g.strokeStyle = "rgba(0,0,0,0.85)"; g.stroke(); g.setLineDash([14, 8]); g.lineWidth = 3.5; g.strokeStyle = "#ffe14a"; g.stroke(); g.restore();
+}
 function drawTele(g, t) {
   const k = clamp(t.t / t.max, 0, 1); if (t.t < 0) return;
-  if (!t.friendly && t.tk && drawTeleImg(g, t, k)) return;
+  if (!t.friendly && t.tk && drawTeleImg(g, t, k)) { teleOutline(g, t); return; }
   const col = t.friendly ? t.col || "#ffd27a" : t.bcol || "#ff3b30";
   g.save();
   g.fillStyle = hexA(col, t.friendly ? 0.12 : 0.18); g.strokeStyle = hexA(col, 0.85); g.lineWidth = 2;
@@ -2030,7 +2036,7 @@ function drawTele(g, t) {
   else if (t.shape === "ring") { g.lineWidth = t.w * k; g.strokeStyle = hexA(col, 0.35); g.beginPath(); g.ellipse(t.x, t.y, t.r, t.r * 0.7, 0, 0, 7); g.stroke(); g.lineWidth = 2; g.strokeStyle = hexA(col, 0.9); g.beginPath(); g.ellipse(t.x, t.y, t.r - t.w / 2, (t.r - t.w / 2) * 0.7, 0, 0, 7); g.stroke(); g.beginPath(); g.ellipse(t.x, t.y, t.r + t.w / 2, (t.r + t.w / 2) * 0.7, 0, 0, 7); g.stroke(); }
   else if (t.shape === "arc") { g.beginPath(); g.moveTo(t.x, t.y); g.arc(t.x, t.y, t.r, t.a - t.w / 2, t.a + t.w / 2); g.closePath(); g.fill(); g.stroke(); g.fillStyle = hexA(col, 0.35); g.beginPath(); g.moveTo(t.x, t.y); g.arc(t.x, t.y, t.r * k, t.a - t.w / 2, t.a + t.w / 2); g.closePath(); g.fill(); }
   else if (t.shape === "line") { g.translate(t.x, t.y); g.rotate(t.a); g.fillRect(0, -t.w / 2, t.len, t.w); g.strokeRect(0, -t.w / 2, t.len, t.w); g.fillStyle = hexA(col, 0.3); g.fillRect(0, -t.w / 2, t.len * k, t.w); }
-  g.restore();
+  g.restore(); teleOutline(g, t);
 }
 const ACT_IC = (k) => ACTIVES[k].ic;
 function drawDrop(g, d) {
