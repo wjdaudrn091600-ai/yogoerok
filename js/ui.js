@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.4.6";
+const GAME_VERSION = "2.4.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -878,7 +878,7 @@ const UI = {
   // ----- 설정 -----
   settings() {
     const s = SAVE.settings;
-    UI.frame("설정", `<div class="card" style="max-width:480px"><h3>닉네임</h3><div style="display:flex;gap:8px"><input id="snick" maxlength="12" value="${esc(nick())}" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn gold" id="snickok">바꾸기</button></div><p class="muted">아이디: ${esc(ACCOUNT)} (로그인할 때만 써요)</p>
+    UI.frame("설정", `<div class="card setc"><h3>닉네임</h3><div style="display:flex;gap:8px"><input id="snick" maxlength="12" value="${esc(nick())}" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn gold" id="snickok">바꾸기</button></div><p class="muted">아이디: ${esc(ACCOUNT)} (로그인할 때만 써요)</p>
       <p><label><input type="checkbox" id="mus" ${s.music ? "checked" : ""}> 배경 음악</label></p>
       <p>음악 크기 <input type="range" id="vol" min="0" max="1" step="0.05" value="${s.vol}"></p>
       <p>효과음 크기 <input type="range" id="sfv" min="0" max="1" step="0.05" value="${s.sfx}"></p>
