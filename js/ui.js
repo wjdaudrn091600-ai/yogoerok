@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.0";
+const GAME_VERSION = "2.3.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1025,7 +1025,7 @@ const UI = {
   },
 
   // ----- 원정 중 -----
-  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) setTimeout(() => UI.tutorial(), 600); },
+  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) { if (G.mode === "story" || G.mode === "endless") coachStart(); else setTimeout(() => UI.tutorial(), 600); } },
   tutorial() {
     if (!G || UI.modalOpen()) return; G.paused = true; const K = keyMap();
     if (IS_TOUCH) { UI.modal(`<h2>🏮 첫 원정 안내</h2><div style="max-width:600px;margin:0 auto;line-height:1.9"><p>🕹️ <b>왼쪽 아래 원</b>을 끌어 이동 · <b>오른쪽 큰 버튼</b>을 누르고 있으면 기본 공격 (가까운 요괴를 알아서 조준)</p><p>작은 버튼 <b>1~4</b> 스킬 · <b>💨</b> 구르기(잠깐 무적) · 오른쪽 위 <b>⏸</b> 멈춤 · 설정에서 <b>자동 공격</b>을 켜면 공격 버튼을 안 눌러도 돼요</p><p>요괴를 모두 잡으면 문이 열려요. 문 안으로 걸어가면 다음 방. <b style="color:#ff4d4d">붉은 영역</b>은 곧 공격이 떨어지는 자리예요.</p><p>레벨이 오르면 강화 하나를 골라요.</p></div><div class="center"><button class="btn gold" id="tutok">시작하기</button></div>`); $("#tutok").onclick = () => { SAVE.tutorial = true; track("tutorial_done"); saveGame(); UI.closeModal(); if (G) G.paused = false; }; return; } // 11-19 휴대폰은 터치 조작 안내
@@ -1266,7 +1266,7 @@ const UI = {
     const title = r.mode === "practice" ? "🎯 연습 끝" : r.mode === "dev" ? "🛠 개발자 맵 끝" : r.mode === "raid" ? (r.win ? "🐉 보스 레이드 완료!" : "레이드 실패") : r.mode === "duel" ? (r.win ? "🏆 대전 승리!" : "대전 패배") : r.storyDone ? "🌅 스토리 완료!" : r.win ? "원정 성공" : "쓰러졌습니다";
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
-    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}<div class="res">
+    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}층 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
@@ -2200,6 +2200,46 @@ function dlPill() {
     if (st) st.textContent = !ASSETS.packs ? "한 파일판: 모든 그림이 이미 들어 있어요" : DL.on ? (DL.total && DL.done >= DL.total ? "모든 그림을 받았어요 — 기다림 없이 시작해요" : `받는 중 ${pct}% (전체 약 ${DL_MB()}MB) · 받는 동안에도 플레이할 수 있어요`) : ls.get("ygr_dl") === "all" ? "전체 받기" : "필요한 것만 먼저 받는 중 (판마다 필요한 그림만)";
     if (!busy && !st) clearInterval(UI._dlT); };
   tick(); UI._dlT = setInterval(tick, 1000);
+}
+// ===================== 11-20 판 결과: 피해 기록판 + 쓰러진 까닭 =====================
+// 참고: Brotato·Vampire Survivors 의 판 끝 '무기별 피해' 표, Hades·Dead Cells 의 '무엇에 쓰러졌나' → 다음 판 빌드·회피를 스스로 고치게
+function meterHtml(died) {
+  if (!G || !G.dmgBy) return ""; const ent = Object.entries(G.dmgBy).sort((a, b) => b[1] - a[1]); if (!ent.length) return "";
+  const tot = ent.reduce((a, x) => a + x[1], 0), top = ent.slice(0, 6), sec = Math.max(1, G.time || 1);
+  const rows = top.map(([k, v]) => { const pc = (v / tot) * 100; return `<div class="mtr"><span class="mtn">${esc(k)}</span><span class="mtb"><i style="width:${pc.toFixed(1)}%"></i></span><span class="mtv">${pc.toFixed(0)}%</span></div>`; }).join("");
+  const hurt = G.hurtBy ? Object.entries(G.hurtBy).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
+  const why = died && G.lastHurt ? `<p class="mtwhy">쓰러뜨린 것 <b>${esc(G.lastHurt)}</b>${hurt.length ? ` · 가장 아팠던 것 <b>${esc(hurt[0][0])}</b> (받은 피해의 ${Math.round((hurt[0][1] / Math.max(1, hurt.reduce((a, x) => a + x[1], 0))) * 100)}%)` : ""}</p>` : "";
+  return `<div class="card meter"><h3>피해 기록 <small>초당 ${Math.round(tot / sec)}</small></h3>${rows}${why}</div>`;
+}
+// ===================== 11-20 첫 판 길잡이 (글 상자 대신, 할 때가 되면 한 줄씩) =====================
+// 참고: Dead Cells·Hades 첫 판 — 멈추고 설명을 읽히지 않고, 화면 위 한 줄 안내 → 해내면 다음. 처음 10분 이탈을 줄이려고.
+const COACH = () => IS_TOUCH ? [
+  { t: "왼쪽 아래 원을 끌어서 움직여 보세요", ok: (c) => c.moved > 260 },
+  { t: "오른쪽 큰 칼 버튼을 누르고 있으면 가까운 요괴를 공격해요", ok: () => G.dmgBy && Object.values(G.dmgBy).reduce((a, b) => a + b, 0) > 0 },
+  { t: "1·2·3 버튼은 스킬이에요 — 하나 써 보세요", ok: () => G.dmgBy && Object.keys(G.dmgBy).some((k) => k !== "기본 공격") },
+  { t: "붉은 영역은 곧 공격이 떨어지는 자리 — '구르기' 버튼으로 피해요", ok: () => G.p.dodgeAt != null, wait: () => G.tele.some((x) => x.team === 1) },
+  { t: "요괴를 모두 잡으면 문이 열려요 — 문 안으로 걸어가면 다음 방", ok: (c) => c.rooms > 1 },
+] : [
+  { t: () => `${["up", "left", "down", "right"].map((x) => keyLabel(keyMap()[x])).join("")} 로 움직여 보세요`, ok: (c) => c.moved > 260 },
+  { t: () => `마우스 왼쪽(또는 ${keyLabel(keyMap().atk2)})으로 마우스 쪽을 공격해요`, ok: () => G.dmgBy && Object.values(G.dmgBy).reduce((a, b) => a + b, 0) > 0 },
+  { t: () => `스킬: 마우스 오른쪽 · ${keyLabel(keyMap().s2)} · ${keyLabel(keyMap().s3)} — 하나 써 보세요`, ok: () => G.dmgBy && Object.keys(G.dmgBy).some((k) => k !== "기본 공격") },
+  { t: () => `붉은 영역은 곧 공격이 떨어지는 자리 — ${keyLabel(keyMap().dodge)}로 굴러 피해요`, ok: () => G.p.dodgeAt != null, wait: () => G.tele.some((x) => x.team === 1) },
+  { t: "요괴를 모두 잡으면 문이 열려요 — 문 안으로 걸어가면 다음 방", ok: (c) => c.rooms > 1 },
+];
+function coachStart() {
+  const steps = COACH(), c = { i: 0, moved: 0, rooms: 0, lx: G.p.x, ly: G.p.y, lastRoom: G.cur, shownT: 0 };
+  let el = $("#coach"); if (!el) { el = document.createElement("div"); el.id = "coach"; $("#hud").appendChild(el); }
+  clearInterval(UI._coachT);
+  UI._coachT = setInterval(() => {
+    if (!G || G.over || !G.p) { clearInterval(UI._coachT); el.remove(); return; }
+    if (!el.isConnected && $("#hud")) $("#hud").appendChild(el);
+    if (G.paused) return;
+    c.moved += Math.hypot(G.p.x - c.lx, G.p.y - c.ly); c.lx = G.p.x; c.ly = G.p.y; if (G.cur !== c.lastRoom) { c.lastRoom = G.cur; c.rooms++; }
+    const s = steps[c.i]; if (!s) { el.classList.add("done"); el.innerHTML = "<b>좋아요!</b> 이제 혼자서도 충분해요"; setTimeout(() => el.remove(), 2600); clearInterval(UI._coachT); SAVE.tutorial = true; if (typeof track === "function") track("tutorial_done"); saveGame(); return; }
+    if (s.wait && !s.wait() && !c.shownT) { el.classList.remove("on"); return; }
+    if (!c.shownT) { c.shownT = performance.now(); el.innerHTML = `<small>${c.i + 1} / ${steps.length}</small> ${typeof s.t === "function" ? s.t() : s.t}`; el.classList.add("on"); }
+    if (s.ok(c) && performance.now() - c.shownT > 900) { c.i++; c.shownT = 0; el.classList.remove("on"); sfx("pick"); }
+  }, 250);
 }
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
