@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.4";
+const GAME_VERSION = "2.3.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1034,7 +1034,7 @@ const UI = {
   },
 
   // ----- 원정 중 -----
-  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) { if (G.mode === "story" || G.mode === "endless") coachStart(); else setTimeout(() => UI.tutorial(), 600); } },
+  onRunStart() { $("#screens").innerHTML = ""; $("#hud").hidden = false; UI.buildHud(); if (!SAVE.tutorial && !G.opt.multi) { if (G.mode === "story" || G.mode === "endless") coachStart(); else setTimeout(() => UI.tutorial(), 600); } else if (wishOk()) setTimeout(() => { if (G && !G.over && !UI.modalOpen()) UI.wish(); }, 900); },
   tutorial() {
     if (!G || UI.modalOpen()) return; G.paused = true; const K = keyMap();
     if (IS_TOUCH) { UI.modal(`<h2>🏮 첫 원정 안내</h2><div style="max-width:600px;margin:0 auto;line-height:1.9"><p>🕹️ <b>왼쪽 아래 원</b>을 끌어 이동 · <b>오른쪽 큰 버튼</b>을 누르고 있으면 기본 공격 (가까운 요괴를 알아서 조준)</p><p>작은 버튼 <b>1~4</b> 스킬 · <b>💨</b> 구르기(잠깐 무적) · 오른쪽 위 <b>⏸</b> 멈춤 · 설정에서 <b>자동 공격</b>을 켜면 공격 버튼을 안 눌러도 돼요</p><p>요괴를 모두 잡으면 문이 열려요. 문 안으로 걸어가면 다음 방. <b style="color:#ff4d4d">붉은 영역</b>은 곧 공격이 떨어지는 자리예요.</p><p>레벨이 오르면 강화 하나를 골라요.</p></div><div class="center"><button class="btn gold" id="tutok">시작하기</button></div>`); $("#tutok").onclick = () => { SAVE.tutorial = true; track("tutorial_done"); saveGame(); UI.closeModal(); if (G) G.paused = false; }; return; } // 11-19 휴대폰은 터치 조작 안내
@@ -2251,6 +2251,27 @@ function coachStart() {
     if (s.ok(c) && performance.now() - c.shownT > 900) { c.i++; c.shownT = 0; el.classList.remove("on"); sfx("pick"); }
   }, 250);
 }
+// ===================== 11-20 서낭당 소원 (원정 시작 선택) =====================
+// 참고: Slay the Spire 'Neow 의 축복'(출발 때 셋 중 하나, 하나는 대가 있는 큰 보상) → 미궁 입구 서낭당에 정화수를 올리고 소원 하나.
+const wishOk = () => G && G.p && (G.mode === "story" || G.mode === "endless") && !(G.opt && (G.opt.multi || G.opt.daily || G.opt.resume)) && SAVE.tutorial && (SAVE.stats.rooms || 0) >= 8 && !(G.mode === "story" && G.stage > 1);
+UI.wish = function () {
+  const p = G.p; G.paused = true; input.atkHeld = false; input.moveHeld = false;
+  const b1 = rollBoons(1, Math.max(p.lvl, 8))[0], big = rollBoons(2, 30), ck = pick(Object.keys(CURSES).filter((k) => k !== "dark"));
+  const opts = [
+    b1 && { t: "기운을 주소서", s: `강화 '${BOONS[b1].name}' — ${BOONS[b1].desc}`, run: () => { takeBoon(p, b1); return BOONS[b1].name; } },
+    { t: "재물을 주소서", s: "엽전 150", run: () => { p.gold = (p.gold || 0) + 150; return "엽전 150"; } },
+    { t: "몸 성히 해 주소서", s: "이번 원정 최대 체력 +15%", run: () => { evMod({ hp: 0.15 }); p.hp = p.maxHp; return "최대 체력 +15%"; } },
+    big.length === 2 && { t: "큰 것을 주소서", s: `강화 '${BOONS[big[0]].name}'·'${BOONS[big[1]].name}' — 대신 판 내내 ${CURSES[ck].name} (${CURSES[ck].desc})`, bad: true, run: () => { big.forEach((k) => takeBoon(p, k)); G.opt.taboo = (G.opt.taboo || []).concat([ck]); return `강화 둘 · ${CURSES[ck].name}`; } },
+  ].filter(Boolean);
+  $("#modal").classList.add("evmode");
+  UI.modal(`<div class="evbox">${ASSETS.img.ev_bowl ? `<div class="evart" style="background-image:url(${imgSrc("ev_bowl")})"></div>` : ""}<h2>서낭당 소원</h2><p class="evtext">미궁 들머리 서낭당에 정화수 한 그릇을 올린다. 소원은 하나만 빌 수 있다.</p>
+    <div class="evch">${opts.map((o, i) => `<button class="btn evc${o.bad ? " bad" : ""}" data-w="${i}"><b>${esc(o.t)}</b><span>${esc(o.s)}</span></button>`).join("")}</div><p class="muted" style="text-align:center;font-size:.78rem;margin-top:8px">${IS_TOUCH ? "" : "1~" + opts.length + " 키로도 고를 수 있어요"}</p></div>`);
+  const arm = UI.arm();
+  const done = (i) => { if (performance.now() < arm) return; window.removeEventListener("keydown", kh); const got = opts[i].run(); sfx("pick"); UI.closeModal(); G.paused = false; addText(p.x, p.y - 120, "소원: " + got, "#ffe08a", 22); if (typeof track === "function") track("wish", { i }); };
+  const kh = (e) => { const n = +e.key; if (n >= 1 && n <= opts.length) { e.preventDefault(); done(n - 1); } };
+  window.addEventListener("keydown", kh);
+  document.querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => done(+b.dataset.w)));
+};
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
