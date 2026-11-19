@@ -247,7 +247,7 @@ function startStage() {
   UI.music(theme().bgm);
   G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: curseSub(), t: 3.5, boss: true } : { text: `${G.floor}층 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 층 최종보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
   if (!G.opt.multi && (G.floor > 1 || G.stage >= 3)) setTimeout(() => { if (G && !G.over) UI.tip("elem"); }, 3800);
-  const sc = G.stage === 5 ? `f${G.floor}_mid` : G.stage === STAGES_PER_FLOOR ? `f${G.floor}_boss` : null;
+  const sc = G.stage === 3 ? `f${G.floor}_s3` : G.stage === 5 ? `f${G.floor}_mid` : G.stage === 7 ? `f${G.floor}_s7` : G.stage === STAGES_PER_FLOOR ? `f${G.floor}_boss` : null; // 11-19 2.2 이야기가 주, 전투는 사이사이
   if (sc && STORY[sc] && !G.opt.multi && !(SAVE.story.seen || {})[sc]) { SAVE.story.seen = SAVE.story.seen || {}; SAVE.story.seen[sc] = 1; saveGame(); setTimeout(() => { if (G && !G.over) UI.story(sc, () => { if (G) G.paused = false; }); }, 600); }
 }
 
@@ -2364,8 +2364,10 @@ function playBuf(k, vol, rate) { const b = SFXBUF[k]; if (!b || !AC) return fals
 function voice(k) { // 멈출 수 있는 손잡이를 돌려줌 (스토리 창을 넘기면 멈춤). 아직 안 풀렸으면 그 파일만 바로 풀어서 틈
   const h = { stop() { h.off = true; if (h.src) try { h.src.stop(); } catch (e) {} } };
   if (!AC || sfxVol <= 0 || (SAVE && SAVE.settings.voice === false)) return h; sfxLoad(); const vol = Math.min(1, sfxVol * 1.6);
-  if (SFXBUF[k]) h.src = playBuf(k, vol);
-  else if (ASSETS.voice && ASSETS.voice[k]) fetch(ASSETS.voice[k]).then((r) => r.arrayBuffer()).then((b) => AC.decodeAudioData(b)).then((buf) => { SFXBUF[k] = buf; if (!h.off) h.src = playBuf(k, vol); }).catch(() => {});
+  const hook = () => { if (h.src) h.src.onended = () => { h.done = true; if (h.onend) h.onend(); }; else { h.done = true; if (h.onend) h.onend(); } }; // 11-19 이야기 자동 넘김용: 끝나면 알림
+  if (SFXBUF[k]) { h.src = playBuf(k, vol); hook(); }
+  else if (ASSETS.voice && ASSETS.voice[k]) fetch(ASSETS.voice[k]).then((r) => r.arrayBuffer()).then((b) => AC.decodeAudioData(b)).then((buf) => { SFXBUF[k] = buf; if (!h.off) { h.src = playBuf(k, vol); hook(); } }).catch(() => { h.done = true; if (h.onend) h.onend(); });
+  else h.done = true;
   return h;
 }
 // 무기마다 다른 소리: 활·총·던지기·주술 / 칼·큰 무기·주먹

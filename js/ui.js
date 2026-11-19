@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.1.0";
+const GAME_VERSION = "2.2.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -616,7 +616,7 @@ const UI = {
       <p class="hubver">v${GAME_VERSION}</p></div>`;
     if (!(st.rooms || 0) && !dev) { const sm = document.querySelector('.mode[data-m="story"]'); if (sm) { sm.classList.add("starthere"); const e = document.createElement("em"); e.className = "shere"; e.textContent = "▶ 여기서 시작!"; sm.appendChild(e); } } // 11-18 처음 온 사람 길잡이
     document.querySelectorAll(".mode,.sub").forEach((b) => { const k = b.dataset.m || b.dataset.s; if (GATE[k]) { b.classList.add("lock"); const e = document.createElement("em"); e.className = "lkb"; e.textContent = "🔒 " + GATE[k]; b.appendChild(e); } });
-    document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : UI.chars({ mode: b.dataset.m })));
+    document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : b.dataset.m === "story" ? UI.saga() : UI.chars({ mode: b.dataset.m })));
     setArtVars(); titleParts(); // 11-17 하이엔드 메뉴: 떠오르는 풍등 + 카드가 마우스를 따라 기울고 금빛이 훑음
     if (matchMedia("(hover: hover)").matches) document.querySelectorAll(".mode").forEach((b) => {
       b.onpointermove = (e) => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.transform = `perspective(700px) rotateX(${(-y * 7).toFixed(2)}deg) rotateY(${(x * 9).toFixed(2)}deg) translateY(-3px)`; b.style.setProperty("--mx", (x + 0.5) * 100 + "%"); b.style.setProperty("--my", (y + 0.5) * 100 + "%"); };
@@ -663,7 +663,7 @@ const UI = {
       let start = "";
       const tryable = own || mode === "practice";
       if (mode && tryable) {
-        if (mode === "story") start = `<p>시작 층: <span id="fsel">${FLOORS.map((f, i) => `<button class="btn sm ${i === 0 ? "gold" : ""}" data-f="${i + 1}" ${i + 1 > SAVE.story.maxFloor ? "disabled" : ""}>${i + 1}층</button>`).join(" ")}</span></p>`;
+        if (mode === "story") start = `<p>시작 장: <span id="fsel">${FLOORS.map((f, i) => `<button class="btn sm ${i + 1 === (opt.floor || 1) ? "gold" : ""}" data-f="${i + 1}" ${i + 1 > SAVE.story.maxFloor ? "disabled" : ""}>${i + 1}장</button>`).join(" ")}</span></p>`;
         const dbtn = (keys) => `<p>난이도: <span id="dsel">${keys.map((k) => `<button class="btn sm ${k === "normal" ? "gold" : ""}" data-d="${k}" style="color:${DIFF[k].col}">${DIFF[k].name}</button>`).join(" ")}</span> <span class="muted" style="font-size:.78rem">보상(엽전·경험·혼불) ${keys.map((k) => DIFF[k].name + " ×" + DIFF[k].rw).join(" · ")}</span>${typeof recDiff === "function" ? recDiff(id, keys) : ""}</p>`;
         if (mode === "story") start += dbtn(["easy", "normal", "hard", "hell"]);
         if (mode === "endless") start += dbtn(["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]) + (!SAVE.endlessHard ? `<p class="muted" style="font-size:.78rem">🔒 어려움: 보통 이상으로 무한의 방 5층 보스(1회차)를 토벌하면 열려요 (보상 ×1.5)</p>` : !SAVE.endlessHell ? `<p class="muted" style="font-size:.78rem">🔒 매우 어려움: 어려움으로 5층 보스까지 토벌하면 열려요 (보상 ×2)</p>` : "");
@@ -688,7 +688,7 @@ const UI = {
           ${own ? `<div>장착 스킬 <b>${["Q", "W", "E", "R"].filter((s) => eq[s]).length}</b>/4 칸 바꿈</div>` : ""}</div></div>
         ${lockInfo}<div style="margin-top:12px">${start}</div>
         ${own ? `<button class="btn sm" id="toSk" style="margin-top:8px">📜 이 캐릭터 스킬 바꾸기</button>` : ""}`;
-      let floor = 1, diff = "normal";
+      let floor = Math.min(opt.floor || 1, SAVE.story.maxFloor || 1), diff = "normal";
       document.querySelectorAll("#fsel button").forEach((b) => (b.onclick = () => { floor = +b.dataset.f; document.querySelectorAll("#fsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       document.querySelectorAll("#dsel button").forEach((b) => (b.onclick = () => { diff = b.dataset.d; document.querySelectorAll("#dsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff }); };
@@ -1264,10 +1264,9 @@ const UI = {
   },
   story(key, then) {
     const s = STORY[key]; if (!s) { then(); return; }
-    if (G) G.paused = true;
-    UI.modal(`<div class="story"><div class="pic" style="background-image:url(${imgSrc(s.img)})"></div><div><h2 style="text-align:left">${s.title}</h2><p>${esc(s.text)}</p><button class="btn gold" id="sgo">${key === "end" ? "끝" : "계속 ▶"}</button></div></div>`);
-    if (UI._sv) UI._sv.stop(); UI._sv = typeof voice === "function" && !/autotest/.test(location.hash) ? voice("story_" + key) : null; // 11-16 이야기 음성 (해설·인물·보스)
-    $("#sgo").onclick = () => { if (UI._sv) { UI._sv.stop(); UI._sv = null; } UI.closeModal(); then(); };
+    if (G) G.paused = true; if (input) { input.atkHeld = false; input.moveHeld = false; }
+    if (!s.lines) { UI.modal(`<div class="story"><div class="pic" style="background-image:url(${imgSrc(s.img)})"></div><div><h2 style="text-align:left">${s.title}</h2><p>${esc(s.text)}</p><button class="btn gold" id="sgo">계속 ▶</button></div></div>`); $("#sgo").onclick = () => { UI.closeModal(); then(); }; return; }
+    UI.vn(key, then);
   },
   result(r, isClient) {
     if (r.mode === "story" && r.storyDone) music("ending"); /* 11-16 스토리를 깨면 엔딩곡 */
@@ -1907,10 +1906,10 @@ UI.history = function () {
 };
 
 // ===================== 11-18 1.7.7 이야기 다시 보기 · 조합 힌트 =====================
-function storyOrder() { const o = ["open"]; for (let f = 1; f <= 5; f++) o.push(String(f), `f${f}_mid`, `f${f}_boss`, `f${f}_clear`); o.push("end"); return o.filter((k) => STORY[k]); }
+function storyOrder() { const o = ["open"]; for (let f = 1; f <= 5; f++) o.push(String(f), `f${f}_s3`, `f${f}_mid`, `f${f}_s7`, `f${f}_boss`, `f${f}_clear`); o.push("end"); return o.filter((k) => STORY[k]); }
 function storyOpen(k) { const S = SAVE.story || {}, mf = S.maxFloor || 1, seen = S.seen || {};
   if (k === "open") return !!seen.open; if (/^\d$/.test(k)) return mf >= +k; if (k === "end") return (SAVE.stats.storyClear || 0) > 0;
-  const m = k.match(/^f(\d)_(mid|boss|clear)$/); if (!m) return false; if (m[2] === "clear") return mf > +m[1] || (SAVE.stats.storyClear || 0) > 0; return !!seen[k] || mf > +m[1]; }
+  const m = k.match(/^f(\d)_(s3|mid|s7|boss|clear)$/); if (!m) return false; if (m[2] === "clear") return mf > +m[1] || (SAVE.stats.storyClear || 0) > 0; return !!seen[k] || mf > +m[1]; }
 UI.storyBook = function () {
   const ks = storyOrder(), open = ks.filter(storyOpen).length;
   UI.frame("📜 이야기 다시 보기", `<p class="muted" style="text-align:center">찢긴 요괴록 이야기 ${open}/${ks.length} · 장면을 누르면 음성과 함께 다시 봐요</p><div class="sbook">${ks.map((k) => { const s = STORY[k], ok = storyOpen(k);
@@ -2063,6 +2062,72 @@ UI.shop = function (r) {
 
 // 11-19 2.1 새 콘텐츠 그림(수묵·민화풍)을 CSS 변수로: 메인 카드·제단·시즌·기록 화면 배경
 function setArtVars() { for (const k of ["daily", "store", "festival", "bounty", "season", "altar", "history"]) if (ASSETS.img["ui_c_" + k]) document.documentElement.style.setProperty("--art-" + k, `url(${ASSETS.img["ui_c_" + k]})`); }
+// ===================== 11-19 2.2 이야기 장면 전체 화면 (비주얼 노벨식) =====================
+// 사용자: "스토리칸이 전체 화면으로", "더빙 퀄". 화면 가득 그림 + 아래 대사창(이름·얼굴) + 한 글자씩 + 줄마다 음성(인물별 한국어 목소리, voice/s2_<장면>_<줄>.mp3).
+// 누르기·Space·Enter = 다음(글자 나오는 중이면 한 번에), 자동 넘김, 지난 대사, 건너뛰기(Esc).
+UI.vn = function (key, then) {
+  const s = STORY[key], L = s.lines, old = $("#vn"); if (old) old.remove();
+  const heroId = (G && G.p && G.p.id) || SAVE.sel || "musa", heroName = CHAR[heroId] ? CHAR[heroId].name : "토벌꾼";
+  const bg = imgSrc(s.img) || imgSrc(s.imgOld) || imgSrc("st2_open") || imgSrc("sc_open");
+  { const fm = /^st2_f(\d)_/.exec(s.img || ""); if (fm && !imgSrc(s.img) && typeof needPack === "function" && ASSETS.packs && ASSETS.packs["f" + fm[1]]) needPack("f" + fm[1]).then(() => { const b = document.querySelector("#vn .vnbg"); if (b && imgSrc(s.img)) b.style.backgroundImage = `url(${imgSrc(s.img)})`; }); } // 11-19 지도에서 다시 볼 때 그 층 그림 묶음을 받아 바꿔 끼움
+  const chap = /^\d$/.test(key) ? "이야기 시작" : key === "open" ? "서장" : key === "end" ? "종장" : /^f(\d)/.test(key) ? `${key[1]}장` : "";
+  const el = document.createElement("div"); el.id = "vn"; el.innerHTML = `<div class="vnbg" style="background-image:url(${bg})"></div><div class="vnvig"></div>
+    <div class="vntitle"><small>${chap}</small><b>${esc(s.title)}</b></div>
+    <div class="vnctl"><button id="vnauto">자동</button><button id="vnlogb">지난 대사</button><button id="vnskip">건너뛰기</button></div>
+    <div class="vnbox"><div class="vnface"></div><div class="vnmain"><div class="vnname"></div><p class="vntext"></p></div><span class="vnnext"></span></div><div class="vnlog" hidden></div>`;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add("on"));
+  let i = -1, typing = null, vh = null, auto = !!(SAVE.settings && SAVE.settings.vnAuto), shown = 0, full = "", t0 = 0, closed = false, autoT = null;
+  const faceOf = (w) => w === "나" ? imgSrc("card_" + charArt(heroId)) : STORY_FACE[w] ? imgSrc(STORY_FACE[w]) : "";
+  const stopV = () => { if (vh) { vh.stop(); vh = null; } clearTimeout(autoT); };
+  const finish = () => { if (closed) return; closed = true; stopV(); cancelAnimationFrame(typing); window.removeEventListener("keydown", kh); el.classList.remove("on"); setTimeout(() => el.remove(), 380); if (SAVE.settings) SAVE.settings.vnAuto = auto; then(); };
+  const scheduleAuto = () => { clearTimeout(autoT); if (!auto) return; const go = () => { autoT = setTimeout(next, 700 + Math.min(1800, full.length * 25)); }; if (vh && !vh.done) vh.onend = go; else go(); };
+  const tick = () => { const n = Math.min(full.length, Math.floor((performance.now() - t0) / 1000 * 30)); if (n !== shown) { shown = n; el.querySelector(".vntext").textContent = full.slice(0, n); } if (n < full.length) typing = requestAnimationFrame(tick); else { typing = null; el.classList.add("done"); scheduleAuto(); } };
+  const next = () => {
+    if (closed) return; if (typing) { cancelAnimationFrame(typing); typing = null; shown = full.length; el.querySelector(".vntext").textContent = full; el.classList.add("done"); scheduleAuto(); return; }
+    stopV(); i++; if (i >= L.length) { finish(); return; }
+    const [w, t] = L[i], f = faceOf(w), nm = w === "나" ? heroName : w;
+    el.classList.toggle("narr", w === "해설"); el.classList.toggle("me", w === "나"); el.classList.remove("done");
+    el.querySelector(".vnface").innerHTML = f ? `<img src="${f}" alt="">` : ""; el.querySelector(".vnface").hidden = !f;
+    el.querySelector(".vnname").textContent = w === "해설" ? "" : nm;
+    full = t; shown = 0; t0 = performance.now(); el.querySelector(".vntext").textContent = "";
+    const lg = el.querySelector(".vnlog"); lg.insertAdjacentHTML("beforeend", `<p>${w === "해설" ? "" : `<b>${esc(nm)}</b>`}${esc(t)}</p>`);
+    if (w !== "나" && typeof voice === "function" && !/autotest/.test(location.hash)) vh = voice(`s2_${key}_${i}`);
+    typing = requestAnimationFrame(tick);
+  };
+  const kh = (e) => { if (e.code === "Escape") { e.preventDefault(); finish(); } else if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); next(); } };
+  window.addEventListener("keydown", kh);
+  el.onclick = (e) => { if (e.target.closest(".vnctl,.vnlog")) return; next(); };
+  $("#vnskip").onclick = finish;
+  $("#vnauto").classList.toggle("on", auto); $("#vnauto").onclick = () => { auto = !auto; $("#vnauto").classList.toggle("on", auto); if (auto && !typing) scheduleAuto(); else clearTimeout(autoT); };
+  $("#vnlogb").onclick = () => { const lg = el.querySelector(".vnlog"); lg.hidden = !lg.hidden; lg.scrollTop = 1e9; };
+  el.querySelector(".vnlog").onclick = () => { el.querySelector(".vnlog").hidden = true; };
+  setTimeout(() => { if (!closed) next(); }, 1100); // 제목이 먼저 떠오른 뒤 첫 줄
+};
+// ===================== 11-19 2.2 이야기 지도 — 장(지역)이 차례로 열림 =====================
+// 사용자: "맵을 여러개로 만들어서 점점 언락되는식". 앞 장의 보스를 쓰러뜨리면 다음 장에 불이 켜짐. 장마다 본 장면·다시 보기.
+const SAGA_POS = [[12, 46], [33, 40], [52, 48], [69, 62], [88, 44]];
+UI.saga = function (pickF) {
+  const mf = SAVE.story.maxFloor || 1, clr = (SAVE.stats.storyClear || 0) > 0, seen = SAVE.story.seen || {};
+  let cur = Math.min(pickF || UI._sagaF || mf, 5); UI._sagaF = cur;
+  const scenes = (f) => [String(f), `f${f}_s3`, `f${f}_mid`, `f${f}_s7`, `f${f}_boss`, `f${f}_clear`].filter((k) => STORY[k]);
+  const done = (f) => mf > f || clr;
+  const node = (f) => { const [x, y] = SAGA_POS[f - 1], st = f > mf ? "lock" : done(f) ? "done" : "now"; return `<button class="sgn ${st}${f === cur ? " sel" : ""}" data-f="${f}" style="left:${x}%;top:${y}%"><i>${f}</i><span>${FLOORS[f - 1].name}</span></button>`; };
+  const path = SAGA_POS.slice(0, -1).map(([x, y], j) => { const [x2, y2] = SAGA_POS[j + 1]; return `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" class="${mf > j + 1 ? "lit" : ""}"/>`; }).join("");
+  const F = FLOORS[cur - 1], lock = cur > mf, sc = scenes(cur);
+  const open = (k) => storyOpen(k);
+  const body = `<div class="saga"><div class="sgmap" style="background-image:url(${imgSrc("ui_saga_map")})"><svg viewBox="0 0 100 100" preserveAspectRatio="none">${path}</svg>${[1, 2, 3, 4, 5].map(node).join("")}</div>
+    <div class="sgside"><div class="sgart" style="background-image:url(${imgSrc(STORY[String(cur)] && STORY[String(cur)].img) || imgSrc("ui_mode_story")})"></div>
+      <small>${cur}장</small><h3>${esc((STORY[String(cur)] && STORY[String(cur)].title) || F.name)}</h3>
+      <p class="muted">${lock ? `앞 장의 보스를 쓰러뜨리면 열려요.` : `요괴 속성: ${YOKAI_EL[cur - 1].n} · 약점 ${YOKAI_EL[cur - 1].strong.map((e) => EL_NAME[e]).join("·")} · 보스 ${esc(F.bossName)}`}</p>
+      <ol class="sgsc">${sc.map((k) => `<li class="${open(k) ? "ok" : ""}" ${open(k) ? `data-sk="${k}"` : ""}>${open(k) ? esc(STORY[k].title) : "아직 보지 못한 이야기"}</li>`).join("")}</ol>
+      <button class="btn gold sggo" id="sggo" ${lock ? "disabled" : ""}>${lock ? "잠긴 장" : done(cur) ? "다시 걷기" : "이 장으로 출정"}</button>
+      ${seen.open ? '<button class="btn sm" id="sgopen">서장 다시 보기</button>' : ""}</div></div>`;
+  UI.frame("📖 이야기 지도", body, () => UI.menu());
+  document.querySelectorAll(".sgn").forEach((b) => (b.onclick = () => { const f = +b.dataset.f; if (f > mf) { UI.toast(`${f - 1}장 보스를 쓰러뜨리면 열려요`, 2200); } UI.saga(f); }));
+  document.querySelectorAll(".sgsc li[data-sk]").forEach((b) => (b.onclick = () => UI.story(b.dataset.sk, () => {})));
+  if ($("#sgopen")) $("#sgopen").onclick = () => UI.story("open", () => {});
+  $("#sggo").onclick = () => { if (!lock) UI.chars({ mode: "story", floor: cur }); };
+};
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
