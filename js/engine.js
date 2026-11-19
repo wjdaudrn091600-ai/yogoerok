@@ -5,44 +5,65 @@ const rnd = (a, b) => a + Math.random() * (b - a), rint = (a, b) => Math.floor(r
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v), dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return Math.abs(d); };
-const IMG = {};
+const IMG = new Proxy({}, { get(t, k) { if (typeof k === "string" && !(k in t) && ASSETS.img && ASSETS.img[k]) { const im = new Image(); im.decoding = "async"; im.src = ASSETS.img[k]; t[k] = im; } return t[k]; } }); // 11-20 2.3: 그림은 처음 쓰일 때 받음(첫 화면에 70MB 다 받던 문제)
 const tintCache = {};
 // 나눠 받기 (사용자 요청 11-12): 캐릭터 효과·층 중간보스·장면·가챠 카드는 필요할 때 받음 (한 파일판은 ASSETS.packs 가 없어 바로 끝)
-const PACK = { done: {}, wait: {}, prog: {} };
-// 11-20 받는 양을 셈 (로딩 막대): 스트림으로 읽으며 PACK.prog[이름] = [받은, 전체]
-function packJson(name, url) {
-  return fetch(url).then((r) => {
-    if (!r.ok) throw new Error(r.status);
-    const sm = /[?&]s=(\d+)/.exec(url), tot = (sm ? +sm[1] : 0) || +r.headers.get("content-length") || 0; PACK.prog[name] = [0, tot];
-    if (!r.body || !r.body.getReader || !window.TextDecoder) return r.json();
-    const rd = r.body.getReader(), parts = []; let got = 0;
-    const step = () => rd.read().then(({ done, value }) => { if (done) return; parts.push(value); got += value.length; PACK.prog[name] = [got, Math.max(tot, got)]; return step(); });
-    return step().then(() => { const all = new Uint8Array(got); let o = 0; for (const p of parts) { all.set(p, o); o += p.length; } PACK.prog[name] = [got, got]; return JSON.parse(new TextDecoder().decode(all)); });
-  });
+// 11-20 2.3 그림을 한 장씩 받기: 묶음은 이제 목록(주소·크기)만 담은 작은 JSON → 그림 파일(img/키.webp?h=지문)을 따로 받음.
+// 예전엔 그림을 글자(base64)로 바꿔 한 덩어리에 넣어 33% 더 컸고, 층 묶음(60~76MB)을 다 받아야 시작했다.
+// needPack(이름, 고르기): 고른 그림(기본 전부)을 먼저(hi) 받고 끝나면 풀림, 나머지는 뒤에서(lo) 이어 받음. PACK.prog[이름] = [받은 바이트, 기다릴 바이트]
+const PACK = { done: {}, wait: {}, prog: {}, man: {}, img: {}, base: {} }; // base: 층의 방·벽·장식(floorNow)까지 받음
+const IMGQ = { hi: [], lo: [], act: 0 };
+function imgPump() {
+  while (IMGQ.act < 12 && (IMGQ.hi.length || IMGQ.lo.length)) {
+    const j = IMGQ.hi.shift() || IMGQ.lo.shift(); if (j.started) continue; j.started = true; IMGQ.act++;
+    const im = new Image(); im.decoding = "async"; IMG[j.k] = im;
+    im.onload = im.onerror = () => { IMGQ.act--; j.done = true; for (const f of j.cb) f(); j.cb = []; imgPump(); };
+    im.src = j.url;
+  }
 }
-function needPack(name) {
+function imgGet(k, url, hi) {
+  let j = PACK.img[k];
+  if (!j) { j = PACK.img[k] = { k, url, cb: [], done: false, started: false }; (hi ? IMGQ.hi : IMGQ.lo).push(j); }
+  else if (hi && !j.started && !j.hi) { const i = IMGQ.lo.indexOf(j); if (i >= 0) IMGQ.lo.splice(i, 1); IMGQ.hi.push(j); }
+  if (hi) j.hi = true;
+  const p = j.done ? Promise.resolve() : new Promise((r) => j.cb.push(r)); imgPump(); return p;
+}
+function packMan(name) {
+  if (PACK.man[name]) return PACK.man[name];
+  const url = ASSETS.packs[name].includes("h=") ? ASSETS.packs[name] : ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : "");
+  return (PACK.man[name] = fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((j) => {
+    for (const k in j.img) ASSETS.img[k] = j.img[k]; Object.assign(ASSETS.meta, j.meta || {}); return j;
+  }).catch((er) => { delete PACK.man[name]; throw er; }));
+}
+function needPack(name, pick) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
-  if (PACK.wait[name]) return PACK.wait[name];
-  const url = ASSETS.packs[name].includes("h=") ? ASSETS.packs[name] : ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : ""); // 11-19 지문 주소면 버전 안 붙임
-  return (PACK.wait[name] = packJson(name, url).then((j) => {
-    for (const k in j.img) { ASSETS.img[k] = j.img[k]; const im = new Image(); im.src = j.img[k]; IMG[k] = im; }
-    Object.assign(ASSETS.meta, j.meta || {}); PACK.done[name] = true; if (G && G.p) setTimeout(warmRun, 30);
-  }).catch(() => { delete PACK.wait[name]; }));
+  const wk = name + (pick ? "|" + pick.toString() : "");
+  if (PACK.wait[wk]) return PACK.wait[wk];
+  return (PACK.wait[wk] = packMan(name).then((j) => {
+    const ks = Object.keys(j.img), need = pick ? ks.filter(pick) : ks, sz = j.size || {};
+    const tot = need.reduce((a, k) => a + (sz[k] || 50000), 0); let got = 0; if (need.length) PACK.prog[name] = [0, tot];
+    const ps = need.map((k) => imgGet(k, j.img[k], true).then(() => { got += sz[k] || 50000; PACK.prog[name] = [got, tot]; }));
+    for (const k of ks) if (!pick || !pick(k)) imgGet(k, j.img[k], false);
+    return Promise.all(ps).then(() => { if (!pick) PACK.done[name] = true; if (pick === floorNow) PACK.base[name] = true; if (G && G.p) setTimeout(warmRun, 30); });
+  }).catch(() => { delete PACK.wait[wk]; }));
 }
 const charPack = (id) => "c_" + (/^bong/.test(id) ? "bong" : id);
 // 11-20: 판 시작에 꼭 필요한 것(캐릭터·효과·몬스터·지금 층)만 기다리고, 보스 동작·다음 층은 판 안에서 이어 받음 (예전엔 약 240MB를 다 기다림 → 6초 뒤 멈춘 듯 보여 다시 누름)
+// 판 시작에 기다리는 것: 캐릭터 묶음 전부, 몬스터 동작, 지금 층의 방·벽·장식·이야기 그림(중간보스 m_·보스 b_ 동작은 5스테이지쯤 필요 → 뒤에서). 효과(fx)·보스 동작·다음 층은 판 안에서 받음
+const floorNow = (k) => !/^(m_|b_)/.test(k) && !/_n$/.test(k), LATER = () => false; // _n: 고급 조명용 바닥 노멀맵(없으면 조명만 평평)
+const floorMobs = (f) => { const en = ((FLOORS[f - 1] || FLOORS[0]).enemies || []).map((t) => ((ENEMIES[t] && ENEMIES[t].img) || "e_" + t) + "_"); return (k) => en.some((p) => k.startsWith(p)); }; // LATER: 전부 뒤에서(낮은 순서)
 function runPackList(opt) {
-  const f = opt.mode === "story" ? opt.floor || 1 : opt.mode === "raid" ? 5 : 1;
-  return { need: [charPack(opt.char), "fx", "mob3d", "f" + f].concat(opt.mode === "raid" ? ["bossa"] : []), later: ["bossa", "f" + Math.min(5, f + 1)] };
+  const f = opt.mode === "story" ? opt.floor || 1 : opt.mode === "raid" ? 5 : 1, raid = opt.mode === "raid";
+  return { need: [[charPack(opt.char)], ...(raid ? [["f5", floorNow], ["bossa"], ["f" + ((BOSSES[RAID_ORDER[0]] && BOSSES[RAID_ORDER[0]].fl) || 1), (k) => k.startsWith(RAID_ORDER[0])]] : [["mob3d", floorMobs(f)], ["f" + f, floorNow]])], later: raid ? ["fx", "f1", "f2", "f3", "f4", "f5"] : ["mob3d", "fx", "bossa", "f" + f, "f" + Math.min(5, f + 1)] };
 }
-function needRunPacks(opt) { const L = runPackList(opt); return Promise.all(L.need.map(needPack)).then(() => { L.later.forEach((n) => needPack(n)); }); }
+function needRunPacks(opt) { const L = runPackList(opt); L.later.forEach((n) => needPack(n, LATER)); return Promise.all(L.need.map(([n, p]) => needPack(n, p || undefined))); }
 // 그림 미리 풀어 두기 (사용자 11-14: 모바일에서 렉이 살짝씩) — 그림을 처음 그리는 순간 그 자리에서 압축을 풀어서
 // 싸움 첫 10여 초에 0.05~0.13초씩 멈칫했다(폰 성능 흉내 시험, 그 뒤로는 0번). 이번 판에 쓸 그림만 미리 백그라운드에서 푼다.
 const WARMED = new Set();
 let _warmCv = null;
 function warmCtx() { if (!_warmCv) { _warmCv = document.createElement("canvas"); _warmCv.width = _warmCv.height = 512; } return _warmCv.getContext("2d"); }
 function warmKeys(prefixes) {
-  const keys = Object.keys(IMG).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
+  const keys = Object.keys(ASSETS.img).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
   let i = 0;
   const step = () => {
     // 싸우는 중(방이 잠김)에는 쉬었다가, 조용할 때(시작 방·정리한 방·멈춤·이야기 화면) 이어서 푼다
@@ -66,7 +87,7 @@ function warmRun() {
   P.push("sc_f" + f + "_", "wall", "room", "f" + f);
   return warmKeys(P);
 }
-function loadImages() { for (const k in ASSETS.img) { const im = new Image(); im.src = ASSETS.img[k]; IMG[k] = im; } }
+function loadImages() { } // 11-20 2.3: IMG 가 필요할 때 만듦 (위 Proxy)
 
 let G = null;           // 현재 원정 상태
 let cv, ctx, lightCv, lctx, view = { s: 1, ox: 0, oy: 0 };
@@ -472,7 +493,7 @@ function buildRoom(r) {
   const Q = roomQ(), c = document.createElement("canvas"); c.width = Math.round(RW * Q); c.height = Math.round(RH * Q); const g = c.getContext("2d"); g.scale(Q, Q); r.cacheQ = Q;
   const bg = IMG["room_" + th.room + "_" + r.bg];
   const wf = IMG["wall_" + th.room + "_front"];
-  r.needBg = !(bg && bg.complete && bg.naturalWidth) || (wf && !wf.naturalWidth) || !!(ASSETS.packs && ASSETS.packs[th.room] && !PACK.done[th.room]); // 11-19 벽·소품도 층 묶음 → 다 받으면 다시 그림
+  r.needBg = !(bg && bg.complete && bg.naturalWidth) || (wf && !wf.naturalWidth) || !!(ASSETS.packs && ASSETS.packs[th.room] && !PACK.done[th.room] && !PACK.base[th.room]); // 11-19 벽·소품도 층 묶음 → 다 받으면 다시 그림
   if (!r.needBg) { g.filter = "saturate(0.78) brightness(0.9) contrast(1.06)"; g.drawImage(bg, 0, 0, RW, RH); g.filter = "none"; } else { g.fillStyle = th.wall[2]; g.fillRect(0, 0, RW, RH); } // 11-17 바닥은 살짝 차분하게 → 캐릭터가 또렷하게 (11-18 고침: 이 주석이 else 를 지워 바닥 그림을 받기 전엔 빈 바닥이었음)
   const first = !r.laid; r.laid = true;
   // 바닥 가장자리 어둡게
@@ -1768,7 +1789,7 @@ function render() {
   g.setTransform(view.s, 0, 0, view.s, view.ox + sx * view.s, view.oy + sy * view.s);
   g.save(); g.beginPath(); g.rect(0, 0, RW, RH); g.clip();
   const r = G.cur;
-  if (r.needBg) { const bg = IMG["room_" + r.th.room + "_" + r.bg], wf = IMG["wall_" + r.th.room + "_front"]; if (bg && bg.complete && bg.naturalWidth && (!wf || wf.naturalWidth) && !(ASSETS.packs && ASSETS.packs[r.th.room] && !PACK.done[r.th.room])) buildRoom(r); }
+  if (r.needBg) { const bg = IMG["room_" + r.th.room + "_" + r.bg], wf = IMG["wall_" + r.th.room + "_front"]; if (bg && bg.complete && bg.naturalWidth && (!wf || wf.naturalWidth) && !(ASSETS.packs && ASSETS.packs[r.th.room] && !PACK.done[r.th.room] && !PACK.base[r.th.room])) buildRoom(r); }
   if (!hq) g.drawImage(r.cache, 0, 0, RW, RH);
   if (!(SAVE && SAVE.settings.low)) drawFog(g);
   drawHazards(g, r); drawDoors(g, r);

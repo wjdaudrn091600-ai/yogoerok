@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.2.1";
+const GAME_VERSION = "2.3.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -549,7 +549,7 @@ const UI = {
   // 요괴록 도감 (11-12): 처치한 보스·중간보스 모음 — 층별, 처치 전엔 그림자
   bestiary() {
     // 중간보스 전용 그림은 층별 그림 묶음에 있다 → 도감을 열면 다섯 층 묶음을 받고 다시 그린다 (11-15 사용자: 도감 이미지가 다 똑같아)
-    if (ASSETS.packs) { const miss = [1, 2, 3, 4, 5].filter((f) => ASSETS.packs["f" + f] && !PACK.done["f" + f]); if (miss.length) Promise.all(miss.map((f) => needPack("f" + f))).then(() => { if (UI._frameTitle && /도감/.test(UI._frameTitle)) UI.bestiary(); }); }
+    if (ASSETS.packs) { const miss = [1, 2, 3, 4, 5].filter((f) => ASSETS.packs["f" + f] && !PACK.done["f" + f]); if (miss.length && !UI._bestPk) UI._bestPk = Promise.all(miss.map((f) => needPack("f" + f, (k) => !/_a_|_anim/.test(k)))).then(() => { if (UI._frameTitle && /도감/.test(UI._frameTitle)) UI.bestiary(); }); }
     const kb = SAVE.kb || {}, all = Object.keys(BOSSES).length, got = Object.keys(kb).length;
     const card = (k) => { const d = BOSSES[k], n = kb[k] || 0, im = ASSETS.img[k] ? k : d.art; return `<div class="item ${n ? "" : "off"}" data-lore="${k}" style="min-height:0;padding:8px;text-align:center">
       <div style="height:110px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(im)}" alt="" style="max-height:108px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div>
@@ -630,7 +630,7 @@ const UI = {
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
-    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel)).then(() => needPack("f1")).then(() => needPack("g")); }, 1500); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
+    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); }, 1500); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
@@ -2073,7 +2073,7 @@ UI.vn = function (key, then) {
   const s = STORY[key], L = s.lines, old = $("#vn"); if (old) old.remove();
   const heroId = (G && G.p && G.p.id) || SAVE.sel || "musa", heroName = CHAR[heroId] ? CHAR[heroId].name : "토벌꾼";
   const bg = imgSrc(s.img) || imgSrc(s.imgOld) || imgSrc("st2_open") || imgSrc("sc_open");
-  { const fm = /^st2_f(\d)_/.exec(s.img || ""); if (fm && !imgSrc(s.img) && typeof needPack === "function" && ASSETS.packs && ASSETS.packs["f" + fm[1]]) needPack("f" + fm[1]).then(() => { const b = document.querySelector("#vn .vnbg"); if (b && imgSrc(s.img)) b.style.backgroundImage = `url(${imgSrc(s.img)})`; }); } // 11-19 지도에서 다시 볼 때 그 층 그림 묶음을 받아 바꿔 끼움
+  { const fm = /^st2_f(\d)_/.exec(s.img || ""); if (fm && !imgSrc(s.img) && typeof needPack === "function" && ASSETS.packs && ASSETS.packs["f" + fm[1]]) needPack("f" + fm[1], (k) => k.startsWith("st2_")).then(() => { const b = document.querySelector("#vn .vnbg"); if (b && imgSrc(s.img)) b.style.backgroundImage = `url(${imgSrc(s.img)})`; }); } // 11-19 지도에서 다시 볼 때 그 층 그림 묶음을 받아 바꿔 끼움
   const chap = /^\d$/.test(key) ? "이야기 시작" : key === "open" ? "서장" : key === "end" ? "종장" : /^f(\d)/.test(key) ? `${key[1]}장` : "";
   const el = document.createElement("div"); el.id = "vn"; el.innerHTML = `<div class="vnbg" style="background-image:url(${bg})"></div><div class="vnvig"></div>
     <div class="vntitle"><small>${chap}</small><b>${esc(s.title)}</b></div>
@@ -2137,9 +2137,9 @@ UI.saga = function (pickF) {
 const LOAD_TIPS = ["구르기(Space) 중에는 공격을 맞지 않아요", "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 층 이름 아래를 보세요"];
 UI.loading = function (opt) {
   if (UI._ld) return; UI._ld = true;
-  const L = runPackList(opt), names = L.need.filter((n) => ASSETS.packs[n] && !PACK.done[n]);
+  const L = runPackList(opt), names = L.need.map((x) => x[0]).filter((n) => ASSETS.packs[n] && !PACK.done[n]);
   let fired = false; const go = () => { if (fired) return; fired = true; clearInterval(tm); UI._ld = false; const el = $("#ldscr"); if (el) { el.classList.add("out"); setTimeout(() => el.remove(), 400); } UI.startRun(Object.assign({}, opt, { _ready: true })); };
-  if (!names.length) { UI._ld = false; L.later.forEach((n) => needPack(n)); UI.startRun(Object.assign({}, opt, { _ready: true })); return; }
+  if (!names.length) { UI._ld = false; L.later.forEach((n) => needPack(n, LATER)); UI.startRun(Object.assign({}, opt, { _ready: true })); return; }
   const d = document.createElement("div"); d.id = "ldscr";
   const bg = imgSrc("ui_load_bg") || imgSrc("ui_menu_bg");
   d.innerHTML = `<div class="ldbg" style="background-image:url(${bg})"></div><div class="ldin"><div class="ldtitle">미궁으로 내려가는 중</div><div class="ldbar"><i id="ldfill"></i></div><div class="ldnum" id="ldnum">0%</div><p class="ldtip" id="ldtip">${esc(pick(LOAD_TIPS))}</p><button class="btn sm ldskip" id="ldskip" hidden>그림 없이 먼저 들어가기</button></div>`;
