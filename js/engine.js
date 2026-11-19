@@ -1858,7 +1858,10 @@ function render() {
   for (const t of G.texts) { // 11-17 하이엔드 숫자: 튀어나왔다 자리 잡음, 치명타는 금빛 그라디언트·빛
     const pop = t.num ? 1 + (t.big ? 0.9 : 0.55) * Math.max(0, 1 - t.t / 0.11) - 0.12 * Math.max(0, Math.min(1, (t.t - 0.11) / 0.1)) * (1 - Math.min(1, t.t / 0.4)) : 1, sz = t.size * pop;
     g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${sz}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineJoin = "round"; g.lineWidth = t.big ? 6 : 4; g.strokeStyle = "rgba(0,0,0,0.85)";
-    const jx = t.big && t.t < 0.15 ? rnd(-2, 2) : 0; g.strokeText(t.s, t.x + jx, t.y);
+    const jx = t.big && t.t < 0.15 ? rnd(-2, 2) : 0;
+    if (t.em === undefined) { const sp = typeof emoSplit === "function" && !t.num ? emoSplit(t.s) : [null, t.s]; t.em = sp[0] ? emoImg(sp[0]) : null; if (sp[0]) t.s = sp[1]; }
+    if (t.em && t.em.naturalWidth) { const S = sz * 1.25, w = g.measureText(t.s).width; g.drawImage(t.em, t.x + jx - w / 2 - S - 2, t.y - S * 0.82, S, S); }
+    g.strokeText(t.s, t.x + jx, t.y);
     if (t.big && t.num) { const gr = g.createLinearGradient(0, t.y - sz * 0.8, 0, t.y); gr.addColorStop(0, "#fff6c8"); gr.addColorStop(0.5, t.col); gr.addColorStop(1, "#d8701a"); g.fillStyle = gr; g.shadowColor = "rgba(255,170,40,0.9)"; g.shadowBlur = 14; }
     else g.fillStyle = t.col;
     g.fillText(t.s, t.x + jx, t.y); g.shadowBlur = 0; } g.globalAlpha = 1;
@@ -2295,9 +2298,9 @@ function drawUnit(g, u) {
     if (nm) { g.font = '700 14px "Do Hyeon", sans-serif'; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "#000"; g.strokeText(nm, u.x, u.y - 98); g.fillStyle = "#fff"; g.fillText(nm, u.x, u.y - 98); }
   }
   if (u.kind === "hero" && u === G.p && G.mode !== "duel") { /* HUD에 표시 */ }
-  if (u.stunT > 0) { g.font = "20px sans-serif"; g.textAlign = "center"; g.fillText("💫", u.x, u.y - h + u.r * 0.2); }
-  if (u.burn) { g.font = "14px sans-serif"; g.fillText("🔥", u.x + u.r, u.y - u.r); }
-  if (u.markT > 0) { g.font = "16px sans-serif"; g.fillText("📕", u.x - u.r, u.y - u.r); }
+  if (u.stunT > 0) { g.font = "20px sans-serif"; g.textAlign = "center"; cvEmo(g, "💫", u.x, u.y - h + u.r * 0.2, 26); }
+  if (u.burn) { g.font = "14px sans-serif"; cvEmo(g, "🔥", u.x + u.r, u.y - u.r, 20); }
+  if (u.markT > 0) { g.font = "16px sans-serif"; cvEmo(g, "📕", u.x - u.r, u.y - u.r, 22); }
 }
 function bar(g, x, y, w, h, k, col) { g.fillStyle = "rgba(0,0,0,0.7)"; g.fillRect(x - 1, y - 1, w + 2, h + 2); g.fillStyle = col; g.fillRect(x, y, w * clamp(k, 0, 1), h); }
 function drawProj(g, pr) {
@@ -2310,9 +2313,9 @@ function drawProj(g, pr) {
   if (pr.shape === "arrow" || pr.shape === "spear") { const L = pr.shape === "spear" ? 60 : 34; g.strokeStyle = col; g.lineWidth = pr.shape === "spear" ? 5 : 3; g.shadowColor = col; g.shadowBlur = 10; g.beginPath(); g.moveTo(-L, 0); g.lineTo(0, 0); g.stroke(); g.fillStyle = "#fff"; g.beginPath(); g.moveTo(6, 0); g.lineTo(-6, -5); g.lineTo(-6, 5); g.fill(); }
   else if (pr.shape === "crescent") { g.shadowColor = col; g.shadowBlur = 20; g.fillStyle = col; g.beginPath(); g.arc(0, 0, pr.r, -1.3, 1.3); g.arc(-pr.r * 0.45, 0, pr.r * 0.85, 1.1, -1.1, true); g.fill(); }
   else if (pr.shape === "talisman") { g.rotate(G.time * 8); g.fillStyle = "#f5e08a"; g.fillRect(-7, -11, 14, 22); g.fillStyle = "#d02020"; g.fillRect(-3, -7, 6, 2); g.fillRect(-1, -7, 2, 14); g.shadowColor = col; g.shadowBlur = 12; g.strokeStyle = col; g.strokeRect(-7, -11, 14, 22); }
-  else if (pr.shape === "axe") { g.rotate(G.time * 18); g.font = "34px sans-serif"; g.textAlign = "center"; g.fillText("🪓", 0, 12); }
+  else if (pr.shape === "axe") { g.rotate(G.time * 18); g.font = "34px sans-serif"; g.textAlign = "center"; cvEmo(g, "🪓", 0, 12, 40); }
   else if (pr.shape === "star") { g.rotate(G.time * 20); g.fillStyle = col; g.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? 4 : 12, a = (i / 8) * 6.283; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.fill(); }
-  else if (pr.shape === "heart") { g.font = "30px sans-serif"; g.textAlign = "center"; g.fillText("💗", 0, 10); }
+  else if (pr.shape === "heart") { g.font = "30px sans-serif"; g.textAlign = "center"; cvEmo(g, "💗", 0, 10, 34); }
   else if (pr.shape === "chain") { g.strokeStyle = col; g.lineWidth = 4; g.setLineDash([8, 5]); g.beginPath(); g.moveTo(-90, 0); g.lineTo(0, 0); g.stroke(); g.setLineDash([]); glowDot(g, 0, 0, 14, col); }
   else { if (!vfx(g, "orb", col, 0, 0, pr.r * 6, pr.r * 6, 0, 1)) glowDot(g, 0, 0, pr.r * 1.6, col); if (pr.team === 1) { g.fillStyle = "#fff"; g.beginPath(); g.arc(0, 0, pr.r * 0.45, 0, 7); g.fill(); } }
   g.restore();
@@ -2424,6 +2427,8 @@ function drawLampBodies(g, r) {
   }
 }
 const emoCache = {};
+// 11-20 캔버스 위 이모지도 그린 아이콘으로 (요괴 머리 위 상태·떠오르는 글자 앞 이모지·투사체)
+function cvEmo(g, em, x, y, s) { const k = typeof EMO !== "undefined" && (EMO[em] || EMO[em + "\uFE0F"] || EMO[em.replace("\uFE0F", "")]), im = k && IMG[k]; if (im && im.naturalWidth) { const sc = s / Math.max(im.naturalWidth, im.naturalHeight); g.drawImage(im, x - im.naturalWidth * sc / 2, y - s * 0.78, im.naturalWidth * sc, im.naturalHeight * sc); return; } g.fillText(em, x, y); }
 function emoImg(src) { if (!emoCache[src]) { const im = new Image(); im.src = src; emoCache[src] = im; } return emoCache[src]; }
 function drawBanner(g, b) {
   const a = Math.min(1, b.t * 2, 1);
