@@ -276,7 +276,7 @@ function storySnap() {
 }
 function startStage() {
   if (G.mode === "story" && !G.opt.multi && !G.opt.daily) { SAVE.resume = storySnap(); saveGame(); }
-  needPack("f" + G.floor); if (G.floor < 5) needPack("f" + (G.floor + 1)); if (G.p) needPack(charPack(G.p.id)); needPack("bossa"); // 11-18 바로 시작하는 길(시험·이어하기)에서도 캐릭터 동작 묶음 if (G.stage === 1) setTimeout(warmRun, 50);
+  needPack("f" + G.floor, floorNow); if (G.floor < 5) needPack("f" + (G.floor + 1), LATER); if (G.p) needPack(charPack(G.p.id)); needPack("bossa", LATER); // 11-18 바로 시작하는 길(시험·이어하기)에서도 캐릭터 동작 묶음 if (G.stage === 1) setTimeout(warmRun, 50);
   G.rooms = new Map(); G.stageHit = false;
   const n = Math.min(12, 5 + G.floor + Math.ceil(G.stage / 2));
   const start = newRoom(0, 0, "start"); G.rooms.set("0,0", start);
@@ -1709,7 +1709,7 @@ function endlessNextStage() {
       rollCurse(false);
       G.banner = { text: G.eFloor > 5 ? `${Math.floor((G.eFloor - 1) / 5) + 1}회차 ${(G.eFloor - 1) % 5 + 1}층 도착!` : `${G.eFloor}층 도착!`, sub: G.curse ? `${CURSES[G.curse].ic} ${curseSub()}` : `요괴 속성: ${YOKAI_EL[(G.eFloor - 1) % 5].n} (약점 ${YOKAI_EL[(G.eFloor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")}) · 체력 25% 회복`, t: 3.4 };
     } else { G.eStage++; rollCurse(G.eStage >= STAGES_PER_FLOOR); G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: `${G.eFloor}층 ${G.eStage}스테이지 · ${curseSub()}`, t: 3.5, boss: true } : { text: `${G.eFloor}층 ${G.eStage}스테이지`, sub: G.eStage >= STAGES_PER_FLOOR ? "이번 스테이지 끝에는 층보스!" : "체력 25% 회복", t: 2.4 }; }
-    const nf = ((G.eFloor || 1) - 1) % 5 + 1; needPack("f" + nf); needPack("f" + (nf % 5 + 1)); setTimeout(warmRun, 50);
+    const nf = ((G.eFloor || 1) - 1) % 5 + 1; needPack("f" + nf, floorNow); needPack("f" + (nf % 5 + 1), LATER); setTimeout(warmRun, 50);
     G.rooms = new Map(); const s = newRoom(0, 0, "start"); G.rooms.set("0,0", s); makeEndlessExits(s, null); enterRoom("0,0", null); UI.music("endless");
   } };
 }
