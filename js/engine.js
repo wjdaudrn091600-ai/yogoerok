@@ -50,6 +50,14 @@ function dlAll() {
   });
 }
 function dlStop() { DL.on = false; IMGQ.lo = IMGQ.lo.filter((j) => !j.byDl); }
+// 11-20 데이터 절약('필요한 것만 먼저'): 뒤에서 받을 묶음도 지금 장의 중간보스·보스 동작만, 나머지는 목록만 받아 두고 처음 쓰일 때 받음 (예전엔 판 시작 25초에 약 140MB)
+const dlSaver = () => { try { return typeof ls !== "undefined" && ls.get("ygr_dl") !== "all"; } catch (e) { return true; } };
+function saverPick(name) {
+  const fl = (G && (G.mode === "endless" ? ((G.eFloor || 1) - 1) % 5 + 1 : G.floor)) || 1;
+  const m = /^f(\d)$/.exec(name); if (m) { const f = +m[1], th = FLOORS[f - 1] || {}, mids = (typeof MID_BY_FLOOR !== "undefined" && MID_BY_FLOOR[(f - 1) % 5]) || []; return f === fl ? (k) => floorNow(k) || mids.some((x) => k.startsWith(x + "_")) || (th.boss && k.startsWith(th.boss + "_")) : LATER; }
+  if (name === "bossa") { const th = FLOORS[fl - 1] || {}; return (k) => !!th.boss && k.startsWith(th.boss + "_"); }
+  return LATER;
+}
 function needPack(name, pick) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
   const wk = name + (pick ? "|" + pick.toString() : "");
@@ -58,7 +66,7 @@ function needPack(name, pick) {
     const ks = Object.keys(j.img), need = pick ? ks.filter(pick) : ks, sz = j.size || {};
     const tot = need.reduce((a, k) => a + (sz[k] || 50000), 0); let got = 0; if (need.length) PACK.prog[name] = [0, tot];
     const ps = need.map((k) => imgGet(k, j.img[k], true).then(() => { got += sz[k] || 50000; PACK.prog[name] = [got, tot]; }));
-    for (const k of ks) if (!pick || !pick(k)) imgGet(k, j.img[k], false);
+    const sv = dlSaver() && !(DL && DL.on) ? saverPick(name) : null; for (const k of ks) if ((!pick || !pick(k)) && (!sv || sv(k))) imgGet(k, j.img[k], false); // 데이터 절약이면 뒤에서도 지금 장에 쓸 것만
     return Promise.all(ps).then(() => { if (!pick) PACK.done[name] = true; if (pick === floorNow) PACK.base[name] = true; if (G && G.p) setTimeout(warmRun, 30); });
   }).catch(() => { delete PACK.wait[wk]; }));
 }
@@ -84,7 +92,7 @@ const WARMED = new Set();
 let _warmCv = null;
 function warmCtx() { if (!_warmCv) { _warmCv = document.createElement("canvas"); _warmCv.width = _warmCv.height = 512; } return _warmCv.getContext("2d"); }
 function warmKeys(prefixes) {
-  const keys = Object.keys(ASSETS.img).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
+  const keys = Object.keys(IMG).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
   let i = 0;
   const step = () => {
     // 싸우는 중(방이 잠김)에는 쉬었다가, 조용할 때(시작 방·정리한 방·멈춤·이야기 화면) 이어서 푼다
