@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.1";
+const GAME_VERSION = "2.3.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -882,6 +882,7 @@ const UI = {
       <p><label><input type="checkbox" id="vce" ${s.voice === false ? "" : "checked"}> 음성 (보스·이야기)</label></p>
       <p>효과 밝기 <input type="range" id="fxa" min="0.4" max="1" step="0.05" value="${s.fxAmt != null ? s.fxAmt : 1}"> <span class="muted" style="font-size:.8rem">(번쩍임이 부담되면 낮추세요)</span></p>
       <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
+      <p><label><input type="checkbox" id="assist" ${s.assist ? "checked" : ""}> 도움 모드 (쓰러질 때마다 받는 피해 -2%, 최대 -40% · 스토리·무한의 방, 지금 -${Math.round(Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) * 100)}%)</label></p>
       <p><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> 자동 공격 (켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접)</label></p>
       <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
@@ -894,6 +895,7 @@ const UI = {
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
+    if ($("#assist")) $("#assist").onchange = (e) => { s.assist = e.target.checked; saveGame(); UI.toast(s.assist ? "도움 모드 켬 — 쓰러질수록 조금씩 단단해져요" : "도움 모드 끔", 2500); };
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };

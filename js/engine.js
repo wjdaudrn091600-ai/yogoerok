@@ -951,6 +951,7 @@ function damage(t, d, src, crit, o = {}) {
       if (!o.quiet) addText(t.x, t.y - 60, "무적", "#ffe9a0", 16); return 0;
     }
     d *= drMul(t); if (G.curse === "blood" && t.team === 0) d *= 1.25;
+    if (t === G.p && d > 0 && assistOn()) d *= 1 - assistDr(); // 도움 모드
     if (t.shield > 0) { const s = Math.min(t.shield, d); t.shield -= s; d -= s; }
     t.hp -= d; t.hitT = 0.1; if (d > t.maxHp * 0.02) t.hurtT = 0.28;
     if (t === G.p && d > 0) { const hn = (src && (src.name || (src.def && src.def.name))) || "함정·지형"; (G.hurtBy = G.hurtBy || {})[hn] = (G.hurtBy[hn] || 0) + d; G.lastHurt = hn; }
@@ -1729,7 +1730,11 @@ function runReward(r) {
   const base = r.kills * 2 + r.rooms * 10 + (G.bossKills || 0) * 45 + prog + Math.floor((r.goldRun || 0) / 2);
   return Math.max(r.kills > 0 ? 1 : 0, Math.round(base * diffRw() * (1 + ((G.p.m && G.p.m.gold) || 0) * 0.3) / 250));
 }
+// 11-20 도움 모드 (Hades 'God Mode' 재해석): 켜면 쓰러질 때마다 받는 피해 -2% (최대 -40%), 스토리·무한의 방만
+const assistOn = () => !!(SAVE && SAVE.settings && SAVE.settings.assist && G && (G.mode === "story" || G.mode === "endless") && !(G.opt && G.opt.multi));
+const assistDr = () => assistOn() ? Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) : 0;
 function endRun(win, storyDone) {
+  if (!win && assistOn()) { SAVE.assistN = Math.min(19, (SAVE.assistN || 0) + 1); }
   if (!G) return;
   if (typeof keepAwake === "function") keepAwake(false);
   if (window._rndOrig) { Math.random = window._rndOrig; window._rndOrig = null; }
@@ -1917,8 +1922,8 @@ function drawDoors3D(g, r, dc, dop) {
     // 다음 방 종류 색 (열렸을 때만 문턱에 은은하게), 잠기면 붉은 빛
     const col = !t ? "#a0784a" : t.visited ? "#8a8090" : t.type === "boss" && (t.mid || (G.mode === "story" && G.stage < STAGES_PER_FLOOR)) ? "#ff9a3d" : ({ exit: "#fff2b0", boss: "#ff4d4d", treasure: "#ffc84a", shop: "#5fc8ff", rest: "#7fe08a", elite: "#c38bff" }[t.type] || "#a0784a");
     // 방 종류 표식 (3D 엠블럼, 사용자 요청 11-11: 보스·중간보스·상점·우물·보물·정예·출구 구분)
-    const sk = !t || t.visited ? null : t.type === "boss" ? (t.mid || (G.mode === "story" && G.stage < STAGES_PER_FLOOR) ? "mid" : "boss") : { exit: "exit", treasure: "treasure", shop: "shop", rest: "rest", elite: "elite" }[t.type];
-    const si = sk && IMG["sign_" + sk];
+    const sk = !t || t.visited ? null : t.type === "boss" ? (t.mid || (G.mode === "story" && G.stage < STAGES_PER_FLOOR) ? "mid" : "boss") : t.trial ? "trial" : { exit: "exit", treasure: "treasure", shop: "shop", rest: "rest", elite: "elite", event: "event" }[t.type];
+    const si = sk && IMG["sign_" + sk]; // 11-20 괴이한 방·시련의 방도 그린 표식 (예전 이모지)
     if (si && si.naturalWidth) {
       g.save(); g.translate(0, 58); g.rotate(-pos[2]); g.globalAlpha = locked ? 0.6 : 0.6 + k * 0.4;
       const S = sk === "boss" ? 84 : 70, bob = Math.sin(G.time * 2.4 + pos[2]) * 3, sc = S / Math.max(si.naturalWidth, si.naturalHeight);
