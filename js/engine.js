@@ -926,7 +926,7 @@ function hit(src, t, base, o = {}) {
     if (t.kind === "boss" && SAVE && SAVE.kb && SAVE.kb[t.type] >= 10) d *= 1.05;
   }
   const dealt = damage(t, d, owner, crit, o);
-  if (G.p && t.team === 1 && (owner === G.p || owner.owner === G.p || src.owner === G.p) && dealt > 0) { const k = o.tag || src.tag || DMG_TAG || (src.kind === "pet" || owner.kind === "pet" ? "펫" : src !== G.p && owner !== G.p ? "소환수" : o.dot ? "지속 피해" : o.thorns ? "반사" : "그 밖"); (G.dmgBy = G.dmgBy || {})[k] = (G.dmgBy[k] || 0) + dealt; }
+  if (G.p && t.team === 1 && (owner === G.p || owner.owner === G.p || src.owner === G.p) && dealt > 0) { const k = o.tag || src.tag || DMG_TAG || (src.kind === "pet" || owner.kind === "pet" ? "펫" : src !== G.p && owner !== G.p ? "소환수" : o.dot ? "지속 피해" : o.thorns ? "반사" : "강화·특성"); (G.dmgBy = G.dmgBy || {})[k] = (G.dmgBy[k] || 0) + dealt; }
   if (dealt > 0 && owner.kind === "hero") {
     const ls = (owner.ls || 0) + buffSum(owner, "ls"); if (ls && !o.dot) healUnit(owner, dealt * ls, true);
     if (o.drain) healUnit(owner, owner.maxHp * o.drain, true);
