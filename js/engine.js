@@ -8,22 +8,34 @@ const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d 
 const IMG = {};
 const tintCache = {};
 // 나눠 받기 (사용자 요청 11-12): 캐릭터 효과·층 중간보스·장면·가챠 카드는 필요할 때 받음 (한 파일판은 ASSETS.packs 가 없어 바로 끝)
-const PACK = { done: {}, wait: {} };
+const PACK = { done: {}, wait: {}, prog: {} };
+// 11-20 받는 양을 셈 (로딩 막대): 스트림으로 읽으며 PACK.prog[이름] = [받은, 전체]
+function packJson(name, url) {
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(r.status);
+    const sm = /[?&]s=(\d+)/.exec(url), tot = (sm ? +sm[1] : 0) || +r.headers.get("content-length") || 0; PACK.prog[name] = [0, tot];
+    if (!r.body || !r.body.getReader || !window.TextDecoder) return r.json();
+    const rd = r.body.getReader(), parts = []; let got = 0;
+    const step = () => rd.read().then(({ done, value }) => { if (done) return; parts.push(value); got += value.length; PACK.prog[name] = [got, Math.max(tot, got)]; return step(); });
+    return step().then(() => { const all = new Uint8Array(got); let o = 0; for (const p of parts) { all.set(p, o); o += p.length; } PACK.prog[name] = [got, got]; return JSON.parse(new TextDecoder().decode(all)); });
+  });
+}
 function needPack(name) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
   if (PACK.wait[name]) return PACK.wait[name];
   const url = ASSETS.packs[name].includes("h=") ? ASSETS.packs[name] : ASSETS.packs[name] + (ASSETS.packs[name].includes("?") ? "&" : "?") + "v=" + (typeof GAME_VERSION !== "undefined" ? GAME_VERSION : ""); // 11-19 지문 주소면 버전 안 붙임
-  return (PACK.wait[name] = fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((j) => {
+  return (PACK.wait[name] = packJson(name, url).then((j) => {
     for (const k in j.img) { ASSETS.img[k] = j.img[k]; const im = new Image(); im.src = j.img[k]; IMG[k] = im; }
     Object.assign(ASSETS.meta, j.meta || {}); PACK.done[name] = true; if (G && G.p) setTimeout(warmRun, 30);
   }).catch(() => { delete PACK.wait[name]; }));
 }
 const charPack = (id) => "c_" + (/^bong/.test(id) ? "bong" : id);
-function needRunPacks(opt) {
-  const ps = [charPack(opt.char), "fx", "mob3d", "bossa"]; // 11-18 보스 동작 띠는 판 시작 때
-  const f = opt.mode === "story" ? opt.floor || 1 : 1; ps.push("f" + f, "f" + Math.min(5, f + 1));
-  return Promise.all(ps.map(needPack));
+// 11-20: 판 시작에 꼭 필요한 것(캐릭터·효과·몬스터·지금 층)만 기다리고, 보스 동작·다음 층은 판 안에서 이어 받음 (예전엔 약 240MB를 다 기다림 → 6초 뒤 멈춘 듯 보여 다시 누름)
+function runPackList(opt) {
+  const f = opt.mode === "story" ? opt.floor || 1 : opt.mode === "raid" ? 5 : 1;
+  return { need: [charPack(opt.char), "fx", "mob3d", "f" + f].concat(opt.mode === "raid" ? ["bossa"] : []), later: ["bossa", "f" + Math.min(5, f + 1)] };
 }
+function needRunPacks(opt) { const L = runPackList(opt); return Promise.all(L.need.map(needPack)).then(() => { L.later.forEach((n) => needPack(n)); }); }
 // 그림 미리 풀어 두기 (사용자 11-14: 모바일에서 렉이 살짝씩) — 그림을 처음 그리는 순간 그 자리에서 압축을 풀어서
 // 싸움 첫 10여 초에 0.05~0.13초씩 멈칫했다(폰 성능 흉내 시험, 그 뒤로는 0번). 이번 판에 쓸 그림만 미리 백그라운드에서 푼다.
 const WARMED = new Set();
@@ -321,13 +333,21 @@ function startRaid() {
   const r = newRoom(0, 0, "raid"); r.cleared = true; G.rooms.set("0,0", r);
   enterRoom("0,0", null); G.p.x = RW / 2; G.p.y = BB - 120;
   for (let i = 0; i < 3; i++) takeBoon(G.p, rollBoons(1, 12)[0]);
-  G.banner = { text: "🐉 보스 레이드", sub: "보스 6마리를 차례로 쓰러뜨려요 · 쓰러뜨릴 때마다 코인", t: 3, boss: true };
-  setTimeout(() => raidNext(), 3200);
+  G.banner = { text: "보스 레이드", sub: `보스 ${RAID_ORDER.length}마리를 차례로 · 사이마다 보부상과 다음 보스 홍살문`, t: 3, boss: true };
+  schedule(3.2, raidNext);
+}
+function raidBreak() {
+  const r = G.cur; r.reN = 0;
+  if (shopNpc()) { r.stock = makeStock(); G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true }); }
+  else stockShop();
+  const gt = portalDrop(); gt.raid = true; gt.x = RW / 2 + 380; gt.y = RH / 2 - 30; G.drops.push(gt);
 }
 function raidNext() {
   if (!G || G.mode !== "raid" || G.over) return;
   if (G.raidN >= RAID_ORDER.length) { G.raidDone = true; endRun(true); return; }
-  const key = RAID_ORDER[G.raidN], b = makeBoss(key, diffMul(), false); b.x = RW / 2; b.y = BT + 200; G.units.push(b); G.bossUnit = b; UI.cutin && UI.cutin(b); bossVoice(b, "intro"); bossVoice(b, "intro");
+  if (G.units.some((u) => u.kind === "boss" && u.alive)) return;
+  G.drops = G.drops.filter((d) => !(d.raid || d.type === "merchant" || d.type === "shop" || d.type === "shopre"));
+  const key = RAID_ORDER[G.raidN], b = makeBoss(key, diffMul(), false); b.x = RW / 2; b.y = BT + 200; G.units.push(b); G.bossUnit = b; UI.cutin && UI.cutin(b); bossVoice(b, "intro");
   G.banner = { text: `${G.raidN + 1} / ${RAID_ORDER.length} · ${b.name}`, sub: "보스 레이드", t: 2.4, boss: true }; UI.music(G.raidN === RAID_ORDER.length - 1 ? "boss_underworld" : "raid");
 }
 // ---------- 1대1 대전 ----------
@@ -1010,7 +1030,10 @@ function bossDown(b) {
   if (!b.mini) { SAVE.stats.floorBossKills = (SAVE.stats.floorBossKills || 0) + 1; G.drops.push({ type: "act", k: BOSS_ACT[b.type] || (BOSSES[b.type] && BOSSES[b.type].floor ? pick(Object.values(BOSS_ACT)) : rollActive([], 3)), x: RW / 2 + 160, y: RH / 2 + 60 }); }
   else if (b.type === "b_boss6" && BOSS_ACT.b_boss6 && Math.random() < 0.25) G.drops.push({ type: "act", k: BOSS_ACT.b_boss6, x: RW / 2 + 160, y: RH / 2 + 60 });
   else if (Math.random() < 0.4) G.drops.push({ type: "act", k: rollActive([], 2), x: RW / 2 + 160, y: RH / 2 + 60 });
-  if (G.mode === "raid") { G.raidN++; gainCoin(1, "레이드 보스 처치"); for (const h of heroesOf(0)) { if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; } healUnit(h, h.maxHp * 0.3); } G.banner = { text: "보스 처치!", sub: G.raidN < RAID_ORDER.length ? "잠시 뒤 다음 보스" : "레이드 완료!", t: 2.4 }; setTimeout(raidNext, 4500); checkUnlocks(); saveGame(); return; }
+  if (G.mode === "raid") { G.raidN++; gainCoin(1, "레이드 보스 처치"); for (const h of heroesOf(0)) { if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; } healUnit(h, h.maxHp * 0.3); }
+    if (G.raidN >= RAID_ORDER.length) { G.banner = { text: "레이드 완료!", sub: "모든 보스를 쓰러뜨렸어요", t: 2.4 }; schedule(3, raidNext); }
+    else { raidBreak(); G.banner = { text: "보스 처치!", sub: "보부상에게 들러 정비하고 홍살문에 1초 서 있으면 다음 보스", t: 3.2 }; }
+    checkUnlocks(); saveGame(); return; }
   if (G.mode === "dev" || G.mode === "practice") { G.banner = { text: "보스 처치!", sub: "개발자 맵 · 문이 열렸어요", t: 2 }; checkUnlocks(); saveGame(); return; }
   if (G.mode === "story") { G.drops.push(portalDrop()); setTimeout(() => UI.tip("portal"), 3200); G.banner = { text: "보스 토벌!", sub: "홍살문이 열렸어요 — 다른 방을 둘러본 뒤 문 안에 1초 서 있으면 다음으로", t: 3 }; }
   else if (G.mode === "endless") {
@@ -1291,7 +1314,7 @@ function pickups(u, dt = 1 / 60) {
       const inside = party.filter((o) => Math.hypot(d.x - o.x, d.y - o.y) < 70).length;
       if (dd < 70 && party.length > 1 && inside < party.length && (!u._waitT || G.time - u._waitT > 1.6)) { u._waitT = G.time; addText(u.x, u.y - 90, `일행을 기다려요 (${inside}/${party.length})`, "#9fe8ff", 18); }
       if (!first) continue;
-      if (inside >= party.length && inside > 0) { d.hold = (d.hold || 0) + dt; if (d.hold >= 1) { d.gone = true; G.cur.stairsTaken = true; if (G.mode === "endless") endlessNextStage(); else stageClear(); } }
+      if (inside >= party.length && inside > 0) { d.hold = (d.hold || 0) + dt; if (d.hold >= 1) { d.gone = true; if (d.raid) { raidNext(); continue; } G.cur.stairsTaken = true; if (G.mode === "endless") endlessNextStage(); else stageClear(); } }
       else d.hold = Math.max(0, (d.hold || 0) - dt * 2);
     }
   }
@@ -1612,10 +1635,11 @@ function updateDuel(dt) {
 
 // ---------- 스테이지 끝 ----------
 // 홍살문 포탈 (사용자 요청 11-12): 보스를 잡아도 바로 넘어가지 않음 — 포탈 안에 1초 서 있어야 다음 스테이지. 그 전까지 다른 방도 다닐 수 있음
+const hellNoHeal = () => !!(G && G.opt && G.opt.diff === "hell" && (G.mode === "story" || G.mode === "endless"));
 function portalDrop() { const p = G.p || { x: RW / 2, y: RH / 2 }; return { type: "stairs", portal: true, x: p.x < RW / 2 ? RW / 2 + 330 : RW / 2 - 330, y: RH / 2 - 30, hold: 0 }; }
 function endlessNextStage() {
   G.trans = { t: 0.4, max: 0.4, mode: "out", then: () => {
-    for (const h of heroesOf(0)) { if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; } healUnit(h, h.maxHp * 0.25); }
+    for (const h of heroesOf(0)) { if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; } if (!hellNoHeal()) healUnit(h, h.maxHp * 0.25); }
     G.eRoom = 0; G.eBossDone = false;
     if (G.eNext === "floor") {
       if (G.eFloor === 5) { const d = (G.opt && G.opt.diff) || "normal"; const un = (d === "normal" || d === "hard" || d === "hell") && !SAVE.endlessHard ? "endlessHard" : d === "hard" && !SAVE.endlessHell ? "endlessHell" : null; if (un) { SAVE[un] = 1; saveGame(); UI.toast(`🔓 무한의 방 '${un === "endlessHard" ? "어려움" : "매우 어려움"}' 난이도가 열렸어요! (보상 ${un === "endlessHard" ? "1.5" : "2"}배)`, 6000); } }
@@ -1632,7 +1656,7 @@ function stageClear() {
   G.trans = { t: 0.4, max: 0.4, mode: "out", then: () => {
     const p = G.p;
     for (const h of heroesOf(0)) if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; }
-    if (G.stage < STAGES_PER_FLOOR) { G.stage++; for (const h of heroesOf(0)) healUnit(h, h.maxHp * 0.25); startStage(); UI.toast(`${G.floor}층 ${G.stage}스테이지 · 체력 25% 회복`); return; }
+    if (G.stage < STAGES_PER_FLOOR) { G.stage++; if (!hellNoHeal()) for (const h of heroesOf(0)) healUnit(h, h.maxHp * 0.25); startStage(); UI.toast(`${G.floor}층 ${G.stage}스테이지${hellNoHeal() ? "" : " · 체력 25% 회복"}`); return; }
     // 층 끝
     if (G.opt.daily) { G.paused = true; endRun(true); return; } // 오늘의 괴담은 1층 돌파로 끝
     const clr = `f${G.floor}_clear`, afterClr = (fn) => (STORY[clr] && !G.opt.multi ? UI.story(clr, fn) : fn());
@@ -1960,7 +1984,7 @@ function drawDrop(g, d) {
     const isAct = !isShop || d.what === "act", A = isAct ? ACTIVES[d.k] : null;
     const col = isAct ? ACT_TIER[A.rar].col : d.what === "boon" ? RARITY[BOONS[d.k].rar].col : RARITY[1].col;
     const th = (G.cur.th || FLOORS[0]).light;
-    const ok = isAct ? "obj_" + d.k : d.what === "boon" ? "obj_bn_" + d.k : d.what === "item" ? "obj_shop_" + d.k : "obj_herb";
+    const tal = isAct && /^ac_([a-z]+)_/.exec(d.k), ok = tal && IMG["obj_tal_" + tal[1]] ? "obj_tal_" + tal[1] : isAct ? "obj_" + d.k : d.what === "boon" ? "bn_" + d.k : d.what === "item" ? "obj_shop_" + d.k : "obj_herb";
     // 바닥: 그림자 + 층 색 빛 고리
     g.fillStyle = "rgba(0,0,0,0.35)"; g.beginPath(); g.ellipse(d.x, d.y + 16, 30, 11, 0, 0, 7); g.fill();
     if (A && A.boss) { const pul = 0.6 + Math.sin(G.time * 5) * 0.3; g.save(); g.globalAlpha = pul * 0.45; const lg = g.createLinearGradient(0, d.y - 200, 0, d.y); lg.addColorStop(0, "rgba(255,90,77,0)"); lg.addColorStop(1, "rgba(255,180,80,0.8)"); g.translate(d.x, d.y - 70); g.scale(0.22, 1); const rg = g.createRadialGradient(0, 0, 0, 0, 0, 150); rg.addColorStop(0, "rgba(255,190,90,0.75)"); rg.addColorStop(0.5, "rgba(255,110,70,0.3)"); rg.addColorStop(1, "rgba(255,90,77,0)"); g.fillStyle = rg; g.beginPath(); g.arc(0, 0, 150, 0, 7); g.fill(); g.restore(); }
@@ -2032,7 +2056,8 @@ function drawItemInfo(g) {
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
   else if (d.type === "chest") { title = d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자"; lines = ["다가가면 열려요 · 엽전, 가끔 코인·회복 약초"]; }
   else if (d.type === "spring") { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력을 최대치까지 회복 (보호막 없음, 한 번)"]; }
-  else if (d.type === "stairs") { title = "홍살문"; lines = ["문 안에 1초 서 있으면 다음 스테이지로 · 체력 25% 회복", "그 전에 다른 방을 둘러봐도 돼요"]; }
+  else if (d.type === "stairs" && d.raid) { title = "다음 보스 홍살문"; lines = [`문 안에 1초 서 있으면 ${G.raidN + 1}번째 보스가 나와요`, "그 전에 보부상에게 물건을 사 두세요"]; }
+  else if (d.type === "stairs") { title = "홍살문"; lines = [hellNoHeal() ? "문 안에 1초 서 있으면 다음 스테이지로 (매우 어려움: 회복 없음)" : "문 안에 1초 서 있으면 다음 스테이지로 · 체력 25% 회복", "그 전에 다른 방을 둘러봐도 돼요"]; }
   if (d.type === "shop") lines.push(`가격 엽전 ${d.price} · 내 엽전 ${p.gold || 0}${(p.gold || 0) >= d.price ? " · 밟으면 사요" : " · 모자라요"}`);
   g.save(); g.font = '700 19px "Do Hyeon", sans-serif';
   const body = '15px "Gowun Dodum", sans-serif';
@@ -2831,16 +2856,16 @@ function glRender(r, shx, shy) {
 
 // 11-18 괴이한 방: 떠도는 혼불(도깨비불) — 위아래로 일렁이고 둘레에 작은 불씨가 돈다. 효과 층에 그려 블룸으로 빛남
 function drawEvt(g, d) {
-  const E = (typeof EVENTS !== "undefined" && EVENTS[d.k]) || { ic: "❔", name: "괴이한 기운" }, t = G.time, y = d.y - 70 + Math.sin(t * 2.2) * 8, a = d.used ? 0.25 : 1;
+  const E = (typeof EVENTS !== "undefined" && EVENTS[d.k]) || { ic: "❔", name: "괴이한 기운" }, t = G.time, y = d.y - 66 + Math.sin(t * 2.2) * 8, a = d.used ? 0.25 : 1;
   g.save(); g.globalAlpha = a; g.globalCompositeOperation = "lighter";
-  const R = 70 + Math.sin(t * 3.1) * 6, gr = g.createRadialGradient(d.x, y, 2, d.x, y, R);
+  const R = 58 + Math.sin(t * 3.1) * 6, gr = g.createRadialGradient(d.x, y, 2, d.x, y, R);
   gr.addColorStop(0, "rgba(220,240,255,0.95)"); gr.addColorStop(0.25, "rgba(120,170,255,0.75)"); gr.addColorStop(0.6, "rgba(110,60,220,0.28)"); gr.addColorStop(1, "rgba(80,30,160,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(d.x, y, R, 0, 7); g.fill();
   for (let i = 0; i < 7; i++) { const q = t * 1.4 + i * 0.9, rx = d.x + Math.cos(q) * 62, ry = y + Math.sin(q) * 22 - 6; const s = 5 + Math.sin(t * 5 + i) * 2;
     const g2 = g.createRadialGradient(rx, ry, 0, rx, ry, s * 3); g2.addColorStop(0, "rgba(190,220,255,0.9)"); g2.addColorStop(1, "rgba(120,90,255,0)"); g.fillStyle = g2; g.beginPath(); g.arc(rx, ry, s * 3, 0, 7); g.fill(); }
   g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(0,0,0,0.35)"; g.beginPath(); g.ellipse(d.x, d.y + 10, 46, 12, 0, 0, 7); g.fill();
-  g.font = "42px serif"; g.textAlign = "center"; g.fillText(E.ic, d.x, y + 14);
-  g.font = '700 19px "Do Hyeon"'; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = d.used ? E.name : E.name + " · 다가가기"; g.strokeText(tx, d.x, d.y + 44); g.fillStyle = d.used ? "#a99fb8" : "#d8c8ff"; g.fillText(tx, d.x, d.y + 44);
+  const li = IMG.obj_evt; if (li && li.naturalWidth) { const h = 130, w = h * li.naturalWidth / li.naturalHeight; g.drawImage(li, d.x - w / 2, d.y + 12 - h, w, h); } else { g.font = "42px serif"; g.textAlign = "center"; g.fillText(E.ic, d.x, y + 14); }
+  g.textAlign = "center"; g.font = '700 19px "Do Hyeon"'; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = d.used ? E.name : E.name + " · 다가가기"; g.strokeText(tx, d.x, d.y + 44); g.fillStyle = d.used ? "#a99fb8" : "#d8c8ff"; g.fillText(tx, d.x, d.y + 44);
   g.restore();
 }
 

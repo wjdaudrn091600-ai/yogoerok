@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.2.0";
+const GAME_VERSION = "2.2.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -429,7 +429,7 @@ const UI = {
   toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
   error(err) { reportError(err); const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
   modal(html) { $("#mbox").innerHTML = html; $("#modal").hidden = false; },
-  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode"); $("#mbox").innerHTML = ""; },
+  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode"); $("#mbox").innerHTML = ""; },
 
   // ----- 로그인 -----
   login() {
@@ -709,11 +709,7 @@ const UI = {
       $("#svnew").onclick = () => { UI.closeModal(); delete SAVE.resume; saveGame(); UI.startRun(Object.assign({}, opt, { _newOk: true })); };
       return;
     }
-    if (ASSETS.packs && !opt._ready) {
-      const t0 = Date.now(); UI.toast("📦 그림 받는 중…", 1500);
-      Promise.race([needRunPacks(opt), new Promise((r) => setTimeout(r, 6000))]).then(() => UI.startRun(Object.assign({}, opt, { _ready: true })));
-      return;
-    }
+    if (ASSETS.packs && !opt._ready) { UI.loading(opt); return; }
     $("#screens").innerHTML = ""; $("#hud").hidden = false;
     if (opt.mode === "story" && !opt.daily && !SAVE.story.seen.open) { SAVE.story.seen.open = 1; saveGame(); UI.story("open", () => { UI.story(opt.floor, () => newRun(opt)); }); return; }
     if (opt.mode === "story" && !(opt.resume && opt.resume.stage > 1)) { UI.story(opt.floor, () => newRun(opt)); return; }
@@ -887,7 +883,7 @@ const UI = {
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> 절전 모드 (초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때)</label></p>
       <p><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> 글자 크게 (작은 휴대폰에서 읽기 편하게)</label></p>
-      <p><button class="btn" id="keysbtn">⌨️ 키 설정</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
+      <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
@@ -917,53 +913,42 @@ const UI = {
 
   // ----- 플레이 방법 -----
   howto() {
-    UI.frame("플레이 방법", `<div class="howto card" style="max-width:920px">
-      <h3>🎮 조작 (PC) — 지금 키: 이동 ${["up", "left", "down", "right"].map((x) => keyLabel(keyMap()[x])).join("")} · 공격 ${keyLabel(keyMap().atk)} · 스킬 ${["s1", "s2", "s3", "s4"].map((x) => keyLabel(keyMap()[x])).join("/")} · 구르기 ${keyLabel(keyMap().dodge)} · 액티브 ${keyLabel(keyMap().act)} (설정 › 키 설정에서 바꿀 수 있어요) · 액티브 잠금 ${keyLabel(keyMap().lock)}</h3><ul>
-        <li><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> 이동 (방향키도 돼요)</li>
-        <li><span class="kbd">마우스 왼쪽 클릭</span> 기본 공격 — 마우스 커서 쪽으로 공격, 누르고 있으면 계속 공격</li>
-        <li>스킬: <span class="kbd">마우스 오른쪽</span> 스킬1 · <span class="kbd">Q</span> 스킬2 · <span class="kbd">E</span> 스킬3 · <span class="kbd">R</span> 궁극기 — 모두 마우스 커서 쪽으로 나가요 (<span class="kbd">1</span>~<span class="kbd">4</span>도 그대로 돼요)</li>
-        <li><span class="kbd">Space</span> 구르기 — 움직이는 방향으로 굴러 잠깐 무적 (붉은 공격 영역을 빠져나갈 때)</li>
-        <li><span class="kbd">F</span> 액티브 아이템 (원정 중 주운 것 1개)</li>
-        <li><span class="kbd">Esc</span> 멈춤 메뉴 (소리 설정도 여기서) · 화면 오른쪽 위 🔊 버튼 · 레벨업 때 <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span>으로 강화 고르기</li></ul>
-      <h3>📱 조작 (폰)</h3><ul><li><b>자동 공격(선택)</b>: 설정에서 켜면 근처 요괴를 기본 공격으로 알아서 공격해요 — 스킬·구르기만 직접 누르면 돼요</li><li>화면을 누르면 그곳으로 이동 · 오른쪽 아래 버튼으로 공격·스킬 (가장 가까운 적을 자동으로 노림) · 💨 버튼으로 구르기</li></ul>
-      <h3>🚪 방과 문</h3><ul>
-        <li>방은 하나씩만 보여요. <b>문을 지나가기 전엔 다음 방이 보이지 않아요.</b></li>
-        <li>몬스터 방에 들어가면 다 쓰러뜨릴 때까지 문이 붉은 창살로 잠겨요. 정리하면 문이 빛나고, 문 안으로 걸어 들어가면 다음 방으로 가요.</li>
-        <li>문 테두리 색: <b style="color:#ff4d4d">빨강 보스</b> · <b style="color:#ffc84a">금색 보물</b> · <b style="color:#5fc8ff">하늘색 상인</b> · <b style="color:#7fe08a">초록 샘</b> · <b style="color:#c38bff">보라 정예</b> · 나무색 몬스터</li>
-        <li>붉은 영역은 곧 공격이 떨어지는 자리예요. 밖으로 피하세요. 용암·독 웅덩이는 밟으면 아파요. 기둥 뒤로 가면 기둥이 반투명해져요.</li></ul>
-      <h3>📖 스토리 모드</h3><ul><li>5개 층 × 4스테이지. 1~3스테이지는 중간보스, 4스테이지는 층 최종보스. 보스를 잡고 금빛 계단에 서면 다음 스테이지 (체력 25% 회복).</li>
-        <li>층·스테이지가 오를수록 몬스터가 더 많고 단단하고 아파요. 새 층에 처음 가면 코인 4개. 도달한 층부터 다시 시작할 수 있어요.</li></ul>
-      <h3>♾️ 무한의 방</h3><ul><li>방을 정리하면 문이 2~3개 열려요. 문 색으로 다음 방 종류를 짐작해 골라요. 10번째 방마다 보스. 최고 기록 10방마다 코인 2개 (처음 한 번).</li>
-        <li>상인 방·보물 방은 랜덤으로 나와요 (상인 10%, 보물 12%, 샘 10%, 정예 12%).</li></ul>
-      <h3>🐉 보스 레이드</h3><ul><li>보스 6마리와 연달아 싸워요. 레벨 12·강화 3개로 시작, 보스 사이에 체력 30% 회복. 보스마다 코인 1개, 모두 잡으면 +5. 멀티 협동도 돼요.</li></ul>
-      <h3>🎯 타겟팅</h3><ul><li>PC: Tab(키 설정에서 변경)으로 가까운 적을 차례로 고정하거나, 적을 마우스 오른쪽으로 눌러 고정. 폰: 적을 손가락으로 누르면 고정. 고정하면 공격·스킬이 그 적에게 날아가요.</li></ul>
-      <h3>⚔️ 1대1 대전</h3><ul><li>컴퓨터 영웅과 3판 2선승 (멀티에서는 친구와). 양쪽 레벨 10, 아티팩트·펫·칭호는 빠져요 (가챠 스킬은 적용). 이기면 엽전 60.</li></ul>
-      <h3>👥 멀티 (친구와 함께)</h3><ul><li>처음 화면 '멀티'에서 방장이 모드를 고르면 방 코드 5자리가 나와요. 친구가 코드로 참가하면 방장이 '함께 출발'.</li>
-        <li>스토리·무한의 방은 협동, 1대1 대전은 친구와 대결. 인터넷이 필요하고, 둘 다 같은 최신 판을 써야 해요.</li>
-        <li>경험치는 둘 다 받고, 엽전·코인은 주운 사람이 가져요. 한 명이 쓰러지면 다음 스테이지에서 체력 30%로 일어나요.</li></ul>
-      <h3>⬆️ 성장과 액티브</h3><ul><li>몬스터를 잡으면 경험치 → 레벨업 때마다 강화 3개 중 하나를 골라요. 원정이 끝나면 레벨·강화는 사라져요.</li>
-        <li>액티브(F)는 랜덤으로 얻어요: 몬스터 1.2% · 정예 20% · 보스 60% · 보물 방(2개 중 1개) · 상인 방에서 사기. 들 수 있는 건 1개, 같은 걸 또 주우면 레벨 업.</li></ul>
-      <h3>🔥 새로 생긴 것 (v1.7~1.8)</h3><ul><li><b>혼불 제단</b>: 쓰러져도 남는 혼불로 모든 영웅을 영구 강화</li><li><b>괴이한 방 👻</b>: 떠다니는 혼불에 다가가 설화 속 선택 (14종)</li><li><b>시련의 방 ⏳</b>: 시간 안에 정리하면 상자 + 강화</li><li><b>연격</b>: 끊기지 않고 맞히면 쌓이고, 15 이상에서 끊기면 엽전</li><li><b>완벽 회피</b>: 공격이 닿기 직전에 구르면 시간이 느려지고 공격력 +30%</li><li><b>오늘의 괴담</b>: 날마다 바뀌는 영웅·규칙으로 1층 도전</li><li><b>토벌 시즌</b>: 달마다 20단계 보상 · <b>숙련도</b>: 같은 영웅으로 할수록 강해짐</li><li><b>상점 종 🔔</b>: 엽전을 내면 물건이 새로 나와요 · <b>도감</b>: 잡은 요괴를 누르면 설화와 요령</li></ul>
-      <h3>✨ 새로 생긴 것 (v1.5)</h3><ul><li><b>🎮 게임패드</b>: 왼스틱 이동 · 오른스틱 조준(놓으면 가까운 적 자동) · A 공격 · B 구르기 · X/Y/RB/RT 스킬 1~4 · LB 액티브 · LT 대상 바꾸기 · Start 일시정지 · Back 지도. 메뉴는 십자키로 고르고 A 누르기, B 뒤로.</li>
-        <li><b>조합 패시브</b> — 짝이 맞는 두 패시브를 모두 가지면(예: 매의 눈 + 급소 찌르기), 레벨업 때 특별한 조합 패시브가 나와요. 도감에서 짝을 볼 수 있어요.</li>
-        <li><b>벽꽝</b> — 밀쳐내는 공격으로 요괴를 벽·기둥에 세게 부딪히게 하면 추가 피해 + 잠깐 기절.</li>
-        <li><b>엘리트 특성</b> — 보라빛 엘리트 요괴 머리 위 이름: 신속(빠름)·강철(단단함)·분열(죽으면 둘로)·폭발(죽은 뒤 터짐, 피하세요)·재생(체력 회복).</li>
-        <li><b>상태 표시</b> — 요괴 머리 위 🔥불탐 ❄️느려짐 💫기절 🎯표식.</li>
-        <li><b>새 요괴 8종</b> — 꼬마 도깨비·꼭두 인형·종이 귀신·장승 요괴·독두꺼비·각시탈 원귀·솟대 까마귀·둔갑 너구리. 처음 잡으면 도감에 올라가요.</li>
-        <li><b>3D 동작</b> — 위아래로 걸으면 앞·뒤 모습, 대시하면 달리기, 기절하면 비틀비틀. 층마다 다른 음악과 보스 목소리도 들려요 (설정에서 끌 수 있어요).</li></ul>
-      <h3>🔓 캐릭터 해금 (처음엔 무사 강휘만)</h3><ul>
-        <li>미션: 궁수(몬스터 150) · 창병(보스 3) · 권법가(방 40) · 포수(한 판 레벨 12)</li>
-        <li>특수 미션: 무녀(체력 60% 이상으로 보스 처치) · 강령술사(체력 15% 이하로 보스 처치) · 자객(10초 안에 방 정리) · 봉냥이(스토리 전체 완료)</li>
-        <li>층 도달: 도사 2층 · 음양사 3층 · 소환사 4층 · 광전사 5층 · 가챠: 월하검희 · 뇌전장군 · 구미호 · 저승차사</li></ul>
-      <h3>🎒 수집품</h3><ul>
-        <li>칭호 30종 (가챠 10 · 미션 10 · 특수 미션 5 · 스토리 5) — 1칸 착용</li>
-        <li>아티팩트 55종 (가챠 15 · 미션 20 · 특수 미션 10 · 스토리 10) — 2칸 착용. 스토리 아티팩트는 스토리를 진행해야만 얻고, 효과는 모든 모드에서 나요</li>
-        <li>펫 40종 (가챠 10 · 미션 15 · 특수 미션 5 · 랜덤 획득 5 · 스토리 5) — 1칸, 따라다니며 공격·회복·보호막·엽전</li>
-        <li>미션·특수·스토리 수집품은 조건을 채우면 자동으로 들어와요. '아티팩트·펫·칭호' 화면에서 진행도를 볼 수 있어요.</li></ul>
-      <h3>🎰 가챠와 🪙 코인</h3><ul>
-        <li>캐릭터 5 · 스킬 2(R 3) · 아티팩트 2 · 펫 3 · 칭호 1 코인 (10회는 1회분 할인)</li>
-        <li>스킬 등급 확률: D 50% · C 33% · B 11% · A 5.5% · S 0.5%. Q·W·E·R 칸마다 따로 뽑아요. 공용 스킬 + 캐릭터 고유 스킬.</li>
-        <li>코인: 원정이 끝날 때 성적만큼 · 몬스터 0.6% · 정예 5% · 상자 30% · 보스 40% · 원정 상점(가끔) · 스토리 새 층 4개 · 미션 1~6개 · 출석</li><li>엽전: 원정 중 몬스터·상자가 떨어뜨리는 돈. 미궁 안 상점에서 회복 약초·공격 속도 영약·힘의 부적·철갑·패시브·액티브를 사요. 원정이 끝나면 사라져요.</li></ul>
+    // 11-20 사용자: "모바일인데 설정이 PC로 되어 있어 키 변경·전체 설명이 어울리지 않음" → 폰은 터치 조작만, PC는 키보드(지금 키), 게임패드는 접어 둠. 예전 판(v1.5 등) 설명은 정리.
+    const K = keyMap(), kb = (a) => `<span class="kbd">${keyLabel(K[a])}</span>`;
+    const ctl = IS_TOUCH ? `<section class="ht"><h3>조작</h3><ul>
+        <li><b>왼쪽 아래 원</b>을 끌어서 이동해요.</li>
+        <li><b>오른쪽 큰 칼 버튼</b>을 누르고 있으면 기본 공격 — 가장 가까운 요괴를 알아서 노려요.</li>
+        <li>작은 버튼 <b>1·2·3</b>은 스킬, <b>4</b>는 궁극기, <b>구르기</b>는 잠깐 무적, <b>액티브</b>는 주운 아이템이에요.</li>
+        <li>요괴를 손가락으로 누르면 그 요괴를 노려요(표적 고정).</li>
+        <li>오른쪽 위 멈춤 버튼으로 멈추고, 설정의 <b>자동 공격</b>을 켜면 공격 버튼을 누르지 않아도 돼요.</li>
+        <li>버튼이 작거나 가리면 설정 → <b>화면 버튼 설정</b>에서 크기·투명도를 바꿔요.</li></ul></section>`
+      : `<section class="ht"><h3>조작</h3><ul>
+        <li>이동 ${["up", "left", "down", "right"].map((x) => kb(x)).join("")} (방향키도 돼요)</li>
+        <li>기본 공격 ${kb("atk")} 또는 ${kb("atk2")} — 마우스 쪽으로, 누르고 있으면 계속</li>
+        <li>스킬 ${kb("s1")}${kb("s2")}${kb("s3")} · 궁극기 ${kb("s4")} — 마우스 쪽으로 나가요</li>
+        <li>구르기 ${kb("dodge")} (잠깐 무적) · 액티브 ${kb("act")} · 멈춤 ${kb("pause")} · 레벨업 강화는 <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></li>
+        <li>키는 설정 → 키 설정에서 바꿀 수 있어요.</li></ul>
+        <details><summary>게임패드</summary><p>왼스틱 이동 · 오른스틱 조준 · A 공격 · B 구르기 · X/Y/RB/RT 스킬 · LB 액티브 · LT 표적 바꾸기 · Start 멈춤</p></details></section>`;
+    UI.frame("플레이 방법", `<div class="howto card htv2" style="max-width:860px">${ctl}
+      <section class="ht"><h3>방과 문</h3><ul>
+        <li>요괴가 있는 방에 들어가면 다 쓰러뜨릴 때까지 문이 잠겨요. 정리하면 문 안으로 걸어가 다음 방으로.</li>
+        <li><b style="color:#ff6a5a">붉은 영역</b>은 곧 공격이 떨어지는 자리 — 밖으로 피하거나 구르세요.</li>
+        <li>방마다 보물 상자·약수 우물(체력 가득)·보부상(상점)·괴이한 방(설화 속 선택)·시련의 방이 섞여 나와요.</li></ul></section>
+      <section class="ht"><h3>이야기(스토리)</h3><ul>
+        <li>다섯 장, 장마다 10스테이지 — 5번째에 중간보스, 10번째에 장 보스. 보스를 쓰러뜨리면 홍살문 안에 1초 서서 다음으로.</li>
+        <li>장 사이사이 이야기 장면이 나오고, 앞 장 보스를 쓰러뜨리면 이야기 지도에서 다음 장이 열려요.</li>
+        <li>스테이지를 넘어갈 때 체력 25% 회복 (매우 어려움은 회복 없음).</li></ul></section>
+      <section class="ht"><h3>무한의 방 · 보스 레이드</h3><ul>
+        <li>무한의 방: 문을 골라 끝없이 내려가요. 10번째 방마다 보스.</li>
+        <li>보스 레이드: 장 보스 ${RAID_ORDER.length}마리를 차례로. 보스를 쓰러뜨리면 보부상에게 엽전으로 정비하고, 홍살문에 서면 다음 보스가 나와요.</li></ul></section>
+      <section class="ht"><h3>성장</h3><ul>
+        <li>레벨이 오르면 강화 셋 중 하나를 골라요. 같은 강화를 겹치면 레벨이 올라요. 짝이 맞는 두 강화를 모으면 조합 강화가 나와요.</li>
+        <li>액티브는 하나만 들 수 있어요. 같은 것을 또 주우면 레벨 업.</li>
+        <li>판이 끝나도 혼불이 남아요 — 혼불 제단에서 모든 영웅을 강하게.</li>
+        <li>근접 영웅은 기본 특성 '근접 투지'로 피해의 일부를 체력으로 흡수해요(흡혈). '피의 맹세' 같은 강화·전직으로 더 늘어요.</li></ul></section>
+      <section class="ht"><h3>엽전과 코인</h3><ul>
+        <li>엽전: 판 안에서만 쓰는 돈 — 보부상에게 물건을 사요.</li>
+        <li>코인: 판이 끝나도 남아요 — 뽑기(영웅·스킬·아티팩트·펫·칭호)에 써요.</li></ul></section>
     </div>`);
   },
 
@@ -1172,9 +1157,9 @@ const UI = {
     if (NET.client) { UI.modal(`<h2>메뉴</h2><div class="center"><button class="btn gold" id="pr">계속하기</button><button class="btn" id="pq">방에서 나가기</button></div><div class="card" style="margin-top:12px"><h3>🔊 소리</h3><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p></div>`); UI.bindSound(); $("#pr").onclick = () => UI.closeModal(); $("#pq").onclick = () => { UI.closeModal(); NET.leave(); NET.client = false; G = null; UI.menu(); }; return; }
     UI._paused = true; G.paused = true; input.atkHeld = false; input.moveHeld = false;
     const canSave = G.mode === "story" && !G.opt.multi && !G.opt.daily;
-    UI.modal(`<h2>멈춤</h2><div class="center"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
-      <p class="muted" style="text-align:center">${canSave ? `저장하면 <b>${G.floor}층 ${G.stage}스테이지</b>부터 레벨·아이템 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p>${typeof buildHtml === "function" ? buildHtml() : ""}<div class="center"><button class="btn" id="pkeys">⌨️ 키 설정</button></div><div class="card" style="margin-top:12px"><h3>🔊 소리</h3><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p></div>`);
+    $("#modal").classList.add("pzmode"); UI.modal(pauseHtml(canSave));
     UI.bindSound();
+    document.querySelectorAll(".pzb[data-k]").forEach((t) => (t.onclick = () => { const on = t.classList.contains("on"); document.querySelectorAll(".pzb").forEach((x) => x.classList.remove("on")); const d = $("#pzdet"); if (on) { d.innerHTML = '<span class="muted">강화를 누르면 설명이 나와요</span>'; return; } t.classList.add("on"); const k = t.dataset.k, B = BOONS[k], n = +t.dataset.n; d.innerHTML = `<b style="color:${RARITY[B.rar].col}">${esc(B.name)}</b> <small>${RARITY[B.rar].name} · Lv.${n}</small><p>${esc(B.desc)}${n > 1 ? ` <span class="muted">(×${n})</span>` : ""}</p>`; }));
     $("#pkeys").onclick = () => UI.keys(() => { UI._paused = false; UI.closeModal(); UI.buildHud(); UI.togglePause(); });
     $("#pr").onclick = () => UI.togglePause();
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
@@ -1184,13 +1169,13 @@ const UI = {
   keys(after) {
     const K = keyMap(), wasPaused = G && G.paused;
     const rows = KEY_ACTIONS.map(([a, n]) => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)"><span style="flex:1">${n}</span><span class="kbd" style="min-width:90px;text-align:center" id="kv_${a}">${keyLabel(K[a])}</span><button class="btn sm" data-ka="${a}">바꾸기</button></div>`).join("");
-    UI.modal(`<h2>⌨️ 키 설정</h2><p class="muted" style="text-align:center">'바꾸기'를 누른 뒤 원하는 키나 마우스 버튼을 누르세요. 다른 동작과 겹치면 서로 바뀌어요. (방향키는 언제나 이동으로도 쓸 수 있어요)</p>
-      <div class="card btnset" style="max-width:520px;margin:0 auto 12px"><h3>🎛 화면 버튼</h3>
+    UI.modal(`<h2>${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</h2>${IS_TOUCH ? "" : `<p class="muted" style="text-align:center">'바꾸기'를 누른 뒤 원하는 키나 마우스 버튼을 누르세요. 다른 동작과 겹치면 서로 바뀌어요. (방향키는 언제나 이동으로도 쓸 수 있어요)</p>`}
+      <div class="card btnset" style="max-width:520px;margin:0 auto 12px"><h3>화면 버튼</h3>
         <p>스킬 버튼 크기 <input type="range" id="bsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.btnScale || 1}"> <b id="bszv">${Math.round((SAVE.settings.btnScale || 1) * 100)}%</b></p>
         <p>조이스틱 크기 <input type="range" id="jsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.joyScale || 1}"> <b id="jszv">${Math.round((SAVE.settings.joyScale || 1) * 100)}%</b> <span class="muted">(폰)</span></p>
         <p>버튼 투명도 <input type="range" id="bal" min="0.3" max="1" step="0.05" value="${SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1}"> <b id="balv">${Math.round((SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1) * 100)}%</b> <span class="muted">(낮을수록 투명)</span></p>
         <div class="center"><button class="btn sm" id="bsreset">버튼 기본값</button></div></div>
-      <div style="max-width:520px;margin:0 auto">${rows}</div><div class="center"><button class="btn" id="kreset">기본값으로</button><button class="btn gold" id="kdone">완료</button></div>`);
+      ${IS_TOUCH ? `<details class="kbdet" style="max-width:520px;margin:0 auto"><summary>키보드를 연결했다면: 키 설정</summary>` : ""}<div style="max-width:520px;margin:0 auto">${rows}</div>${IS_TOUCH ? "</details>" : ""}<div class="center">${IS_TOUCH ? "" : `<button class="btn" id="kreset">기본값으로</button>`}<button class="btn gold" id="kdone">완료</button></div>`);
     const bset = (id, key, out) => { $("#" + id).oninput = (e) => { SAVE.settings[key] = +e.target.value; $("#" + out).textContent = Math.round(+e.target.value * 100) + "%"; applyBtnStyle(); saveGame(); }; };
     bset("bsz", "btnScale", "bszv"); bset("jsz", "joyScale", "jszv"); bset("bal", "btnAlpha", "balv");
     $("#bsreset").onclick = () => { delete SAVE.settings.btnScale; delete SAVE.settings.joyScale; delete SAVE.settings.btnAlpha; applyBtnStyle(); saveGame(); UI.keys(after); };
@@ -1205,7 +1190,7 @@ const UI = {
       const md = (e) => { if (e.target.closest && e.target.closest("[data-ka]")) return; e.preventDefault(); e.stopPropagation(); done("Mouse" + e.button); };
       setTimeout(() => { window.addEventListener("keydown", kd, true); window.addEventListener("mousedown", md, true); }, 30);
     }));
-    $("#kreset").onclick = () => { save(Object.assign({}, DEFAULT_KEYS)); UI.keys(after); };
+    if ($("#kreset")) $("#kreset").onclick = () => { save(Object.assign({}, DEFAULT_KEYS)); UI.keys(after); };
     $("#kdone").onclick = () => { UI.closeModal(); if (G) G.paused = wasPaused; after && after(); };
   },
   askNick() {
@@ -1592,14 +1577,16 @@ Object.assign(EVENTS, { // 11-18 1.8.1 괴이한 방 6종 추가 (총 14)
       { t: "앞길의 액을 막아 주오", s: "이번 판 이동 속도 +8%", run: () => (evMod({ spd: 0.08 }), "발걸음이 가벼워졌다 · 이동 속도 +8%") }] },
 });
 function pickEvent() { const seen = (G.evSeen = G.evSeen || []), ks = Object.keys(EVENTS).filter((k) => !seen.includes(k)); const k = pick(ks.length ? ks : Object.keys(EVENTS)); seen.push(k); return k; }
+// 11-20 사용자: "이벤트방 이미지가 기본 이미지라 몰입도가 떨어짐" → 방마다 수묵 장면 그림(ev_<키>), 창도 넓게
+const evArt = (k, E) => ASSETS.img["ev_" + k] ? `<div class="evart" style="background-image:url(${imgSrc("ev_" + k)})"></div>` : `<div class="evic">${E.ic}</div>`;
 UI.event = function (k) {
-  const E = EVENTS[k]; if (!E || !G) return; track("event_room", { k }); G.paused = true; input.atkHeld = false; input.moveHeld = false; SAVE.stats.events = (SAVE.stats.events || 0) + 1;
+  const E = EVENTS[k]; if (!E || !G) return; $("#modal").classList.add("evmode"); track("event_room", { k }); G.paused = true; input.atkHeld = false; input.moveHeld = false; SAVE.stats.events = (SAVE.stats.events || 0) + 1;
   let ch = E.ch;
   if (E.quiz) { const [q, a] = pick(QUIZ), opts = a.map((t, i) => ({ t, i })).sort(() => Math.random() - 0.5);
     E._q = q; ch = opts.map((o) => ({ t: o.t, s: "", run: () => o.i === 0 ? ((SAVE.soul = (SAVE.soul || 0) + 15), evGold(100), "\"옳거니!\" 장승이 길을 비킨다 · 엽전 +100 · 혼불 +15") : (evHurt(0.15), `"틀렸다!" 장승의 호통에 몸이 휘청인다 · 체력 -15% (정답: ${a[0]})`) })); }
-  const done = (msg) => { UI.modal(`<div class="evbox"><div class="evic">${E.ic}</div><h2>${E.name}</h2><p class="evtext">${esc(msg)}</p><div class="center"><button class="btn gold" id="evok">계속</button></div></div>`);
+  const done = (msg) => { UI.modal(`<div class="evbox">${evArt(k, E)}<h2>${E.name}</h2><p class="evtext">${esc(msg)}</p><div class="center"><button class="btn gold" id="evok">계속</button></div></div>`);
     const arm = UI.arm(); $("#evok").onclick = () => { if (performance.now() < arm) return; UI.closeModal(); if (G) G.paused = false; }; saveGame(); };
-  UI.modal(`<div class="evbox"><div class="evic">${E.ic}</div><h2>${E.name}</h2><p class="evtext">${esc(E.text)}</p>${E.quiz ? `<p class="evq">${esc(E._q)}</p>` : ""}<div class="evch">${ch.map((c, i) => { const ok = !c.ok || c.ok(); return `<button class="btn evc" data-i="${i}" ${ok ? "" : "disabled"}><b>${esc(c.t)}</b>${c.s ? `<span>${esc(c.s)}</span>` : ""}</button>`; }).join("")}</div></div>`);
+  UI.modal(`<div class="evbox">${evArt(k, E)}<h2>${E.name}</h2><p class="evtext">${esc(E.text)}</p>${E.quiz ? `<p class="evq">${esc(E._q)}</p>` : ""}<div class="evch">${ch.map((c, i) => { const ok = !c.ok || c.ok(); return `<button class="btn evc" data-i="${i}" ${ok ? "" : "disabled"}><b>${esc(c.t)}</b>${c.s ? `<span>${esc(c.s)}</span>` : ""}</button>`; }).join("")}</div></div>`);
   const arm = UI.arm();
   document.querySelectorAll(".evc").forEach((b) => (b.onclick = () => { if (performance.now() < arm) return; const c = ch[+b.dataset.i]; if (c.ok && !c.ok()) return; sfx("pick"); done(c.run()); }));
 };
@@ -2036,22 +2023,39 @@ UI.shop = function (r) {
   if (!G || !G.p || !r || !r.stock) return;
   const p = G.p; G.paused = true; input.atkHeld = false; input.moveHeld = false;
   const info = (d) => {
-    if (d.what === "act") { const A = ACTIVES[d.k], T = ACT_TIER[A.rar]; return { ic: "obj_" + d.k, em: A.ic || "✨", n: A.name, t: `액티브 · ${T.name}`, c: T.col, ds: A.desc }; }
-    if (d.what === "boon") { const B = BOONS[d.k], R = RARITY[B.rar]; return { ic: "obj_bn_" + d.k, em: B.ic, n: B.name, t: `강화 · ${R.name}`, c: R.col, ds: B.desc }; }
+    if (d.what === "act") { const A = ACTIVES[d.k], T = ACT_TIER[A.rar]; const tl = /^ac_([a-z]+)_/.exec(d.k); return { ic: tl && ASSETS.img["obj_tal_" + tl[1]] ? "obj_tal_" + tl[1] : "obj_" + d.k, em: A.ic || "✨", n: A.name, t: `액티브 · ${T.name}`, c: T.col, ds: A.desc }; }
+    if (d.what === "boon") { const B = BOONS[d.k], R = RARITY[B.rar]; return { ic: "bn_" + d.k, em: B.ic, n: B.name, t: `강화 · ${R.name}`, c: R.col, ds: B.desc }; }
     if (d.what === "herb") return { ic: "obj_herb", em: "🌿", n: "회복 약초", t: "소모품", c: "#7fe08a", ds: "체력 40% 회복" };
     const I = SHOP_ITEMS[d.k]; return { ic: "obj_shop_" + d.k, em: I.ic || "📦", n: I.name, t: d.k === "coin" ? "코인" : "장비 · 이번 원정 동안", c: d.k === "coin" ? "#ffd27a" : "#9fd0ff", ds: I.desc };
   };
   const rePrice = () => 40 + (r.reN || 0) * 35;
+  let sel = -1;
+  const more = (d) => {
+    if (d.what === "act") { const A = ACTIVES[d.k]; return [`재사용 대기 ${A.cd}초`, "사면 발밑에 놓여요 · 주우면 지금 액티브(F)와 바뀌어요"]; }
+    if (d.what === "boon") { const n = (p.boons || []).filter((x) => x === d.k).length; return [n ? `지금 Lv.${n} → Lv.${n + 1}` : "새로 얻는 강화", "이번 원정 동안 계속 적용"]; }
+    if (d.what === "herb") return ["사면 바로 먹어요"];
+    if (d.k === "coin") return ["뽑기·영웅에 쓰는 코인 1개 (판이 끝나도 남아요)"];
+    return ["이번 원정 동안 계속 적용"];
+  };
+  const det = (gold) => { if (sel < 0 || !r.stock[sel]) return ""; const d = r.stock[sel], f = info(d), ok = !d.sold && gold >= d.price;
+    return `<div class="shopdet" style="--sc:${f.c}"><button class="shopdx" id="shdx" aria-label="닫기">✕</button><div class="sdic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div>
+      <div class="sdtx"><small>${f.t}</small><h3>${esc(f.n)}</h3><p>${esc(f.ds)}</p>${more(d).map((x) => `<p class="muted">${esc(x)}</p>`).join("")}</div>
+      <button class="btn ${ok ? "gold" : ""}" id="shdb" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : gold >= d.price ? `엽전 ${d.price} · 사기` : `엽전 ${d.price} · 모자라요`}</button></div>`; };
   const close = () => { window.removeEventListener("keydown", kh); UI.closeModal(); G.paused = false; };
-  const kh = (e) => { if (e.code === "Escape") { e.preventDefault(); close(); } };
+  const kh = (e) => { if (e.code === "Escape") { e.preventDefault(); if (sel >= 0) { sel = -1; draw(curLine); } else close(); } };
+  let curLine = "";
   const draw = (line) => {
-    const gold = p.gold || 0;
+    const gold = p.gold || 0; curLine = line;
     $("#modal").classList.add("shopmode");
     UI.modal(`<div class="shopw"><div class="shophd"><img class="shopnpc" src="${imgSrc("npc_bobusang")}" alt=""><div class="shopsay"><b>보부상</b><p>${esc(line)}</p></div><div class="shopgold"><small>내 엽전</small><b>${gold}</b></div></div>
-      <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div><button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>
+      <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}${i === sel ? " on" : ""}" data-i="${i}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div><button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>${det(gold)}
       <div class="center shopft"><button class="btn" id="shre" ${gold >= rePrice() ? "" : "disabled"}>🔔 다시 진열 · 엽전 ${rePrice()}</button><button class="btn gold" id="shx">나가기 (Esc)</button></div></div>`);
     const arm = UI.arm ? UI.arm() : 0;
-    document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => { if (performance.now() < arm) return; const d = r.stock[+b.dataset.b]; if (d.sold || (p.gold || 0) < d.price) return; shopBuy(p, d); draw(d.what === "act" ? "발밑에 내려놨소. 주워 가시오!" : pick(["좋은 물건 고르셨소!", "눈썰미가 있구려.", "그거 하나면 저 아래서도 버틸 거요."])); }));
+    const buy = (i) => { if (performance.now() < arm) return; const d = r.stock[i]; if (!d || d.sold || (p.gold || 0) < d.price) return; shopBuy(p, d); draw(d.what === "act" ? "발밑에 내려놨소. 주워 가시오!" : pick(["좋은 물건 고르셨소!", "눈썰미가 있구려.", "그거 하나면 저 아래서도 버틸 거요."])); };
+    document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); buy(+b.dataset.b); }));
+    document.querySelectorAll(".shopit[data-i]").forEach((c) => (c.onclick = () => { const i = +c.dataset.i; sel = sel === i ? -1 : i; draw(line); }));
+    if ($("#shdx")) $("#shdx").onclick = () => { sel = -1; draw(line); };
+    if ($("#shdb")) $("#shdb").onclick = () => buy(sel);
     $("#shre").onclick = () => { if (performance.now() < arm) return; const c = rePrice(); if ((p.gold || 0) < c) return; p.gold -= c; r.reN = (r.reN || 0) + 1; r.stock = makeStock(); sfx("coin"); draw(SHOP_LINES[4]); };
     $("#shx").onclick = close;
   };
@@ -2128,6 +2132,50 @@ UI.saga = function (pickF) {
   if ($("#sgopen")) $("#sgopen").onclick = () => UI.story("open", () => {});
   $("#sggo").onclick = () => { if (!lock) UI.chars({ mode: "story", floor: cur }); };
 };
+// ===================== 11-20 판 들어가기 로딩 화면 =====================
+// 사용자: "그림받는중 이후 바로 게임으로 입장이 안되고 다시 눌러야함, 이미지가 별로". 전체 화면 그림 + 받는 양 막대 + 한마디, 다 받으면 바로 들어감(다시 누를 필요 없음).
+const LOAD_TIPS = ["구르기(Space) 중에는 공격을 맞지 않아요", "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 층 이름 아래를 보세요"];
+UI.loading = function (opt) {
+  if (UI._ld) return; UI._ld = true;
+  const L = runPackList(opt), names = L.need.filter((n) => ASSETS.packs[n] && !PACK.done[n]);
+  let fired = false; const go = () => { if (fired) return; fired = true; clearInterval(tm); UI._ld = false; const el = $("#ldscr"); if (el) { el.classList.add("out"); setTimeout(() => el.remove(), 400); } UI.startRun(Object.assign({}, opt, { _ready: true })); };
+  if (!names.length) { UI._ld = false; L.later.forEach((n) => needPack(n)); UI.startRun(Object.assign({}, opt, { _ready: true })); return; }
+  const d = document.createElement("div"); d.id = "ldscr";
+  const bg = imgSrc("ui_load_bg") || imgSrc("ui_menu_bg");
+  d.innerHTML = `<div class="ldbg" style="background-image:url(${bg})"></div><div class="ldin"><div class="ldtitle">미궁으로 내려가는 중</div><div class="ldbar"><i id="ldfill"></i></div><div class="ldnum" id="ldnum">0%</div><p class="ldtip" id="ldtip">${esc(pick(LOAD_TIPS))}</p><button class="btn sm ldskip" id="ldskip" hidden>그림 없이 먼저 들어가기</button></div>`;
+  document.body.appendChild(d);
+  const t0 = performance.now(); let tipT = t0;
+  const tm = setInterval(() => {
+    let got = 0, tot = 0; for (const n of names) { const p = PACK.prog[n]; if (PACK.done[n]) { const q = p || [1, 1]; got += q[1]; tot += q[1]; } else if (p && p[1]) { got += p[0]; tot += p[1]; } else tot += 8e6; }
+    const pct = tot ? Math.min(100, Math.round((got / tot) * 100)) : 0; const f = $("#ldfill"); if (f) f.style.width = pct + "%";
+    const nm = $("#ldnum"); if (nm) nm.textContent = `${pct}% · ${(got / 1048576).toFixed(0)} / ${(tot / 1048576).toFixed(0)}MB`;
+    const now = performance.now(); if (now - tipT > 4500) { tipT = now; const tp = $("#ldtip"); if (tp) tp.textContent = pick(LOAD_TIPS); }
+    if (now - t0 > 25000) { const s = $("#ldskip"); if (s) s.hidden = false; }
+  }, 120);
+  d.querySelector("#ldskip").onclick = go;
+  needRunPacks(opt).then(go, go);
+};
+// ===================== 11-20 멈춤 화면 다시 (사용자: "멈춤 UI 변경 필요, 획득 패시브 이미지가 별로") =====================
+// 왼쪽: 영웅 그림·레벨·위치·능력치(흡혈 포함) / 오른쪽: 얻은 강화를 그림 칸으로(누르면 설명), 액티브 / 아래: 버튼·소리(접힘)
+function pauseHtml(canSave) {
+  const p = G.p, cnt = {}; for (const k of p.boons) cnt[k] = (cnt[k] || 0) + 1;
+  const art = typeof charArt === "function" ? charArt(p.id, p.form || null) : p.id, C = CHAR[p.id] || { name: "", job: "" };
+  const where = G.mode === "story" ? `${G.floor}장 ${G.stage}스테이지` : G.mode === "endless" ? `무한의 방 ${G.eFloor || 1}층` : G.mode === "raid" ? `보스 레이드 ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : "";
+  const pct = (v) => Math.round((v || 0) * 100) + "%";
+  const ls = (p.ls || 0) + (typeof buffSum === "function" ? buffSum(p, "ls") : 0);
+  const stats = [["공격력", Math.round(atkOf(p))], ["체력", `${Math.round(p.hp)} / ${Math.round(p.maxHp)}`], ["치명타", pct(p.crit)], ["흡혈", pct(ls)], ["받는 피해", ((p.drBase || 0) >= 0 ? "-" : "+") + pct(Math.abs(p.drBase || 0))], ["스킬 대기", "-" + pct(p.cdr)], ["이동", Math.round(spdOf(p))], ...(p.revive ? [["부활", p.revive]] : [])];
+  const tiles = Object.keys(cnt).filter((k) => BOONS[k]).map((k) => { const B = BOONS[k], col = RARITY[B.rar].col;
+    return `<button class="pzb" data-k="${k}" data-n="${cnt[k]}" style="--rc:${col}">${abIc("bn_" + k, B.ic, 60)}<span class="pzn">${esc(B.name)}</span>${cnt[k] > 1 ? `<b class="pzlv">${cnt[k]}</b>` : ""}</button>`; }).join("");
+  const A = p.active && ACTIVES[p.active.k];
+  const act = A ? `<div class="pzact" style="--rc:${ACT_TIER[A.rar].col}">${abIc("ic_" + p.active.k, A.ic, 54)}<div><small>액티브 · ${ACT_TIER[A.rar].name} · Lv.${p.active.lv}</small><b>${esc(A.name)}</b><p>${esc(A.desc)}</p></div></div>` : `<div class="pzact none"><span class="muted">액티브 없음 — 요괴·상자·보부상에게서 얻어요</span></div>`;
+  return `<div class="pzw"><div class="pzl"><div class="pzhero" style="background-image:url(${imgSrc("card_" + art)})"></div><div class="pzid"><small>${esc(where)}</small><h2>${esc(C.name)}</h2><span>${esc(C.job || "")} · Lv.${p.lvl}</span></div>
+      <dl class="pzst">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
+    <div class="pzr"><h3>이번 판 강화 <small>${p.boons.length}개</small></h3><div class="pzgrid">${tiles || '<p class="muted">아직 고른 강화가 없어요</p>'}</div><div class="pzdet" id="pzdet"><span class="muted">강화를 누르면 설명이 나와요</span></div>
+      <h3>액티브</h3>${act}
+      <div class="pzbtns"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
+      <p class="muted pzhint">${canSave ? `저장하면 <b>${G.floor}장 ${G.stage}스테이지</b>부터 레벨·아이템 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p>
+      <details class="pzsnd"><summary>소리 · ${IS_TOUCH ? "화면 버튼" : "키"} 설정</summary><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p><button class="btn sm" id="pkeys">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button></details></div></div>`;
+}
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
