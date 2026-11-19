@@ -35,6 +35,21 @@ function packMan(name) {
     for (const k in j.img) ASSETS.img[k] = j.img[k]; Object.assign(ASSETS.meta, j.meta || {}); return j;
   }).catch((er) => { delete PACK.man[name]; throw er; }));
 }
+// 11-20 사용자: "전체 다운 / 필요 파일 우선 다운을 고를 수 있게, 차후에 추가 다운". dlAll: 남은 그림·음악·음성을 뒤에서(낮은 순서) 모두 받음 → 서비스 워커가 보관해 다음부터 기다림 없음
+const DL = { on: false, total: 0, done: 0, size: 0, got: 0 };
+function dlAll() {
+  if (!ASSETS.packs || DL.on) return Promise.resolve(); DL.on = true; DL.total = DL.done = DL.size = DL.got = 0;
+  return Promise.all(Object.keys(ASSETS.packs).map((n) => packMan(n).catch(() => null))).then((ms) => {
+    if (!DL.on) return; const sz = {}; for (const j of ms) if (j) Object.assign(sz, j.size || {});
+    const ks = Object.keys(ASSETS.img).filter((k) => /^img\//.test(ASSETS.img[k]));
+    const au = [...Object.values(ASSETS.bgm || {}), ...Object.values(ASSETS.voice || {})].filter((u) => typeof u === "string" && !u.startsWith("data:"));
+    DL.total = ks.length + au.length; DL.size = ks.reduce((a, k) => a + (sz[k] || 40000), 0) + au.length * 600000;
+    for (const k of ks) { const done = PACK.img[k] && PACK.img[k].done; imgGet(k, ASSETS.img[k], false).then(() => { DL.done++; DL.got += sz[k] || 40000; }); if (!done && PACK.img[k] && !PACK.img[k].started) PACK.img[k].byDl = true; }
+    let i = 0; const next = () => { if (!DL.on || i >= au.length) return; const u = au[i++]; fetch(u).then((r) => r.blob()).catch(() => null).then(() => { DL.done++; DL.got += 600000; next(); }); };
+    next(); next();
+  });
+}
+function dlStop() { DL.on = false; IMGQ.lo = IMGQ.lo.filter((j) => !j.byDl); }
 function needPack(name, pick) {
   if (!ASSETS.packs || !ASSETS.packs[name] || PACK.done[name]) return Promise.resolve();
   const wk = name + (pick ? "|" + pick.toString() : "");
@@ -51,10 +66,16 @@ const charPack = (id) => "c_" + (/^bong/.test(id) ? "bong" : id);
 // 11-20: 판 시작에 꼭 필요한 것(캐릭터·효과·몬스터·지금 층)만 기다리고, 보스 동작·다음 층은 판 안에서 이어 받음 (예전엔 약 240MB를 다 기다림 → 6초 뒤 멈춘 듯 보여 다시 누름)
 // 판 시작에 기다리는 것: 캐릭터 묶음 전부, 몬스터 동작, 지금 층의 방·벽·장식·이야기 그림(중간보스 m_·보스 b_ 동작은 5스테이지쯤 필요 → 뒤에서). 효과(fx)·보스 동작·다음 층은 판 안에서 받음
 const floorNow = (k) => !/^(m_|b_)/.test(k) && !/_n$/.test(k), LATER = () => false; // _n: 고급 조명용 바닥 노멀맵(없으면 조명만 평평)
+// 11-20 화질 점검: 장착한 공용 스킬의 속성 효과(cvfx_el_*)·몬스터 맞는 효과·일반 효과는 첫 싸움부터 쓰이므로 판 시작 전에 받음 (늦게 받으면 첫 20~30초 단순한 효과로 보임)
+function fxPick(opt) {
+  const eq = (SAVE && SAVE.skillEquip && SAVE.skillEquip[opt.char]) || {}, need = ["cvfx_mob", "cvfx_hit", "vfx_"];
+  for (const s in eq) { const S = SKILLS[eq[s]]; const v = S && S.fx && sigOf(S.fx); if (v && v.startsWith("cvfx_el_")) need.push(v); }
+  return (k) => need.some((p) => k.startsWith(p));
+}
 const floorMobs = (f) => { const en = ((FLOORS[f - 1] || FLOORS[0]).enemies || []).map((t) => ((ENEMIES[t] && ENEMIES[t].img) || "e_" + t) + "_"); return (k) => en.some((p) => k.startsWith(p)); }; // LATER: 전부 뒤에서(낮은 순서)
 function runPackList(opt) {
   const f = opt.mode === "story" ? opt.floor || 1 : opt.mode === "raid" ? 5 : 1, raid = opt.mode === "raid";
-  return { need: [[charPack(opt.char)], ...(raid ? [["f5", floorNow], ["bossa"], ["f" + ((BOSSES[RAID_ORDER[0]] && BOSSES[RAID_ORDER[0]].fl) || 1), (k) => k.startsWith(RAID_ORDER[0])]] : [["mob3d", floorMobs(f)], ["f" + f, floorNow]])], later: raid ? ["fx", "f1", "f2", "f3", "f4", "f5"] : ["mob3d", "fx", "bossa", "f" + f, "f" + Math.min(5, f + 1)] };
+  return { need: [[charPack(opt.char)], ...(raid ? [["f5", floorNow], ["bossa"], ["f" + ((BOSSES[RAID_ORDER[0]] && BOSSES[RAID_ORDER[0]].fl) || 1), (k) => k.startsWith(RAID_ORDER[0])]] : [["mob3d", floorMobs(f)], ["f" + f, floorNow]]), ["fx", fxPick(opt)]], later: raid ? ["fx", "f1", "f2", "f3", "f4", "f5"] : ["fx", "f" + f, "mob3d", "bossa", "f" + Math.min(5, f + 1)] };
 }
 function needRunPacks(opt) { const L = runPackList(opt); L.later.forEach((n) => needPack(n, LATER)); return Promise.all(L.need.map(([n, p]) => needPack(n, p || undefined))); }
 // 그림 미리 풀어 두기 (사용자 11-14: 모바일에서 렉이 살짝씩) — 그림을 처음 그리는 순간 그 자리에서 압축을 풀어서

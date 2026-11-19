@@ -429,7 +429,7 @@ const UI = {
   toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
   error(err) { reportError(err); const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
   modal(html) { $("#mbox").innerHTML = html; $("#modal").hidden = false; },
-  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode"); $("#mbox").innerHTML = ""; },
+  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode", "dlmode"); $("#mbox").innerHTML = ""; },
 
   // ----- 로그인 -----
   login() {
@@ -588,7 +588,7 @@ const UI = {
     const dock = (k, ic, t, badge) => `<button class="sub" data-s="${k}"><span class="ic">${uiIc(ic, "")}</span><span class="dl">${t}</span>${badge || ""}</button>`;
     const altarDot = (() => { const n = altarNext(); return n && (SAVE.soul || 0) >= n.c ? '<i class="dot"></i>' : ""; })();
     $("#screens").innerHTML = `<div class="screen hub" id="menu"><div class="hero-bg kb" style="background-image:url(${imgSrc("ui_menu_bg")})"></div><div class="hubshade"></div><canvas id="tparts" class="mparts"></canvas>
-      <div class="top"><div class="hublogo"><b>요괴록</b><small>조선 요괴 토벌기</small></div><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}"><b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} <b>${SAVE.coins}</b></span><span class="pill soul">${uiIc("soul", "")} <b>${SAVE.soul || 0}</b></span></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? (PLAY_URL ? `<a class="back" href="${PLAY_URL}" target="_blank" rel="noopener">앱 받기</a>` : '<a class="back" href="요괴록.apk" download>앱 받기</a>') : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst">PC 앱 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
+      <div class="top"><div class="hublogo"><b>요괴록</b><small>조선 요괴 토벌기</small></div><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}"><b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} <b>${SAVE.coins}</b></span><span class="pill soul">${uiIc("soul", "")} <b>${SAVE.soul || 0}</b></span><button class="pill dlp" id="dlp" hidden></button></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? (PLAY_URL ? `<a class="back" href="${PLAY_URL}" target="_blank" rel="noopener">앱 받기</a>` : '<a class="back" href="요괴록.apk" download>앱 받기</a>') : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst">PC 앱 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
       <div class="body hubbody">
         <div class="hubcol hubl">
           <div class="hubhero"><img src="${imgSrc("card_" + charArt(cur))}" alt=""><div><small>지금 영웅</small><b>${CHAR[cur].name}</b><span>${CHAR[cur].job}</span></div></div>
@@ -630,7 +630,8 @@ const UI = {
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
-    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); }, 1500); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
+    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen()) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
+    dlPill(); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
@@ -883,11 +884,13 @@ const UI = {
       <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
       <p><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> 절전 모드 (초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때)</label></p>
       <p><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> 글자 크게 (작은 휴대폰에서 읽기 편하게)</label></p>
+      ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
       <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
+    if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
@@ -2175,6 +2178,24 @@ function pauseHtml(canSave) {
       <div class="pzbtns"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
       <p class="muted pzhint">${canSave ? `저장하면 <b>${G.floor}장 ${G.stage}스테이지</b>부터 레벨·아이템 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p>
       <details class="pzsnd"><summary>소리 · ${IS_TOUCH ? "화면 버튼" : "키"} 설정</summary><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p><button class="btn sm" id="pkeys">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button></details></div></div>`;
+}
+// ===================== 11-20 그림 내려받기 방식 고르기 =====================
+// 사용자: "전체 다운, 필요 파일 우선 다운을 선택할 수 있게, 차후에 추가 다운". 처음 한 번 묻고(ygr_dl), 설정에서 언제든 바꿈.
+const DL_MB = () => (ASSETS.dlMB || 700);
+UI.dlAsk = function (fromSet) {
+  $("#modal").classList.add("dlmode");
+  UI.modal(`<div class="dlw"><h2>그림 받는 방식</h2><p class="muted">한 번 받은 그림은 기기에 보관돼 다음부터 바로 열려요. 언제든 설정에서 바꿀 수 있어요.</p>
+    <button class="dlc" id="dlall"><b>전체 받기</b><span>약 ${DL_MB()}MB · 와이파이 권장</span><small>지금 뒤에서 모두 받아 두고, 받는 동안에도 바로 플레이할 수 있어요. 다 받으면 어떤 모드든 기다림 없이 시작해요.</small></button>
+    <button class="dlc" id="dlneed"><b>필요한 것만 먼저</b><span>판마다 약 15~25MB · 데이터 절약</span><small>판에 들어갈 때 그 판에 필요한 그림만 받아요. 나머지는 플레이하면서 조금씩 받고, 설정에서 '남은 그림 모두 받기'로 언제든 더 받을 수 있어요.</small></button></div>`);
+  const pickM = (m) => { ls.set("ygr_dl", m); $("#modal").classList.remove("dlmode"); UI.closeModal(); if (m === "all") { dlAll(); UI.toast("뒤에서 그림을 모두 받는 중이에요 — 그동안 플레이해도 돼요", 3500); } else { dlStop(); UI.toast("필요한 그림만 먼저 받아요", 2500); } dlPill(); if (fromSet) UI.settings(); };
+  $("#dlall").onclick = () => pickM("all"); $("#dlneed").onclick = () => pickM("need");
+};
+function dlPill() {
+  clearInterval(UI._dlT); const tick = () => { const el = $("#dlp"), st = $("#dlst"); const busy = DL.on && DL.total && DL.done < DL.total, pct = DL.total ? Math.floor((DL.done / DL.total) * 100) : 0;
+    if (el) { el.hidden = !busy; if (busy) el.textContent = `그림 받는 중 ${pct}%`; el.onclick = () => UI.settings(); }
+    if (st) st.textContent = !ASSETS.packs ? "한 파일판: 모든 그림이 이미 들어 있어요" : DL.on ? (DL.total && DL.done >= DL.total ? "모든 그림을 받았어요 — 기다림 없이 시작해요" : `받는 중 ${pct}% (전체 약 ${DL_MB()}MB) · 받는 동안에도 플레이할 수 있어요`) : ls.get("ygr_dl") === "all" ? "전체 받기" : "필요한 것만 먼저 받는 중 (판마다 필요한 그림만)";
+    if (!busy && !st) clearInterval(UI._dlT); };
+  tick(); UI._dlT = setInterval(tick, 1000);
 }
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
