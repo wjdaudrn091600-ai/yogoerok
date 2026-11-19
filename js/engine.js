@@ -1328,9 +1328,9 @@ function pickups(u, dt = 1 / 60) {
     const dd = Math.hypot(d.x - u.x, d.y - u.y);
     if (d.type === "gold" || d.type === "coin") {
       if (d.vy !== undefined && d.z !== undefined && d.vy) continue;
-      if (dd < 160 * ((SAVE && SAVE.settings.pickR) || 1)) { d.x += (u.x - d.x) * 0.18; d.y += (u.y - d.y) * 0.18; }
+      if (dd < 160 * ((SAVE && SAVE.settings.pickR) || 1)) { d.x += (u.x - d.x) * 0.18; d.y += (u.y - d.y) * 0.18; d.mag = true; } // 11-20 끌려오는 엽전은 기둥에 밀려나지 않게 (기둥 옆에서 30~40px 떨어져 못 줍던 버그)
       else if (u === G.p && !roomLocked() && G.roomT > 0.6) { const k = Math.min(1, 900 * 0.016 / dd); d.x += (u.x - d.x) * k; d.y += (u.y - d.y) * k; } // 11-17 방을 비우면 남은 엽전이 저절로 날아옴 (줍기 귀찮음 없애기)
-      if (dd < 30) { d.gone = true; if (d.type === "gold") { u.gold = (u.gold || 0) + d.v; if (u === G.p) { sfx("coin"); G.goldIn = (G.goldIn || 0) + d.v; } } else if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "몬스터 드롭"); }
+      if (dd < 42) { d.gone = true; if (d.type === "gold") { u.gold = (u.gold || 0) + d.v; if (u === G.p) { sfx("coin"); G.goldIn = (G.goldIn || 0) + d.v; } } else if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "몬스터 드롭"); }
     } else if (d.type === "herb" && dd < 40) { d.gone = true; healUnit(u, u.maxHp * 0.2); sfx("heal"); }
     else if (d.type === "act" && d.waitLeave) { if (dd > 75) d.waitLeave = false; }
     else if (d.type === "act" && dd < 58 && !d.cool && u.actLock && u.active && u.active.k !== d.k) {
@@ -1374,7 +1374,7 @@ function pickups(u, dt = 1 / 60) {
 }
 function updateDrops(dt) {
   for (const d of G.drops) {
-    if (d.type !== "stairs" && d.type !== "spring") { d.x = clamp(d.x, BL + 50, BR - 50); d.y = clamp(d.y, BT + 60, BB - 40); for (const o of G.cur.obs) { const dx = d.x - o.x, dy = d.y - o.y, dd = Math.hypot(dx, dy), m = o.r + 34; if (dd < m) { const a = dd > 0.1 ? Math.atan2(dy, dx) : Math.random() * 6.28; d.x = o.x + Math.cos(a) * m; d.y = o.y + Math.sin(a) * m; } } }
+    if (d.type !== "stairs" && d.type !== "spring") { d.x = clamp(d.x, BL + 50, BR - 50); d.y = clamp(d.y, BT + 60, BB - 40); if (!d.mag) for (const o of G.cur.obs) { const dx = d.x - o.x, dy = d.y - o.y, dd = Math.hypot(dx, dy), m = o.r + 34; if (dd < m) { const a = dd > 0.1 ? Math.atan2(dy, dx) : Math.random() * 6.28; d.x = o.x + Math.cos(a) * m; d.y = o.y + Math.sin(a) * m; } } }
     if (d.cool) { d.cool -= dt; if (d.cool <= 0) d.cool = 0; }
     if (d.vy) { d.z = (d.z || 0) + d.vy * dt; d.vy += 600 * dt; if (d.z >= 0) { d.z = 0; d.vy = 0; } }
   }
