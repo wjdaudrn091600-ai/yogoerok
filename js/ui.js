@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.4.0";
+const GAME_VERSION = "2.4.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -52,7 +52,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
 const imgSrc = (k) => (ASSETS.img[k] || "");
 // 평면 이모지 → 3D 아이콘 (사용자 요청 11-11: 🐉⚔️ 같은 1차원 그림이 게임 컨셉과 안 맞음). 화면에 글자로 나오는 이모지를 자동으로 그림으로 바꿈
-const EMO = {"🎯": "emo_target", "⚔️": "emo_duel", "⚔": "emo_duel", "🐉": "emo_dragon", "🐲": "emo_dragon", "🛠": "emo_tools", "🛠️": "emo_tools", "🏷️": "emo_tag", "🏷": "emo_tag", "📖": "emo_book", "♾️": "emo_infinity", "♾": "emo_infinity", "📜": "emo_scroll", "🐾": "emo_paw", "🧑‍🤝‍🧑": "ui_ic_chars", "🧑": "ui_ic_chars", "👥": "ui_ic_multi", "🔊": "ui_ic_sound", "💰": "cur_yeop", "🪙": "cur_coin", "🟡": "cur_gold", "🔓": "emo_unlock", "🔒": "emo_lock", "🔮": "emo_orb", "🏮": "emo_lantern", "🎰": "ui_ic_gacha", "🎁": "emo_gift", "⌨️": "emo_keyboard", "⌨": "emo_keyboard", "🎮": "emo_gamepad", "👤": "ui_ic_user", "🎒": "ui_ic_bag", "⬆️": "emo_up", "📅": "emo_calendar", "🗓️": "emo_calendar", "📆": "emo_calendar", "🏆": "emo_trophy", "⚠️": "emo_warn", "🌿": "emo_herb", "🤝": "emo_coop", "❓": "ui_ic_howto", "⚙️": "ui_ic_settings", "🎲": "emo_dice", "🖱️": "emo_mouse", "💥": "emo_burst", "✅": "emo_check", "📱": "emo_phone", "🚪": "emo_door", "⏸": "ui_ic_pause", "⏸️": "ui_ic_pause", "🗡️": "emo_dagger", "🛡️": "emo_shield", "🌅": "emo_sunrise", "🌙": "emo_moon", "🪞": "emo_mirror", "💀": "emo_skull", "☠": "emo_skull", "☠️": "emo_skull", "👻": "emo_ghost", "💫": "emo_stars", "🔥": "emo_fire", "📕": "emo_redbook", "🪓": "emo_axe", "💗": "emo_heart", "🌑": "emo_eclipse", "🩸": "emo_blood", "🥀": "emo_wither", "💨": "emo_gust", "🗺️": "emo_map", "✉️": "emo_mail", "👊": "emo_fist", "👑": "emo_crown"};
+const EMO = {"🕯️": "emo_lantern", "🕯": "emo_lantern", "🎴": "emo_dice", "👣": "bn_spd", "🧵": "bn_cdr", "⛵": "bn_phoenixPerk", "⭐": "emo_stars", "🌪️": "emo_gust", "🌪": "emo_gust", "☯️": "emo_orb", "☯": "emo_orb", "🎯": "emo_target", "⚔️": "emo_duel", "⚔": "emo_duel", "🐉": "emo_dragon", "🐲": "emo_dragon", "🛠": "emo_tools", "🛠️": "emo_tools", "🏷️": "emo_tag", "🏷": "emo_tag", "📖": "emo_book", "♾️": "emo_infinity", "♾": "emo_infinity", "📜": "emo_scroll", "🐾": "emo_paw", "🧑‍🤝‍🧑": "ui_ic_chars", "🧑": "ui_ic_chars", "👥": "ui_ic_multi", "🔊": "ui_ic_sound", "💰": "cur_yeop", "🪙": "cur_coin", "🟡": "cur_gold", "🔓": "emo_unlock", "🔒": "emo_lock", "🔮": "emo_orb", "🏮": "emo_lantern", "🎰": "ui_ic_gacha", "🎁": "emo_gift", "⌨️": "emo_keyboard", "⌨": "emo_keyboard", "🎮": "emo_gamepad", "👤": "ui_ic_user", "🎒": "ui_ic_bag", "⬆️": "emo_up", "📅": "emo_calendar", "🗓️": "emo_calendar", "📆": "emo_calendar", "🏆": "emo_trophy", "⚠️": "emo_warn", "🌿": "emo_herb", "🤝": "emo_coop", "❓": "ui_ic_howto", "⚙️": "ui_ic_settings", "🎲": "emo_dice", "🖱️": "emo_mouse", "💥": "emo_burst", "✅": "emo_check", "📱": "emo_phone", "🚪": "emo_door", "⏸": "ui_ic_pause", "⏸️": "ui_ic_pause", "🗡️": "emo_dagger", "🛡️": "emo_shield", "🌅": "emo_sunrise", "🌙": "emo_moon", "🪞": "emo_mirror", "💀": "emo_skull", "☠": "emo_skull", "☠️": "emo_skull", "👻": "emo_ghost", "💫": "emo_stars", "🔥": "emo_fire", "📕": "emo_redbook", "🪓": "emo_axe", "💗": "emo_heart", "🌑": "emo_eclipse", "🩸": "emo_blood", "🥀": "emo_wither", "💨": "emo_gust", "🗺️": "emo_map", "✉️": "emo_mail", "👊": "emo_fist", "👑": "emo_crown"};
 const EMO_KEYS = Object.keys(EMO).filter((k) => ASSETS.img[EMO[k]]).sort((a, b) => b.length - a.length);
 const EMO_RE = EMO_KEYS.length ? new RegExp(EMO_KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g") : null;
 function emojify(root) {
@@ -842,7 +842,7 @@ const UI = {
     const tab = opt.tab || "d";
     const tabs = [["d", "📅 일일"], ["w", "🗓️ 주간"], ["m", "📆 월간"], ["a", "🏆 업적"], ["c", "🔓 캐릭터 해금"]].map(([k, n]) => {
       const dot = k === "a" ? MISSIONS.some((m) => missionDone(m) && !SAVE.missions[m.id]) : PERIOD_MISSIONS[k] ? PERIOD_MISSIONS[k].some((m) => periodVal(k, m.stat) >= m.n && !periodState(k).claimed[m.id]) : false;
-      return `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n}${dot ? " 🔴" : ""}</button>`; }).join("");
+      return `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n}${dot ? ' <i class="rdot"></i>' : ""}</button>`; }).join("");
     const row = (name, v, n, coin, got, data) => `<div class="card" style="display:flex;gap:12px;align-items:center;${got ? "opacity:.5" : ""}"><div style="flex:1"><b>${name}</b><div class="prog"><i style="width:${(Math.min(v, n) / n) * 100}%"></i></div><span class="muted">${Math.min(v, n)} / ${n}</span></div>
       <button class="btn ${v >= n && !got ? "gold" : ""} sm" ${data} ${v >= n && !got ? "" : "disabled"}>${got ? "받음" : `${curIc("coin")} ${coin}`}</button></div>`;
     let body = "";
