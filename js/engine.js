@@ -1869,7 +1869,7 @@ function render() {
     const pop = t.num ? 1 + (t.big ? 0.9 : 0.55) * Math.max(0, 1 - t.t / 0.11) - 0.12 * Math.max(0, Math.min(1, (t.t - 0.11) / 0.1)) * (1 - Math.min(1, t.t / 0.4)) : 1, sz = t.size * pop;
     g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${sz}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineJoin = "round"; g.lineWidth = t.big ? 6 : 4; g.strokeStyle = "rgba(0,0,0,0.85)";
     const jx = t.big && t.t < 0.15 ? rnd(-2, 2) : 0;
-    if (t.em === undefined) { const sp = typeof emoSplit === "function" && !t.num ? emoSplit(t.s) : [null, t.s]; t.em = sp[0] ? emoImg(sp[0]) : null; if (sp[0]) t.s = sp[1]; }
+    if (t.em === undefined) { const sp = typeof emoSplit === "function" && !t.num ? emoSplit(t.s) : [null, t.s]; t.em = sp[0] ? emoImg(sp[0]) : null; if (sp[0]) t.s = sp[1]; if (typeof noEmo === "function" && !t.num) t.s = noEmo(t.s); }
     if (t.em && t.em.naturalWidth) { const S = sz * 1.25, w = g.measureText(t.s).width; g.drawImage(t.em, t.x + jx - w / 2 - S - 2, t.y - S * 0.82, S, S); }
     g.strokeText(t.s, t.x + jx, t.y);
     if (t.big && t.num) { const gr = g.createLinearGradient(0, t.y - sz * 0.8, 0, t.y); gr.addColorStop(0, "#fff6c8"); gr.addColorStop(0.5, t.col); gr.addColorStop(1, "#d8701a"); g.fillStyle = gr; g.shadowColor = "rgba(255,170,40,0.9)"; g.shadowBlur = 14; }
@@ -2451,11 +2451,11 @@ function drawBanner(g, b) {
   g.save(); g.globalAlpha = a; g.textAlign = "center";
   const BY = camZoom() > 1 ? -150 : 0; g.translate(0, BY); // 11-17 확대 화면에선 주인공(가운데)을 가리지 않게 위로
   const gr = g.createLinearGradient(0, 300, 0, 440); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(0.5, "rgba(0,0,0,0.6)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(0, 300, RW, 140);
-  const [eic, btxt] = typeof emoSplit === "function" ? emoSplit(b.text) : [null, b.text];
+  const [eic, btxt0] = typeof emoSplit === "function" ? emoSplit(b.text) : [null, b.text], btxt = typeof noEmo === "function" ? noEmo(btxt0) : btxt0;
   g.font = '64px "Do Hyeon", sans-serif'; const tw = g.measureText(btxt).width, ex = eic ? 40 : 0;
   if (eic) { const im = emoImg(eic); if (im && im.naturalWidth) { const S = 74, sc = S / Math.max(im.naturalWidth, im.naturalHeight); g.drawImage(im, RW / 2 - tw / 2 - ex - S * 0.55, 380 - 52, im.naturalWidth * sc, im.naturalHeight * sc); } }
   g.lineWidth = 6; g.strokeStyle = "#000"; g.strokeText(btxt, RW / 2 + ex * 0.5, 380); g.fillStyle = b.boss ? "#ff6a5a" : "#ffcf7a"; g.shadowColor = b.boss ? "#ff3b30" : "#ffb547"; g.shadowBlur = 24; g.fillText(btxt, RW / 2 + ex * 0.5, 380);
-  g.shadowBlur = 0; g.font = '26px "Gowun Dodum", sans-serif'; g.fillStyle = "#e8e0f0"; g.strokeText(b.sub, RW / 2, 420); g.fillText(b.sub, RW / 2, 420);
+  g.shadowBlur = 0; g.font = '26px "Gowun Dodum", sans-serif'; g.fillStyle = "#e8e0f0"; const bsub = typeof noEmo === "function" ? noEmo(b.sub) : b.sub; g.strokeText(bsub, RW / 2, 420); g.fillText(bsub, RW / 2, 420);
   g.restore();
 }
 

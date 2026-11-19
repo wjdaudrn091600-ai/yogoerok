@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.5.0";
+const GAME_VERSION = "2.5.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -55,10 +55,12 @@ const imgSrc = (k) => (ASSETS.img[k] || "");
 const EMO = {"⏳": "sign_trial", "🕯️": "emo_lantern", "🕯": "emo_lantern", "🎴": "emo_dice", "👣": "bn_spd", "🧵": "bn_cdr", "⛵": "bn_phoenixPerk", "⭐": "emo_stars", "🌪️": "emo_gust", "🌪": "emo_gust", "☯️": "emo_orb", "☯": "emo_orb", "🎯": "emo_target", "⚔️": "emo_duel", "⚔": "emo_duel", "🐉": "emo_dragon", "🐲": "emo_dragon", "🛠": "emo_tools", "🛠️": "emo_tools", "🏷️": "emo_tag", "🏷": "emo_tag", "📖": "emo_book", "♾️": "emo_infinity", "♾": "emo_infinity", "📜": "emo_scroll", "🐾": "emo_paw", "🧑‍🤝‍🧑": "ui_ic_chars", "🧑": "ui_ic_chars", "👥": "ui_ic_multi", "🔊": "ui_ic_sound", "💰": "cur_yeop", "🪙": "cur_coin", "🟡": "cur_gold", "🔓": "emo_unlock", "🔒": "emo_lock", "🔮": "emo_orb", "🏮": "emo_lantern", "🎰": "ui_ic_gacha", "🎁": "emo_gift", "⌨️": "emo_keyboard", "⌨": "emo_keyboard", "🎮": "emo_gamepad", "👤": "ui_ic_user", "🎒": "ui_ic_bag", "⬆️": "emo_up", "📅": "emo_calendar", "🗓️": "emo_calendar", "📆": "emo_calendar", "🏆": "emo_trophy", "⚠️": "emo_warn", "🌿": "emo_herb", "🤝": "emo_coop", "❓": "ui_ic_howto", "⚙️": "ui_ic_settings", "🎲": "emo_dice", "🖱️": "emo_mouse", "💥": "emo_burst", "✅": "emo_check", "📱": "emo_phone", "🚪": "emo_door", "⏸": "ui_ic_pause", "⏸️": "ui_ic_pause", "🗡️": "emo_dagger", "🛡️": "emo_shield", "🌅": "emo_sunrise", "🌙": "emo_moon", "🪞": "emo_mirror", "💀": "emo_skull", "☠": "emo_skull", "☠️": "emo_skull", "👻": "emo_ghost", "💫": "emo_stars", "🔥": "emo_fire", "📕": "emo_redbook", "🪓": "emo_axe", "💗": "emo_heart", "🌑": "emo_eclipse", "🩸": "emo_blood", "🥀": "emo_wither", "💨": "emo_gust", "🗺️": "emo_map", "✉️": "emo_mail", "👊": "emo_fist", "👑": "emo_crown"};
 const EMO_KEYS = Object.keys(EMO).filter((k) => ASSETS.img[EMO[k]]).sort((a, b) => b.length - a.length);
 const EMO_RE = EMO_KEYS.length ? new RegExp(EMO_KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g") : null;
+const EMO_LEFT = /\p{Extended_Pictographic}/u, EMO_LEFT_G = /\p{Extended_Pictographic}️?/gu;
+const noEmo = (s) => (typeof s === "string" ? s.replace(EMO_LEFT_G, (x) => (EMO[x] && ASSETS.img[EMO[x]] ? x : "")).replace(/\s{2,}/g, " ").trim() : s);
 function emojify(root) {
   if (!EMO_RE || !root) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentNode && /^(SCRIPT|STYLE|TEXTAREA|INPUT|OPTION|TITLE)$/.test(n.parentNode.nodeName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
-  const hits = []; let n; while ((n = w.nextNode())) { EMO_RE.lastIndex = 0; if (EMO_RE.test(n.nodeValue)) hits.push(n); }
+  const hits = []; let n; while ((n = w.nextNode())) { if (EMO_LEFT.test(n.nodeValue)) { n.nodeValue = n.nodeValue.replace(EMO_LEFT_G, (x) => (EMO[x] && ASSETS.img[EMO[x]] ? x : "")).replace(/^\s+(?=\S)/, (sp) => (n.previousSibling ? sp : "")); } EMO_RE.lastIndex = 0; if (EMO_RE.test(n.nodeValue)) hits.push(n); } // 11-20 그린 아이콘이 없는 이모지는 지움
   for (const t of hits) {
     const frag = document.createDocumentFragment(), s = t.nodeValue; let last = 0; EMO_RE.lastIndex = 0; let m;
     while ((m = EMO_RE.exec(s))) { if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index))); const im = document.createElement("img"); im.src = ASSETS.img[EMO[m[0]]]; im.alt = ""; im.className = "emo3d"; frag.appendChild(im); last = m.index + m[0].length; }
