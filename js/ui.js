@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.3";
+const GAME_VERSION = "2.3.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -346,9 +346,12 @@ function pullOne(kind, slot, atLeastRare) {
   return { kind, id, rar, isNew: true, label: table[0][id].name };
 }
 function pullCost(kind, n, slot) { const g = kind === "skill" ? null : GACHA[kind]; return kind === "skill" ? (n === 10 ? SKILL_GACHA.cost10[slot] : SKILL_GACHA.cost[slot]) : n === 10 ? g.cost10 : g.cost; }
-function doPull(kind, n, slot, useYeop) {
+// 11-20 하루 한 번 무료 뽑기 (Archero·원신 등 모바일 히트작의 '매일 무료 1회' — 매일 들를 이유)
+const freeToday = () => !!SAVE && SAVE.freePull !== new Date().toDateString();
+function doPull(kind, n, slot, useYeop, free) {
   const cost = pullCost(kind, n, slot);
-  if (useYeop) { if (SAVE.gold < cost * COIN_YEOP) { UI.toast("엽전이 모자라요"); return; } SAVE.gold -= cost * COIN_YEOP; }
+  if (free) { if (!freeToday() || n !== 1) return; SAVE.freePull = new Date().toDateString(); }
+  else if (useYeop) { if (SAVE.gold < cost * COIN_YEOP) { UI.toast("엽전이 모자라요"); return; } SAVE.gold -= cost * COIN_YEOP; }
   else { if (SAVE.coins < cost) { UI.toast("코인이 모자라요 — 엽전으로도 뽑을 수 있어요"); return; } SAVE.coins -= cost; }
   const res = []; for (let i = 0; i < n; i++) res.push(pullOne(kind, slot, n === 10 && i === 9 && ["art", "pet", "title"].includes(kind) && !res.some((r) => r.rar >= 2)));
   track("gacha_pull", { kind, n, yeop: !!useYeop }); checkUnlocks(); saveGame(); UI.showPulls(res, () => UI.open("gacha", { tab: kind === "skill" ? "skill" : kind, slot }));
@@ -612,7 +615,7 @@ const UI = {
         </div>
       </div>
       <nav class="dock">
-        ${dock("chars", "chars", "영웅", `<em>${Object.keys(SAVE.chars).length}</em>`)}${dock("skills", "skills", "스킬")}${dock("gacha", "gacha", "뽑기")}${dock("bag", "bag", "소지품")}
+        ${dock("chars", "chars", "영웅", `<em>${Object.keys(SAVE.chars).length}</em>`)}${dock("skills", "skills", "스킬")}${dock("gacha", "gacha", "뽑기", freeToday() ? "<em class=\"free\">무료</em>" : "")}${dock("bag", "bag", "소지품")}
         ${dock("altar", "altar", "혼불 제단", altarDot)}${dock("season", "season", "토벌 시즌", typeof seasonUnclaimed === "function" && seasonUnclaimed() ? '<i class="dot"></i>' : "")}${dock("missions", "missions", "미션", mc ? '<i class="dot"></i>' : "")}${dock("bestiary", "book", "도감")}
         ${dock("history", "history", "기록")}${dock("multi", "multi", "함께하기")}${dock("howto", "howto", "도움말")}${dock("settings", "settings", "설정")}
       </nav>
@@ -783,6 +786,7 @@ const UI = {
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.gacha({ tab: b.dataset.t, slot })));
     document.querySelectorAll("[data-sl]").forEach((b) => (b.onclick = () => UI.gacha({ tab: "skill", slot: b.dataset.sl })));
     document.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.p, slot)));
+    document.querySelectorAll(".row").forEach((rw) => { if (freeToday() && rw.querySelector('[data-p="1"]') && !rw.querySelector(".freeb")) { const fb = document.createElement("button"); fb.className = "btn freeb"; fb.innerHTML = "오늘 무료 1회"; fb.onclick = () => doPull(tab === "skill" ? "skill" : tab, 1, slot, false, true); rw.prepend(fb); } });
     document.querySelectorAll("[data-py]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.py, slot, true)));
   },
   showPulls(res, after) {
