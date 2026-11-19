@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.0.6";
+const GAME_VERSION = "2.0.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -627,7 +627,7 @@ const UI = {
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
     document.documentElement.classList.toggle("bigtxt", !!(SAVE.settings && SAVE.settings.bigText)); // 11-19 글자 크게
     const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID;
-    if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.story.maxFloor || 1) >= 2 && (SAVE.hist || []).length >= 3) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 1층 보스를 잡은 뒤 한 번만 구글 별점 창 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
+    if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.stats.storyClear || 0) >= 1) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 사용자: 별점은 처음 게임(스토리)을 완전히 끝낸 뒤 메뉴로 돌아왔을 때 한 번만 — 판 중간에 뜨면 방해 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
@@ -1460,18 +1460,19 @@ UI.info = function (tab, back) {
 // ===================== 11-18 1.7.0 혼불 제단 (판 사이 영구 성장) =====================
 // 참고: Hades '밤의 거울'(죽어도 쌓이는 재화로 영구 강화) · Vampire Survivors(판 끝에 바로 다음 목표) → 조선식 재해석:
 // 쓰러진 요괴의 넋이 '혼불'이 되어 남고, 등불 사당의 제단에 바쳐 토벌대 전체의 힘을 키운다. 죽어도 혼불은 남으니 매 판이 앞으로 나아감.
-const ALTAR = [
-  { k: "wick", ic: "🕯️", name: "등불 심지", desc: (l) => `최대 체력 +${l * 4}%`, max: 5, cost: [20, 40, 70, 110, 160], m: (l) => ({ hp: 0.04 * l }) },
-  { k: "edge", ic: "🗡️", name: "벼린 날", desc: (l) => `공격력 +${l * 3}%`, max: 5, cost: [25, 50, 85, 130, 190], m: (l) => ({ atk: 0.03 * l }) },
-  { k: "luck", ic: "🎴", name: "길한 점괘", desc: (l) => `치명타 확률 +${l}%`, max: 5, cost: [20, 40, 65, 100, 150], m: (l) => ({ crit: 0.01 * l }) },
-  { k: "step", ic: "👣", name: "날랜 걸음", desc: (l) => `이동 속도 +${l * 2}%`, max: 3, cost: [30, 70, 130], m: (l) => ({ spd: 0.02 * l }) },
-  { k: "armor", ic: "🛡️", name: "혼불 갑주", desc: (l) => `받는 피해 -${l * 2}%`, max: 3, cost: [40, 90, 160], m: (l) => ({ dr: 0.02 * l }) },
-  { k: "purse", ic: "💰", name: "엽전 주머니", desc: (l) => `판 시작 엽전 +${l * 40}`, max: 5, cost: [15, 30, 50, 80, 120] },
-  { k: "thread", ic: "🧵", name: "운명의 실", desc: (l) => `레벨 업 강화 다시 뽑기 ${l}번 (판마다)`, max: 3, cost: [60, 140, 260] },
-  { k: "fourth", ic: "📜", name: "넷째 부적", desc: () => `레벨 업 때 강화를 4개 중에서 골라요`, max: 1, cost: [350] },
-  { k: "ferry", ic: "⛵", name: "저승 뱃사공의 덤", desc: () => `판마다 한 번, 쓰러져도 다시 일어나요`, max: 1, cost: [500] },
-  { k: "spirit", ic: "🔥", name: "넋 거두기", desc: (l) => `판에서 얻는 혼불 +${l * 10}%`, max: 5, cost: [40, 80, 140, 220, 320] },
+const ALTAR = [ // 11-19 사용자 "혼불 컨텐츠가 너무 빨리 소모되진 않는지" → 계산상 하루 1시간이면 약 1주(총 4,180)에 끝 → 단계별 ×1~3배(총 약 8,900), 다 올린 뒤엔 혼불 공양
+  { k: "wick", ic: "🕯️", name: "등불 심지", desc: (l) => `최대 체력 +${l * 4}%`, max: 5, cost: [20, 60, 140, 275, 480], m: (l) => ({ hp: 0.04 * l }) },
+  { k: "edge", ic: "🗡️", name: "벼린 날", desc: (l) => `공격력 +${l * 3}%`, max: 5, cost: [25, 75, 170, 325, 570], m: (l) => ({ atk: 0.03 * l }) },
+  { k: "luck", ic: "🎴", name: "길한 점괘", desc: (l) => `치명타 확률 +${l}%`, max: 5, cost: [20, 60, 130, 250, 450], m: (l) => ({ crit: 0.01 * l }) },
+  { k: "step", ic: "👣", name: "날랜 걸음", desc: (l) => `이동 속도 +${l * 2}%`, max: 3, cost: [30, 105, 260], m: (l) => ({ spd: 0.02 * l }) },
+  { k: "armor", ic: "🛡️", name: "혼불 갑주", desc: (l) => `받는 피해 -${l * 2}%`, max: 3, cost: [40, 135, 320], m: (l) => ({ dr: 0.02 * l }) },
+  { k: "purse", ic: "💰", name: "엽전 주머니", desc: (l) => `판 시작 엽전 +${l * 40}`, max: 5, cost: [15, 45, 100, 200, 360] },
+  { k: "thread", ic: "🧵", name: "운명의 실", desc: (l) => `레벨 업 강화 다시 뽑기 ${l}번 (판마다)`, max: 3, cost: [60, 210, 520] },
+  { k: "fourth", ic: "📜", name: "넷째 부적", desc: () => `레벨 업 때 강화를 4개 중에서 골라요`, max: 1, cost: [600] },
+  { k: "ferry", ic: "⛵", name: "저승 뱃사공의 덤", desc: () => `판마다 한 번, 쓰러져도 다시 일어나요`, max: 1, cost: [900] },
+  { k: "spirit", ic: "🔥", name: "넋 거두기", desc: (l) => `판에서 얻는 혼불 +${l * 10}%`, max: 5, cost: [40, 120, 280, 550, 960] },
 ];
+const OFFER_SOUL = 300; // 혼불 공양: 제단을 다 올린 뒤에도 혼불이 쓸모 있게 (뽑기 1회 = 코인 5 = 혼불 1,500)
 const altarLv = (k) => ((SAVE && SAVE.altar) || {})[k] || 0;
 function altarMods() { if (!SAVE) return []; const out = []; for (const a of ALTAR) { const l = altarLv(a.k); if (l && a.m) out.push(a.m(l)); } if (altarLv("ferry")) out.push({ revive: 1 }); return out; }
 function altarStart(p, opt) { // newRun 에서 부름
@@ -1515,7 +1516,8 @@ UI.altar = function () {
       <p class="muted">${l ? "지금: " + a.desc(l) : "아직 없음"}${full ? "" : `<br>다음: <span style="color:var(--gold2)">${a.desc(l + 1)}</span>`}</p></div>
       <button class="btn ${can ? "gold" : ""}" data-a="${a.k}" ${can ? "" : "disabled"}>${full ? "완성" : `🔥 ${c}`}</button></div>`; };
   UI.frame("🔥 혼불 제단", `<div class="altarhead"><div class="flame"></div><div><h2>등불 사당의 제단</h2><p class="muted">쓰러뜨린 요괴의 넋은 혼불이 되어 남아요. 판에서 쓰러져도 혼불은 그대로 — 바쳐서 토벌대 모두를 강하게.</p><p class="soulnow">가진 혼불 <b>🔥 ${S.soul || 0}</b> <span class="muted">· 지금까지 모은 혼불 ${S.soulTotal || 0}</span></p></div></div>
-    <div class="agrid">${ALTAR.map(card).join("")}</div><p class="muted" style="text-align:center">제단 강화는 모든 캐릭터에게 적용돼요 (1대1 대전·멀티 제외)</p>`, () => UI.menu());
+    <div class="agrid">${ALTAR.map(card).join("")}</div>${ALTAR.every((x) => altarLv(x.k) >= x.max) ? `<div class="card" style="text-align:center;margin-top:10px"><b>🏮 혼불 공양</b> <span class="muted">제단을 모두 밝혔어요. 남는 혼불 ${OFFER_SOUL}을 바치면 코인 1개</span><br><button class="btn gold" id="offer" ${(S.soul || 0) < OFFER_SOUL ? "disabled" : ""}>공양하기 (🔥 ${OFFER_SOUL} → 코인 1)</button></div>` : ""}<p class="muted" style="text-align:center">제단 강화는 모든 캐릭터에게 적용돼요 (1대1 대전·멀티 제외)</p>`, () => UI.menu());
+  if ($("#offer")) $("#offer").onclick = () => { if ((S.soul || 0) < OFFER_SOUL) return; S.soul -= OFFER_SOUL; S.coins += 1; track("soul_offer"); saveGame(); sfx("coin"); UI.toast("🏮 혼불 공양 · 코인 +1"); UI.altar(); };
   document.querySelectorAll(".acard button[data-a]").forEach((b) => (b.onclick = () => { const a = ALTAR.find((x) => x.k === b.dataset.a), l = altarLv(a.k); if (l >= a.max || (S.soul || 0) < a.cost[l]) return;
     S.soul -= a.cost[l]; S.altar[a.k] = l + 1; track("altar_buy", { k: a.k, lv: l + 1 }); saveGame(); sfx("level"); UI.toast(`${a.ic} ${a.name} ${l + 1}단계 — ${a.desc(l + 1)}`, 2600); UI.altar(); }));
 };
@@ -2015,7 +2017,7 @@ function pickupHtml() {
 // ===================== 11-19 2.0 주막 창고(쉬는 동안 쌓이는 혼불) · 주말 혼불 축제 =====================
 // 참고: 탕탕특공대 '순찰 보상'·방치형 게임 오프라인 보상 — 매일 들어올 이유. 최대 12시간이라 하루 두 번 들르면 손해 없음.
 const STORE_CAP_H = 12;
-function storeRate() { return 3 + 1.5 * Math.min(5, SAVE.story.maxFloor || 1) + (typeof altarLv === "function" ? altarLv("spirit") : 0); } // 시간당 혼불
+function storeRate() { return 2 + 0.6 * Math.min(5, SAVE.story.maxFloor || 1) + 0.4 * (typeof altarLv === "function" ? altarLv("spirit") : 0); } // 11-19 쉬는 동안 받는 몫이 한 판 수입을 넘지 않게 (최대 15.5 → 7) // 시간당 혼불
 function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = now; const h = Math.min(STORE_CAP_H, (now - SAVE.storeT) / 36e5); return { h, soul: Math.floor(h * storeRate()), full: h >= STORE_CAP_H }; }
 function storeCard() {
   if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
