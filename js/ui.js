@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.5.4";
+const GAME_VERSION = "2.5.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -968,7 +968,7 @@ const UI = {
         <li>스테이지를 넘어갈 때 체력 25% 회복 (매우 어려움은 회복 없음).</li></ul></section>
       <section class="ht"><h3>무한의 방 · 보스 레이드</h3><ul>
         <li>무한의 방: 문을 골라 끝없이 내려가요. 10번째 방마다 보스.</li>
-        <li>보스 레이드: 장 보스 ${RAID_ORDER.length}마리를 차례로. 보스를 쓰러뜨리면 보부상에게 엽전으로 정비하고, 홍살문에 서면 다음 보스가 나와요.</li></ul></section>
+        <li>보스 레이드: 장 보스 ${RAID_ORDER.length}마리를 차례로. 보스를 쓰러뜨릴 때마다 강화 하나, 보부상에게 엽전으로 정비하고 홍살문에 서면 다음 보스가 나와요.</li></ul></section>
       <section class="ht"><h3>성장</h3><ul>
         <li>레벨이 오르면 강화 셋 중 하나를 골라요. 같은 강화를 겹치면 레벨이 올라요. 짝이 맞는 두 강화를 모으면 조합 강화가 나와요.</li>
         <li>액티브는 하나만 들 수 있어요. 같은 것을 또 주우면 레벨 업.</li>

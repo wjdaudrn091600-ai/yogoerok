@@ -1094,7 +1094,7 @@ function bossDown(b) {
   else if (Math.random() < 0.4) G.drops.push({ type: "act", k: rollActive([], 2), x: RW / 2 + 160, y: RH / 2 + 60 });
   if (G.mode === "raid") { G.raidN++; gainCoin(1, "레이드 보스 처치"); for (const h of heroesOf(0)) { if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; } healUnit(h, h.maxHp * 0.3); }
     if (G.raidN >= RAID_ORDER.length) { G.banner = { text: "레이드 완료!", sub: "모든 보스를 쓰러뜨렸어요", t: 2.4 }; schedule(3, raidNext); }
-    else { raidBreak(); G.banner = { text: "보스 처치!", sub: "보부상에게 들러 정비하고 홍살문에 1초 서 있으면 다음 보스", t: 3.2 }; }
+    else { raidBreak(); G.levelQueue = (G.levelQueue || 0) + 1; G.banner = { text: "보스 처치! · 강화 하나", sub: "보부상에게 들러 정비하고 홍살문에 1초 서 있으면 다음 보스", t: 3.2 }; } // 11-20 보스마다 강화 하나 (레이드엔 잡몹이 없어 레벨이 거의 안 올라 S급도 3~4번째 보스에서 쓰러짐)
     checkUnlocks(); saveGame(); return; }
   if (G.mode === "dev" || G.mode === "practice") { G.banner = { text: "보스 처치!", sub: "개발자 맵 · 문이 열렸어요", t: 2 }; checkUnlocks(); saveGame(); return; }
   if (G.mode === "story") { G.drops.push(portalDrop()); setTimeout(() => UI.tip("portal"), 3200); G.banner = { text: "보스 토벌!", sub: "홍살문이 열렸어요 — 다른 방을 둘러본 뒤 문 안에 1초 서 있으면 다음으로", t: 3 }; }
