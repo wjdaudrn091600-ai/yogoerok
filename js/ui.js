@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.7";
+const GAME_VERSION = "2.3.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1255,10 +1255,11 @@ const UI = {
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
     $("#modal").classList.add("lvmode");
     const pips = (n) => `<div class="lvpips">${[0, 1, 2].map((i) => `<i class="${i < n ? "on" : i === n ? "nx" : ""}"></i>`).join("")}</div>`;
-    UI.modal(`<div class="lvhead"><small>LEVEL UP</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 패시브</em>"}</div><div class="lvline"></div><div class="lvdesc">${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div>${G.rerolls > 0 && !multi ? `<div class="center lvre"><button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button></div>` : ""}`);
+    UI.modal(`<div class="lvhead"><small>LEVEL UP</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 패시브</em>"}</div><div class="lvline"></div><div class="lvdesc">${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
+    if ($("#lvskip")) $("#lvskip").onclick = () => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); const g = 30 + G.p.lvl * 2; G.p.gold = (G.p.gold || 0) + g; addText(G.p.x, G.p.y - 120, "넘김 · 엽전 +" + g, "#ffe08a", 20); UI.closeModal(); if (!multi) G.paused = false; };
     if ($("#rrl")) $("#rrl").onclick = () => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); G.rerolls--; UI.closeModal(); UI.levelUp(rollBoons(G.boonN || 3, G.p.lvl)); };
     window.addEventListener("keydown", kh);
     document.querySelectorAll(".pk").forEach((b) => (b.onclick = () => choose(b.dataset.k)));
@@ -2093,15 +2094,16 @@ UI.shop = function (r) {
     const gold = p.gold || 0; curLine = line;
     $("#modal").classList.add("shopmode");
     UI.modal(`<div class="shopw"><div class="shophd"><img class="shopnpc" src="${imgSrc("npc_bobusang")}" alt=""><div class="shopsay"><b>보부상</b><p>${esc(line)}</p></div><div class="shopgold"><small>내 엽전</small><b>${gold}</b></div></div>
-      <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}${i === sel ? " on" : ""}" data-i="${i}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div><button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>${det(gold)}
+      <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}${i === sel ? " on" : ""}" data-i="${i}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div>${d.sold ? "" : `<button class="shlk${d.lock ? " on" : ""}" data-lk="${i}" title="찜하면 다시 진열해도 남아요">${d.lock ? "찜함" : "찜"}</button>`}<button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>${det(gold)}
       <div class="center shopft"><button class="btn" id="shre" ${gold >= rePrice() ? "" : "disabled"}>🔔 다시 진열 · 엽전 ${rePrice()}</button><button class="btn gold" id="shx">나가기 (Esc)</button></div></div>`);
     const arm = UI.arm ? UI.arm() : 0;
     const buy = (i) => { if (performance.now() < arm) return; const d = r.stock[i]; if (!d || d.sold || (p.gold || 0) < d.price) return; shopBuy(p, d); draw(d.what === "act" ? "발밑에 내려놨소. 주워 가시오!" : pick(["좋은 물건 고르셨소!", "눈썰미가 있구려.", "그거 하나면 저 아래서도 버틸 거요."])); };
     document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); buy(+b.dataset.b); }));
+    document.querySelectorAll("[data-lk]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const d = r.stock[+b.dataset.lk]; d.lock = !d.lock; draw(line); }));
     document.querySelectorAll(".shopit[data-i]").forEach((c) => (c.onclick = () => { const i = +c.dataset.i; sel = sel === i ? -1 : i; draw(line); }));
     if ($("#shdx")) $("#shdx").onclick = () => { sel = -1; draw(line); };
     if ($("#shdb")) $("#shdb").onclick = () => buy(sel);
-    $("#shre").onclick = () => { if (performance.now() < arm) return; const c = rePrice(); if ((p.gold || 0) < c) return; p.gold -= c; r.reN = (r.reN || 0) + 1; r.stock = makeStock(); sfx("coin"); draw(SHOP_LINES[4]); };
+    $("#shre").onclick = () => { if (performance.now() < arm) return; const c = rePrice(); if ((p.gold || 0) < c) return; p.gold -= c; r.reN = (r.reN || 0) + 1; { const keep = r.stock.filter((d) => d.lock && !d.sold), fresh = makeStock(); r.stock = keep.concat(fresh.slice(0, Math.max(0, fresh.length - keep.length))); } sfx("coin"); draw(SHOP_LINES[4]); };
     $("#shx").onclick = close;
   };
   window.addEventListener("keydown", kh);
