@@ -45,7 +45,7 @@ function warmKeys(prefixes) {
 }
 function warmRun() {
   if (!G || !G.p) return 0;
-  const P = ["fx_", "vfx_", "cvfx_hit", "cvfx_mob", "cvfx_pet", "cvfx_sum", "sign_", "cvfx_btel_", "obj_", "door", "trap", "sign", "lantern", "chest", "well", "prop", "ic_", "bn_", "emo_", "cur_", "ui_"];
+  const P = ["npc_", "fx_", "vfx_", "cvfx_hit", "cvfx_mob", "cvfx_pet", "cvfx_sum", "sign_", "cvfx_btel_", "obj_", "door", "trap", "sign", "lantern", "chest", "well", "prop", "ic_", "bn_", "emo_", "cur_", "ui_"];
   for (const u of G.units) if (u.kind === "hero") { const id = u.id, art = u.art || id; P.push("spr_" + art, "cvfx_" + id + "_", "cvfx_sk_" + id + "_", "sk_" + id + "_", "pet_", "sum_"); for (const s of Object.values(u.sk || {})) if (s.icon) P.push(s.icon); }
   const f = ((G.mode === "endless" ? G.eFloor || 1 : G.floor || 1) - 1) % 5 + 1, th = theme();
   for (const k of (th && th.enemies) || []) { const e = ENEMIES[k]; if (e && e.img) P.push(e.img); }
@@ -420,8 +420,11 @@ function populate(r) {
     const a1 = rollActive(), a2 = rollActive([a1]);
     G.drops.push({ type: "act", k: a1, x: RW / 2 - 220, y: RH / 2 + 40, grp: 1 }, { type: "act", k: a2, x: RW / 2 + 220, y: RH / 2 + 40, grp: 1 });
   } else if (r.type === "shop" && !r.cleared) {
-    r.cleared = true; stockShop();
-    G.drops.push({ type: "shopre", x: RW / 2, y: RH / 2 + 300, n: 0, price: 40 }); // 11-18 다시 진열 종 (Hades 카론 상점 재고 바꾸기 재해석)
+    r.cleared = true;
+    if (shopNpc()) { r.reN = 0; r.stock = makeStock(); G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true }); }
+    else { stockShop(); G.drops.push({ type: "shopre", x: RW / 2 + 430, y: RH / 2 - 170, n: 0, price: 40 }); }
+  } else if (r.type === "shop" && r.stock && shopNpc()) {
+    G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true });
   } else if (r.type === "event" && !r.cleared && !r.evDone) {
     setTimeout(() => { if (G && !G.over) UI.tip("event"); }, 600);
     r.cleared = true; r.evDone = true; G.drops.push({ type: "evt", k: typeof pickEvent === "function" ? pickEvent() : "bowl", x: RW / 2, y: RH / 2 - 10, used: false });
@@ -1273,6 +1276,7 @@ function pickups(u, dt = 1 / 60) {
       if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
     else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; healUnit(u, u.maxHp); sfx("heal"); }
+    else if (d.type === "merchant" && u === G.p) { if (dd > 170) d.away = true; else if (dd < 95 && d.away && !UI.modalOpen() && !G.over) { d.away = false; UI.shop(G.cur); } }
     else if (d.type === "shopre" && dd < 50 && !d.cool && u === G.p && d.away !== false) {
       d.cool = 1.2; d.away = false; if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); continue; }
       u.gold -= d.price; d.n++; d.price = 40 + d.n * 35; sfx("coin"); for (let i = G.drops.length - 1; i >= 0; i--) if (G.drops[i].type === "shop" && !G.drops[i].sold) G.drops.splice(i, 1);
@@ -1280,13 +1284,7 @@ function pickups(u, dt = 1 / 60) {
     }
     else if (d.type === "shop" && !d.sold && dd < 50 && !d.cool) {
       if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); d.cool = 1.5; continue; }
-      u.gold -= d.price; d.sold = true; sfx("coin");
-      if (d.what === "herb") healUnit(u, u.maxHp * 0.4);
-      else if (d.what === "item" && d.k === "coin") { if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "원정 상점"); }
-      else if (d.what === "item") { u.baseMods.push(SHOP_ITEMS[d.k].m); (u.shopItems = u.shopItems || []).push(d.k); recalc(u); addText(u.x, u.y - 100, SHOP_ITEMS[d.k].name + "!", "#ffe08a", 22); }
-      else if (d.what === "act") { G.drops.push({ type: "act", k: d.k, x: d.x, y: d.y + 80 }); }
-      else { takeBoon(u, d.k); addText(u.x, u.y - 100, BOONS[d.k].name + "!", "#c9a0ff", 22); }
-      saveGame();
+      shopBuy(u, d);
     } else if (d.type === "stairs" && !G.trans) {
       // 멀티는 살아 있는 일행이 모두 포탈 안에 들어와야 1초가 찬다 (11-15). 한 프레임에 한 번만 세려고 일행 첫 사람 차례에만
       const party = heroesOf(0).filter((o) => o.alive && !o.left), first = party[0] === u;
@@ -1982,6 +1980,7 @@ function drawDrop(g, d) {
   }
   else if (d.type === "evt") drawEvt(g, d);
   else if (d.type === "shopre") drawShopRe(g, d);
+  else if (d.type === "merchant") drawMerchant(g, d);
   else if (d.type === "spring") {
     const wl = IMG.well, M = ASSETS.meta && ASSETS.meta.well;
     if (wl && wl.naturalWidth) { const H = 190, sc = M ? H * M.s : H / wl.naturalHeight; g.save(); if (d.used) g.filter = "grayscale(0.8) brightness(0.7)"; else { const gl = g.createRadialGradient(d.x, d.y - 40, 5, d.x, d.y - 40, 130); gl.addColorStop(0, "rgba(140,230,255,0.35)"); gl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gl; g.fillRect(d.x - 140, d.y - 170, 280, 280); }
@@ -2844,14 +2843,36 @@ function drawEvt(g, d) {
 }
 
 // 11-18 상점 진열 (다시 진열 때도 씀)
-function stockShop() {
+function shopBuy(u, d) {
+  u.gold -= d.price; d.sold = true; sfx("coin");
+  if (d.what === "herb") healUnit(u, u.maxHp * 0.4);
+  else if (d.what === "item" && d.k === "coin") { if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "원정 상점"); }
+  else if (d.what === "item") { u.baseMods.push(SHOP_ITEMS[d.k].m); (u.shopItems = u.shopItems || []).push(d.k); recalc(u); addText(u.x, u.y - 100, SHOP_ITEMS[d.k].name + "!", "#ffe08a", 22); }
+  else if (d.what === "act") { G.drops.push({ type: "act", k: d.k, x: u.x, y: u.y + 90 }); }
+  else { takeBoon(u, d.k); addText(u.x, u.y - 100, BOONS[d.k].name + "!", "#c9a0ff", 22); }
+  saveGame();
+}
+// 11-19 보부상: 혼자 할 땐 바닥에 물건을 깔지 않고, 보부상에게 다가가면 상점 창이 열림 (위 문으로 들어오다 다시 진열 종을 밟던 문제)
+const shopNpc = () => !(G.opt && G.opt.multi);
+function makeStock() { const out = []; stockShop(out); return out; }
+function drawMerchant(g, d) {
+  const im = IMG.npc_bobusang, t = G.time, near = G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) < 170;
+  g.save(); g.fillStyle = "rgba(0,0,0,0.42)"; g.beginPath(); g.ellipse(d.x, d.y + 8, 62, 16, 0, 0, 7); g.fill();
+  const gr = g.createRadialGradient(d.x, d.y - 70, 4, d.x, d.y - 70, 150); gr.addColorStop(0, "rgba(255,210,130,0.22)"); gr.addColorStop(1, "rgba(255,180,90,0)"); g.fillStyle = gr; g.beginPath(); g.arc(d.x, d.y - 70, 150, 0, 7); g.fill();
+  if (im && im.complete && im.naturalWidth) { const h = 190, w = h * im.naturalWidth / im.naturalHeight, by = Math.sin(t * 2) * 2; g.drawImage(im, d.x - w / 2, d.y - h + 10 + by, w, h); }
+  else { g.font = "64px serif"; g.textAlign = "center"; g.fillText("🎒", d.x, d.y - 30); }
+  g.font = '700 20px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = near ? "보부상 · 다가가면 상점" : "보부상";
+  g.strokeText(tx, d.x, d.y + 36); g.fillStyle = "#ffe08a"; g.fillText(tx, d.x, d.y + 36);
+  g.restore();
+}
+function stockShop(out) {
   const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.3) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
   const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
   const bk = rollBoons(1, G.p.lvl)[0];
   const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(bk ? [{ what: "boon", k: bk, price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
   list.forEach((it, i) => { const x = RW / 2 + ((i % 3) - 1) * 260, y = RH / 2 - 60 + Math.floor(i / 3) * 210;
     const base = it.price || (it.what === "herb" ? SHOP_ITEMS.herb.price : SHOP_ITEMS[it.k].price);
-    G.drops.push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
+    (out || G.drops).push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
 }
 function drawShopRe(g, d) {
   const t = G.time, y = d.y - 30 + Math.sin(t * 3) * 3; if (G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) > 100) d.away = true; // 한 번 쓰면 떨어졌다 와야 다시

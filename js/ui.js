@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.0.8";
+const GAME_VERSION = "2.0.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -429,7 +429,7 @@ const UI = {
   toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
   error(err) { reportError(err); const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
   modal(html) { $("#mbox").innerHTML = html; $("#modal").hidden = false; },
-  closeModal() { $("#modal").hidden = true; $("#mbox").innerHTML = ""; },
+  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode"); $("#mbox").innerHTML = ""; },
 
   // ----- 로그인 -----
   login() {
@@ -1253,7 +1253,9 @@ const UI = {
     // 고를 패시브가 남지 않으면(모두 Lv.3이거나 상한) 엽전으로 대신 (11-13)
     if (!opts.length) { G.p.gold = (G.p.gold || 0) + 60; addText(G.p.x, G.p.y - 120, "패시브 모두 최대! 엽전 +60", "#ffe08a", 22); return; }
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
-    UI.modal(`<h2>레벨 업! Lv.${G.p.lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1~${opts.length} 키)</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b><div class="muted">${RARITY[b.rar].name}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? ` · <b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b>` : " · 새 패시브"; })()}</div>${typeof duoHint === "function" ? duoHint(k) : ""}${(() => { const n = G.p.boons.filter((x) => x === k).length; return n ? boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>${G.rerolls > 0 && !multi ? `<div class="center"><button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button></div>` : ""}`);
+    $("#modal").classList.add("lvmode");
+    const pips = (n) => `<div class="lvpips">${[0, 1, 2].map((i) => `<i class="${i < n ? "on" : i === n ? "nx" : ""}"></i>`).join("")}</div>`;
+    UI.modal(`<div class="lvhead"><small>LEVEL UP</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 패시브</em>"}</div><div class="lvline"></div><div class="lvdesc">${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div>${G.rerolls > 0 && !multi ? `<div class="center lvre"><button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button></div>` : ""}`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
@@ -2030,6 +2032,36 @@ function festivalBanner() { return isFestival() ? `<div class="fest">🎆 <b>주
 
 try { const m = location.hash.match(/autotest[^#]*&ff=(\d)/); if (m) window._ff = Math.min(6, +m[1]); } catch (e) { } // 시험 봇 빨리 감기
 const PLAY_URL = ""; // 11-19 플레이스토어에 올라가면 여기에 주소(https://play.google.com/store/apps/details?id=com.yogoerok.game) → 휴대폰 브라우저의 '앱 받기'가 스토어로
+// ===================== 11-19 보부상 상점 창 (보부상에게 다가가면 열림) =====================
+const SHOP_LINES = ["어서 오시오, 토벌꾼 양반! 등짐 풀어 놓을 테니 천천히 보시구려.", "미궁 장사는 목숨 걸고 하는 거라, 값은 좀 쳐 주시오.", "이 약초는 저 아랫마을 심마니한테서 떼 온 거요.", "엽전만 있으면 요괴 잡을 물건은 다 있소이다.", "다 별로요? 등짐 깊숙한 데서 다른 걸 꺼내 드리리다."];
+UI.shop = function (r) {
+  if (!G || !G.p || !r || !r.stock) return;
+  const p = G.p; G.paused = true; input.atkHeld = false; input.moveHeld = false;
+  const info = (d) => {
+    if (d.what === "act") { const A = ACTIVES[d.k], T = ACT_TIER[A.rar]; return { ic: "obj_" + d.k, em: A.ic || "✨", n: A.name, t: `액티브 · ${T.name}`, c: T.col, ds: A.desc }; }
+    if (d.what === "boon") { const B = BOONS[d.k], R = RARITY[B.rar]; return { ic: "obj_bn_" + d.k, em: B.ic, n: B.name, t: `강화 · ${R.name}`, c: R.col, ds: B.desc }; }
+    if (d.what === "herb") return { ic: "obj_herb", em: "🌿", n: "회복 약초", t: "소모품", c: "#7fe08a", ds: "체력 40% 회복" };
+    const I = SHOP_ITEMS[d.k]; return { ic: "obj_shop_" + d.k, em: I.ic || "📦", n: I.name, t: d.k === "coin" ? "코인" : "장비 · 이번 원정 동안", c: d.k === "coin" ? "#ffd27a" : "#9fd0ff", ds: I.desc };
+  };
+  const rePrice = () => 40 + (r.reN || 0) * 35;
+  const close = () => { window.removeEventListener("keydown", kh); UI.closeModal(); G.paused = false; };
+  const kh = (e) => { if (e.code === "Escape") { e.preventDefault(); close(); } };
+  const draw = (line) => {
+    const gold = p.gold || 0;
+    $("#modal").classList.add("shopmode");
+    UI.modal(`<div class="shopw"><div class="shophd"><img class="shopnpc" src="${imgSrc("npc_bobusang")}" alt=""><div class="shopsay"><b>보부상</b><p>${esc(line)}</p></div><div class="shopgold"><small>내 엽전</small><b>${gold}</b></div></div>
+      <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div><button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>
+      <div class="center shopft"><button class="btn" id="shre" ${gold >= rePrice() ? "" : "disabled"}>🔔 다시 진열 · 엽전 ${rePrice()}</button><button class="btn gold" id="shx">나가기 (Esc)</button></div></div>`);
+    const arm = UI.arm ? UI.arm() : 0;
+    document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => { if (performance.now() < arm) return; const d = r.stock[+b.dataset.b]; if (d.sold || (p.gold || 0) < d.price) return; shopBuy(p, d); draw(d.what === "act" ? "발밑에 내려놨소. 주워 가시오!" : pick(["좋은 물건 고르셨소!", "눈썰미가 있구려.", "그거 하나면 저 아래서도 버틸 거요."])); }));
+    $("#shre").onclick = () => { if (performance.now() < arm) return; const c = rePrice(); if ((p.gold || 0) < c) return; p.gold -= c; r.reN = (r.reN || 0) + 1; r.stock = makeStock(); sfx("coin"); draw(SHOP_LINES[4]); };
+    $("#shx").onclick = close;
+  };
+  window.addEventListener("keydown", kh);
+  track("shop_open", { floor: G.floor });
+  draw(pick(SHOP_LINES.slice(0, 4)));
+};
+
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
