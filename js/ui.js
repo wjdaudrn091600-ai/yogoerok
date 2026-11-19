@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.5.2";
+const GAME_VERSION = "2.5.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -523,8 +523,9 @@ const UI = {
     if (!G || !G.cur || G.mode === "duel" || UI.modalOpen()) return;
     const wasG = !G.paused; G.paused = true;
     UI.modal(`<h2>🗺️ 지도</h2><canvas id="bigmap" width="900" height="560" style="width:100%;max-width:900px;display:block;margin:0 auto;background:#0b0910;border-radius:10px"></canvas>
-      <p class="muted" style="text-align:center;font-size:.8rem">⭐ 지금 있는 방 · 붉은 테두리 보스 · 파란 테두리 상점 · 초록 우물 · 금색 보물 · ⛩️ 홍살문 · 흐린 방은 안 가 본 방</p><div class="center"><button class="btn gold" id="mapok">닫기 (M)</button></div>`);
-    const c = $("#bigmap"), g = c.getContext("2d"), rs = [...G.rooms.values()];
+      <p class="muted" style="text-align:center;font-size:.8rem">얼굴 = 지금 있는 방 · 나무패 = 방 종류(보스·중간보스·상점·우물·보물·정예·괴이한 방·시련) · 붉은 문 = 홍살문 · 흐린 방은 안 가 본 방</p><div class="center"><button class="btn gold" id="mapok">닫기 (M)</button></div>`);
+    const drawMap = () => { if (!$("#bigmap") || !G) return;
+    const c = $("#bigmap"), g = c.getContext("2d"), rs = [...G.rooms.values()]; g.clearRect(0, 0, c.width, c.height);
     const xs = rs.map((r) => r.x), ys = rs.map((r) => r.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const S = Math.min(120, 820 / (x1 - x0 + 1), 500 / (y1 - y0 + 1)), ox = (900 - (x1 - x0 + 1) * S) / 2, oy = (560 - (y1 - y0 + 1) * S) / 2;
     const P = (r) => [ox + (r.x - x0) * S + S / 2, oy + (r.y - y0) * S + S / 2];
@@ -536,10 +537,14 @@ const UI = {
       g.fillStyle = r === G.cur ? "#3a2c18" : "#1d1826"; g.fillRect(x - w / 2, y - w / 2, w, w);
       g.strokeStyle = COL[r.type] || "#8a7a6a"; g.lineWidth = r === G.cur ? 5 : 3; g.strokeRect(x - w / 2, y - w / 2, w, w);
       g.globalAlpha = 1; g.font = `${Math.round(w * 0.42)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
-      const ic = r === G.cur ? "⭐" : r.type === "boss" ? (r.cleared ? "✔" : "☠") : r.type === "shop" ? "⚖" : r.type === "rest" ? "♨" : r.type === "treasure" ? "✦" : r.cleared ? "·" : "";
-      g.fillStyle = "#ffe2a0"; g.fillText(ic, x, y);
-      if (r.type === "boss" && r.cleared && !r.stairsTaken) g.fillText("⛩️", x + w * 0.42, y - w * 0.42);
+      // 11-20 글리프 대신 그린 방 표식(문 위 나무패와 같은 그림), 지금 방은 영웅 얼굴
+      const sk = r === G.cur ? null : r.type === "boss" ? (r.mid || (G.mode === "story" && G.stage < STAGES_PER_FLOOR) ? "mid" : "boss") : r.trial ? "trial" : { shop: "shop", rest: "rest", treasure: "treasure", elite: "elite", exit: "exit", event: "event" }[r.type];
+      const im = r === G.cur ? IMG["card_" + (typeof charArt === "function" ? charArt(G.p.id, G.p.form || null) : G.p.id)] : sk && IMG["sign_" + sk];
+      if (im && im.naturalWidth) { const s2 = w * 0.78, sc = s2 / Math.max(im.naturalWidth, im.naturalHeight); g.save(); if (r === G.cur) { g.beginPath(); g.arc(x, y, s2 / 2, 0, 7); g.clip(); const s3 = s2 / Math.min(im.naturalWidth, im.naturalHeight); g.drawImage(im, x - im.naturalWidth * s3 / 2, y - s2 / 2, im.naturalWidth * s3, im.naturalHeight * s3); } else { if (r.type === "boss" && r.cleared) g.globalAlpha = 0.45; g.drawImage(im, x - im.naturalWidth * sc / 2, y - im.naturalHeight * sc / 2, im.naturalWidth * sc, im.naturalHeight * sc); } g.restore(); }
+      else if (r.cleared) { g.fillStyle = "#ffe2a0"; g.fillText("·", x, y); }
+      if (r.type === "boss" && r.cleared && !r.stairsTaken) { g.fillStyle = "#c8432a"; g.fillRect(x + w * 0.26, y - w * 0.5, w * 0.06, w * 0.24); g.fillRect(x + w * 0.44, y - w * 0.5, w * 0.06, w * 0.24); g.fillRect(x + w * 0.2, y - w * 0.5, w * 0.36, w * 0.05); }
     }
+    }; drawMap(); setTimeout(drawMap, 350); setTimeout(drawMap, 1200); // 그림이 처음 받아지는 중이면 다시 그림
     const close = () => { UI.closeModal(); if (wasG && G) G.paused = false; };
     $("#mapok").onclick = close; UI._mapClose = close;
   },
