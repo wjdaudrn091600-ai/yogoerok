@@ -1272,7 +1272,7 @@ function pickups(u, dt = 1 / 60) {
       else if (Math.random() < COIN_DROP.chest * (1 + (u.m.coinLuck || 0))) G.drops.push({ type: "coin", x: d.x, y: d.y + 50 });
       if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
-    else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; healUnit(u, u.maxHp * 0.35); u.shield = Math.max(u.shield, u.maxHp * 0.1); sfx("heal"); }
+    else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; healUnit(u, u.maxHp); sfx("heal"); }
     else if (d.type === "shopre" && dd < 50 && !d.cool && u === G.p && d.away !== false) {
       d.cool = 1.2; d.away = false; if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); continue; }
       u.gold -= d.price; d.n++; d.price = 40 + d.n * 35; sfx("coin"); for (let i = G.drops.length - 1; i >= 0; i--) if (G.drops[i].type === "shop" && !G.drops[i].sold) G.drops.splice(i, 1);
@@ -2032,7 +2032,7 @@ function drawItemInfo(g) {
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
   else if (d.type === "chest") { title = d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자"; lines = ["다가가면 열려요 · 엽전, 가끔 코인·회복 약초"]; }
-  else if (d.type === "spring") { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력 35% 회복 + 보호막 10% (한 번)"]; }
+  else if (d.type === "spring") { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력을 최대치까지 회복 (보호막 없음, 한 번)"]; }
   else if (d.type === "stairs") { title = "홍살문"; lines = ["문 안에 1초 서 있으면 다음 스테이지로 · 체력 25% 회복", "그 전에 다른 방을 둘러봐도 돼요"]; }
   if (d.type === "shop") lines.push(`가격 엽전 ${d.price} · 내 엽전 ${p.gold || 0}${(p.gold || 0) >= d.price ? " · 밟으면 사요" : " · 모자라요"}`);
   g.save(); g.font = '700 19px "Do Hyeon", sans-serif';
