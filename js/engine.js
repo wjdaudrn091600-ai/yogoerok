@@ -299,7 +299,7 @@ function startStage() {
   rollCurse((G.floor === 1 && G.stage === 1) || G.stage === STAGES_PER_FLOOR);
   enterRoom("0,0", null);
   UI.music(theme().bgm);
-  G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: curseSub(), t: 3.5, boss: true } : { text: `${G.floor}층 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 층 최종보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
+  G.banner = G.curse ? { text: `${CURSES[G.curse].ic} 저주 받은 스테이지`, sub: curseSub(), t: 3.5, boss: true } : { text: `${G.floor}장 · ${theme().name}`, sub: `${G.stage} 스테이지${G.stage === STAGES_PER_FLOOR ? " · 장 보스" : ""} · 요괴 속성: ${YOKAI_EL[(G.floor - 1) % 5].n} (약점 ${YOKAI_EL[(G.floor - 1) % 5].strong.map((e) => EL_NAME[e]).join("·")})`, t: 3.4 };
   if (!G.opt.multi && (G.floor > 1 || G.stage >= 3)) setTimeout(() => { if (G && !G.over) UI.tip("elem"); }, 3800);
   const sc = G.stage === 3 ? `f${G.floor}_s3` : G.stage === 5 ? `f${G.floor}_mid` : G.stage === 7 ? `f${G.floor}_s7` : G.stage === STAGES_PER_FLOOR ? `f${G.floor}_boss` : null; // 11-19 2.2 이야기가 주, 전투는 사이사이
   if (sc && STORY[sc] && !G.opt.multi && !(SAVE.story.seen || {})[sc]) { SAVE.story.seen = SAVE.story.seen || {}; SAVE.story.seen[sc] = 1; saveGame(); setTimeout(() => { if (G && !G.over) UI.story(sc, () => { if (G) G.paused = false; }); }, 600); }
@@ -1708,14 +1708,14 @@ function stageClear() {
   G.trans = { t: 0.4, max: 0.4, mode: "out", then: () => {
     const p = G.p;
     for (const h of heroesOf(0)) if (!h.alive) { h.alive = true; h.hp = h.maxHp * 0.3; }
-    if (G.stage < STAGES_PER_FLOOR) { G.stage++; if (!hellNoHeal()) for (const h of heroesOf(0)) healUnit(h, h.maxHp * 0.25); startStage(); UI.toast(`${G.floor}층 ${G.stage}스테이지${hellNoHeal() ? "" : " · 체력 25% 회복"}`); return; }
+    if (G.stage < STAGES_PER_FLOOR) { G.stage++; if (!hellNoHeal()) for (const h of heroesOf(0)) healUnit(h, h.maxHp * 0.25); startStage(); UI.toast(`${G.floor}장 ${G.stage}스테이지${hellNoHeal() ? "" : " · 체력 25% 회복"}`); return; }
     // 층 끝
     if (G.opt.daily) { G.paused = true; endRun(true); return; } // 오늘의 괴담은 1층 돌파로 끝
     const clr = `f${G.floor}_clear`, afterClr = (fn) => (STORY[clr] && !G.opt.multi ? UI.story(clr, fn) : fn());
     if (G.floor >= FLOORS.length) { SAVE.stats.storyClear = (SAVE.stats.storyClear || 0) + 1; checkUnlocks(); saveGame(); G.paused = true; afterClr(() => UI.story("end", () => endRun(true, true))); return; }
     G.floor++; G.stage = 1;
     SAVE.stats["story_floor" + G.floor] = 1;
-    if (G.floor > (SAVE.story.maxFloor || 1)) { SAVE.story.maxFloor = G.floor; gainCoin(4, `스토리 ${G.floor}층 첫 도달`); }
+    if (G.floor > (SAVE.story.maxFloor || 1)) { SAVE.story.maxFloor = G.floor; gainCoin(4, `스토리 ${G.floor}장 첫 도달`); }
     checkUnlocks(); saveGame(); healUnit(p, p.maxHp * 0.35);
     G.paused = true;
     afterClr(() => UI.story(G.floor, () => { G.paused = false; startStage(); }));

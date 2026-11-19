@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.9";
+const GAME_VERSION = "2.4.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -600,13 +600,13 @@ const UI = {
       <div class="body hubbody">
         <div class="hubcol hubl">
           <div class="hubhero"><img src="${imgSrc("card_" + charArt(cur))}" alt=""><div><small>지금 영웅</small><b>${CHAR[cur].name}</b><span>${CHAR[cur].job}</span></div></div>
-          ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold hubgo" id="resume"><small>이어서 내려가기</small>${CHAR[SAVE.resume.char].name} · ${SAVE.resume.floor}층 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
+          ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold hubgo" id="resume"><small>이어서 내려가기</small>${CHAR[SAVE.resume.char].name} · ${SAVE.resume.floor}장 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
           ${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
         </div>
         <div class="hubcol hubr">
           <h3 class="hubh">출정</h3>
           <div class="modes">
-            ${modeRow("story", "스토리", `다섯 층의 미궁 · 도달 ${SAVE.story.maxFloor}층`)}
+            ${modeRow("story", "스토리", `다섯 장의 이야기 · 도달 ${SAVE.story.maxFloor}장`)}
             ${modeRow("endless", "무한의 방", `끝없는 방 · 최고 ${SAVE.stats.endlessBest || 0}번째`)}
             ${modeRow("raid", "보스 레이드", "층 보스 다섯 연속")}
             ${modeRow("duel", "1대1 대전", `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
@@ -715,7 +715,7 @@ const UI = {
   startRun(opt) {
     if (opt.mode === "story" && !opt.resume && !opt.multi && !opt._newOk && !opt.daily && SAVE.resume && CHAR[SAVE.resume.char]) {
       const R = SAVE.resume;
-      UI.modal(`<h2>💾 저장된 스토리가 있어요</h2><p style="text-align:center">${CHAR[R.char].name} · ${R.floor}층 ${R.stage}스테이지 · Lv.${R.lvl}</p>
+      UI.modal(`<h2>💾 저장된 스토리가 있어요</h2><p style="text-align:center">${CHAR[R.char].name} · ${R.floor}장 ${R.stage}스테이지 · Lv.${R.lvl}</p>
         <div class="center"><button class="btn gold" id="svcont">▶ 이어하기</button><button class="btn" id="svnew">새로 시작 (저장 지움)</button></div>`);
       $("#svcont").onclick = () => { UI.closeModal(); UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
       $("#svnew").onclick = () => { UI.closeModal(); delete SAVE.resume; saveGame(); UI.startRun(Object.assign({}, opt, { _newOk: true })); };
@@ -1129,7 +1129,7 @@ const UI = {
     const cu = G.curse ? ` · ${CURSES[G.curse].ic} ${CURSES[G.curse].name}` : "";
     const dTag = (G.mode === "story" || G.mode === "endless") && G.opt && G.opt.diff && G.opt.diff !== "normal" ? ` · ${DIFF[G.opt.diff].name}` : "";
     const Yc = G.mode === "story" ? YOKAI_EL[(G.floor - 1) % 5] : G.mode === "endless" ? YOKAI_EL[((G.eFloor || 1) - 1) % 5] : null; const yTag = Yc ? ` · ${Yc.n} 속성` : "";
-    const st = (G.mode === "practice" ? "🎯 연습장" : G.mode === "dev" ? "🛠 개발자 맵" : G.mode === "raid" ? `🐉 보스 레이드 · ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : G.mode === "story" ? `📖 ${G.floor}층 · ${theme().name} · ${G.stage}/${STAGES_PER_FLOOR} 스테이지` : G.mode === "endless" ? `♾️ 무한의 방 · ${((G.eFloor || 1) - 1) % 5 + 1}층${(G.eFloor || 1) > 5 ? ` (${Math.floor(((G.eFloor || 1) - 1) / 5) + 1}회차)` : ""} ${G.eStage || 1}/${STAGES_PER_FLOOR} 스테이지 · ${G.endlessN}번째 방` : `⚔️ ${G.duel.round}라운드 · ${G.duel.wins[0]} : ${G.duel.wins[1]}`) + dTag + yTag + cu;
+    const st = (G.mode === "practice" ? "🎯 연습장" : G.mode === "dev" ? "🛠 개발자 맵" : G.mode === "raid" ? `🐉 보스 레이드 · ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : G.mode === "story" ? `${G.floor}장 · ${theme().name} · ${G.stage}/${STAGES_PER_FLOOR} 스테이지` : G.mode === "endless" ? `♾️ 무한의 방 · ${((G.eFloor || 1) - 1) % 5 + 1}층${(G.eFloor || 1) > 5 ? ` (${Math.floor(((G.eFloor || 1) - 1) / 5) + 1}회차)` : ""} ${G.eStage || 1}/${STAGES_PER_FLOOR} 스테이지 · ${G.endlessN}번째 방` : `⚔️ ${G.duel.round}라운드 · ${G.duel.wins[0]} : ${G.duel.wins[1]}`) + dTag + yTag + cu;
     { const hs = $("#hstage"); if (hs.dataset.k !== st) { hs.dataset.k = st; hs.textContent = st; } } // 바뀔 때만 (깜빡임 방지, 11-12)
     const b = G.mode === "duel" ? G.bot : G.bossUnit && G.bossUnit.alive ? G.bossUnit : null;
     $("#hboss").hidden = !b; if (b) $("#hboss").classList.toggle("rage", !!b.ph2); if (b) { $("#hbn").textContent = b.kind === "hero" ? `${b.guestName ? b.guestName + " — " : ""}${(b.def.name || b.name || "").replace(/\(.*\)/, "")}${b.def.job ? " · " + b.def.job : ""}${b.formName ? "(" + b.formName + ")" : ""}` : b.name; $("#hbhp").style.width = (Math.max(0, b.hp) / b.maxHp) * 100 + "%"; hpLag("b" + (b.id || b.name), Math.max(0, b.hp) / b.maxHp, $("#hbhpl")); }
@@ -1180,7 +1180,7 @@ const UI = {
     $("#pkeys").onclick = () => UI.keys(() => { UI._paused = false; UI.closeModal(); UI.buildHud(); UI.togglePause(); });
     $("#pr").onclick = () => UI.togglePause();
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
-    if ($("#psave")) $("#psave").onclick = () => { SAVE.resume = storySnap(); saveGame(); CLOUD.push(); UI._paused = false; UI.toast(`💾 저장했어요 · ${G.floor}층 ${G.stage}스테이지`, 3000); UI.menu(); };
+    if ($("#psave")) $("#psave").onclick = () => { SAVE.resume = storySnap(); saveGame(); CLOUD.push(); UI._paused = false; UI.toast(`저장했어요 · ${G.floor}장 ${G.stage}스테이지`, 3000); UI.menu(); };
   },
   capturing: false,
   keys(after) {
@@ -1279,7 +1279,7 @@ const UI = {
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
     UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
-      ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}층 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
+      ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 캐릭터</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
@@ -1969,7 +1969,7 @@ function shareCard(r) {
   g.strokeStyle = "#b8864b"; g.lineWidth = 3; g.strokeRect(12, 12, W - 24, H - 24);
   g.textAlign = "left"; g.fillStyle = "#ffd27a"; g.font = '700 46px "Do Hyeon"'; const c0 = CHAR[G.p.id];
   g.fillText(`${c0.name} · ${c0.job}`, 520, 210);
-  const res = r.mode === "story" ? `스토리 ${r.floor}층 ${r.stage}스테이지 ${r.storyDone ? "완주!" : r.win ? "돌파" : "도달"}` : r.mode === "endless" ? `무한의 방 ${r.endless}번째 방` : `보스 레이드 ${G.raidN || 0}마리`;
+  const res = r.mode === "story" ? `스토리 ${r.floor}장 ${r.stage}스테이지 ${r.storyDone ? "완주!" : r.win ? "돌파" : "도달"}` : r.mode === "endless" ? `무한의 방 ${r.endless}번째 방` : `보스 레이드 ${G.raidN || 0}마리`;
   g.fillStyle = "#fff"; g.font = '700 34px "Do Hyeon"'; g.fillText(res, 520, 262);
   const rows = [["처치", r.kills], ["레벨", "Lv." + r.lvl], ["최대 연격", r.comboMax || 0], ["혼불", "+" + ((r.soulInfo && r.soulInfo.total) || 0)]];
   rows.forEach(([k, v], i) => { const x = 520 + (i % 2) * 300, y = 330 + Math.floor(i / 2) * 90; g.fillStyle = "rgba(255,200,120,0.08)"; g.fillRect(x, y - 44, 280, 70); g.fillStyle = "#c9b9a0"; g.font = '24px "Gowun Dodum"'; g.fillText(k, x + 16, y - 12); g.fillStyle = "#ffe08a"; g.font = '700 34px "Do Hyeon"'; g.fillText(String(v), x + 16, y + 20); });
