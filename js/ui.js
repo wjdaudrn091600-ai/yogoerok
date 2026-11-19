@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.3.2";
+const GAME_VERSION = "2.3.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -672,6 +672,7 @@ const UI = {
         if (mode === "story") start += dbtn(["easy", "normal", "hard", "hell"]);
         if (mode === "endless") start += dbtn(["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]) + (!SAVE.endlessHard ? `<p class="muted" style="font-size:.78rem">🔒 어려움: 보통 이상으로 무한의 방 5층 보스(1회차)를 토벌하면 열려요 (보상 ×1.5)</p>` : !SAVE.endlessHell ? `<p class="muted" style="font-size:.78rem">🔒 매우 어려움: 어려움으로 5층 보스까지 토벌하면 열려요 (보상 ×2)</p>` : "");
         if (mode === "duel") start = `<p>상대 강함: <span id="dsel">${[["easy", "쉬움"], ["normal", "보통"], ["hard", "어려움"]].map(([k, n], i) => `<button class="btn sm ${i === 1 ? "gold" : ""}" data-d="${k}">${n}</button>`).join(" ")}</span></p>`;
+        if ((mode === "story" || mode === "endless") && ((SAVE.stats.storyClear || 0) > 0 || ACCOUNT === DEV_ID)) start += `<div class="taboo"><b>금기 계약</b> <span class="muted">저주를 걸고 내려가면 하나마다 혼불 +20%</span><div class="tbl">${Object.entries(CURSES).map(([k, c]) => `<button class="tbc ${(SAVE.taboo || []).includes(k) ? "on" : ""}" data-tb="${k}" title="${esc(c.desc)}">${esc(c.name.replace("의 저주", ""))}<small>${esc(c.desc)}</small></button>`).join("")}</div><p class="muted" id="tbsum"></p></div>`;
         start += `<button class="btn gold" id="go" style="width:100%;font-size:1.3rem">${!own ? "🎯 체험해 보기 ▶" : "이 캐릭터로 출발 ▶"}</button>`;
       }
       $("#cdet").innerHTML = `<div class="big anim-card">${animCard(art, true)}</div>
@@ -695,7 +696,9 @@ const UI = {
       let floor = Math.min(opt.floor || 1, SAVE.story.maxFloor || 1), diff = "normal";
       document.querySelectorAll("#fsel button").forEach((b) => (b.onclick = () => { floor = +b.dataset.f; document.querySelectorAll("#fsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       document.querySelectorAll("#dsel button").forEach((b) => (b.onclick = () => { diff = b.dataset.d; document.querySelectorAll("#dsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
-      if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff }); };
+      const tbSum = () => { const n = (SAVE.taboo || []).length; if ($("#tbsum")) $("#tbsum").textContent = n ? `금기 ${n}개 · 혼불 +${n * 20}%` : "고르지 않으면 평소처럼"; };
+      document.querySelectorAll(".tbc").forEach((b) => (b.onclick = () => { const k = b.dataset.tb, T = (SAVE.taboo = SAVE.taboo || []); const i = T.indexOf(k); if (i >= 0) T.splice(i, 1); else T.push(k); b.classList.toggle("on", i < 0); saveGame(); tbSum(); })); tbSum();
+      if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff, taboo: (mode === "story" || mode === "endless") && $(".tbc") ? (SAVE.taboo || []).slice() : [] }); };
       if ($("#toSk")) $("#toSk").onclick = () => UI.skills({ char: id });
       document.querySelectorAll("[data-ct]").forEach((b) => (b.onclick = () => { UI._ctab = b.dataset.ct; for (const k of ["sk", "job", "info"]) $("#ct" + k).hidden = k !== UI._ctab; document.querySelectorAll("[data-ct]").forEach((x) => x.classList.toggle("on", x === b)); }));
       if ($("#enhbtn")) $("#enhbtn").onclick = () => { SAVE.enh = SAVE.enh || {}; const lv = SAVE.enh[id] || 0, cost = SHARD.enhCost(lv); if ((SAVE.shards[id] || 0) < cost || lv >= SHARD.maxEnh) return; SAVE.shards[id] -= cost; if (Math.random() < SHARD.enhRate(lv)) { SAVE.enh[id] = lv + 1; UI.toast(`⬆️ ${CHAR[id].name} 강화 성공! +${lv + 1}`); } else { UI.toast(`💥 강화 실패 (+${lv} 유지)`); } saveGame(); show(id); };
@@ -1483,7 +1486,8 @@ function altarEarn(r) { // endRun 에서 부름 → 혼불 계산·저장
   if (r.mode === "endless") parts.push([`무한의 방 ${r.endless || 0}`, Math.floor((r.endless || 0) / 3), 2]);
   if (r.win || r.storyDone) parts.push(["완주", 1, 40]);
   const dRw = ((r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1) * (typeof isFestival === "function" && isFestival() ? 1.5 : 1); // 주말 축제 ×1.5 // 11-19 높은 난이도 = 혼불 더
-  let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
+  const tb = G && G.opt && Array.isArray(G.opt.taboo) ? G.opt.taboo.length : 0; if (tb) parts.push([`금기 ${tb}개`, 0, 0]);
+  let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw * (1 + 0.2 * tb)); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
   SAVE.soul = (SAVE.soul || 0) + total; SAVE.soulTotal = (SAVE.soulTotal || 0) + total;
   return { total, bonus, parts: parts.filter(([, n]) => n > 0) };
 }

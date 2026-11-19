@@ -136,7 +136,7 @@ function recalc(u) {
   u.light = m.light || 0;
 }
 const atkOf = (u) => (u.kind === "hero" ? u.atkBase * (1 + buffSum(u, "atk")) : u.owner ? atkOf(u.owner) : u.dmg);
-const spdOf = (u) => (u.kind === "hero" ? u.spdBase * (1 + buffSum(u, "spd")) : u.spd * (G.curse === "haste" && u.team === 1 ? 1.2 : 1)) * (u.slowT > 0 ? 1 - u.slow : 1);
+const spdOf = (u) => (u.kind === "hero" ? u.spdBase * (1 + buffSum(u, "spd")) : u.spd * (curseOn("haste") && u.team === 1 ? 1.2 : 1)) * (u.slowT > 0 ? 1 - u.slow : 1);
 function drMul(u) { let r = 1 - (u.drBase || 0); for (const b of u.buffs) if (b.dr) r *= 1 - b.dr; for (const z of G.zones) if (z.guard && z.team === u.team && Math.hypot(u.x - z.x, u.y - z.y) < z.r) r *= 1 - z.guard; return r; }
 
 // ---------- 유닛 만들기 ----------
@@ -459,7 +459,7 @@ function populate(r) {
   if (r.type === "fight" || r.type === "elite" || r.type === "exit") {
     if (r.cleared) { if (r.type === "exit" && !r.stairsTaken) G.drops.push(portalDrop()); return; }
     // 방당 몬스터 5~10마리 랜덤 (사용자 요청 11-10). 정예 방은 정예 2마리 포함
-    const n = Math.round((rint(5, 10) - (r.type === "elite" ? 2 : 0)) * (1 + PARTY_CNT * (partyN() - 1)) * (G.curse === "swarm" ? 1.4 : 1));
+    const n = Math.round((rint(5, 10) - (r.type === "elite" ? 2 : 0)) * (1 + PARTY_CNT * (partyN() - 1)) * (curseOn("swarm") ? 1.4 : 1));
     const pool = G.mode === "endless" ? Object.keys(ENEMIES).slice(0, Math.min(Object.keys(ENEMIES).length, 3 + Math.floor(G.endlessN / 4))) : th.enemies;
     const eliteP = G.mode === "endless" ? Math.min(0.3, 0.03 + G.endlessN * 0.006) : 0.02 + 0.04 * (G.floor - 1) + 0.01 * G.stage;
     r.wave2 = n >= 7 && (G.mode === "endless" ? G.endlessN > 6 : G.floor + G.stage >= 4);
@@ -950,7 +950,7 @@ function damage(t, d, src, crit, o = {}) {
       }
       if (!o.quiet) addText(t.x, t.y - 60, "무적", "#ffe9a0", 16); return 0;
     }
-    d *= drMul(t); if (G.curse === "blood" && t.team === 0) d *= 1.25;
+    d *= drMul(t); if (curseOn("blood") && t.team === 0) d *= 1.25;
     if (t === G.p && d > 0 && assistOn()) d *= 1 - assistDr(); // 도움 모드
     if (t.shield > 0) { const s = Math.min(t.shield, d); t.shield -= s; d -= s; }
     t.hp -= d; t.hitT = 0.1; if (d > t.maxHp * 0.02) t.hurtT = 0.28;
@@ -968,7 +968,7 @@ function damage(t, d, src, crit, o = {}) {
     }
     return d;
   }
-  if (G.curse === "armor" && t.team === 1) d *= 0.8;
+  if (curseOn("armor") && t.team === 1) d *= 0.8;
   if (t.mshield > 0) { const s = Math.min(t.mshield, d); t.mshield -= s; d -= s; if (t.mshield <= 0) addText(t.x, t.y - t.r - 30, "보호막 깨짐!", "#9fd0ff", 18); } // 엘리트 특성: 보호막
   if (t.affix === "iron") d *= 0.7; // 엘리트 특성: 강철 (11-16 밸런스 0.6→0.7)
   t.hp -= d; t.hitT = 0.12;
@@ -983,7 +983,7 @@ function damage(t, d, src, crit, o = {}) {
   if (t.hp <= 0) killUnit(t, src);
   return d;
 }
-function healUnit(u, v, quiet) { if (!u.alive) return; if (G.curse === "wither" && u.team === 0) v *= 0.5; const before = u.hp; u.hp = Math.min(u.maxHp, u.hp + v); if (!quiet && u.hp - before > 1) addText(u.x, u.y - 80, "+" + Math.round(u.hp - before), "#7fff9f", 20); }
+function healUnit(u, v, quiet) { if (!u.alive) return; if (curseOn("wither") && u.team === 0) v *= 0.5; const before = u.hp; u.hp = Math.min(u.maxHp, u.hp + v); if (!quiet && u.hp - before > 1) addText(u.x, u.y - 80, "+" + Math.round(u.hp - before), "#7fff9f", 20); }
 function killUnit(t, src) {
   t.alive = false;
   { const DA = ASSETS.meta && ASSETS.meta[t.img] && ASSETS.meta[t.img].anim; G.fx.push({ k: "death", x: t.x, y: t.y, r: t.r, t: 0, max: DA && DA.m.death ? 0.9 : 0.5, img: t.img, flip: t.flip }); }
@@ -994,7 +994,7 @@ function killUnit(t, src) {
   if (t.affix === "burst") G.tele.push({ t: 0, team: 1, src: t, shape: "circle", x: t.x, y: t.y, r: 110 + t.r, max: 0.9, dmg: t.dmg * 0.9, bcol: "#ff8a3c" }); // 엘리트 특성: 폭발 (11-16 밸런스 1.2→0.9)
   if (t.affix === "split" && t.kind === "mob" && !G.client) for (let i = 0; i < 2; i++) { // 엘리트 특성: 분열 — 작은 둘로
     const c = makeMob(t.type, { hp: 1, dmg: 1 }, false); c.hp = c.maxHp = t.maxHp * 0.22; c.dmg = t.dmg * 0.55; c.r = t.r * 0.75; c.exp = 1; c.x = t.x + (i ? 24 : -24); c.y = t.y; c.spawnT = 0.15; c.kx = (i ? 260 : -260); collide(c); G.units.push(c); }
-  if (G.curse === "grudge" && t.kind === "mob" && t.team === 1) G.tele.push({ t: 0, team: 1, src: t, shape: "circle", x: t.x, y: t.y, r: 95 + t.r, max: 0.9, dmg: t.dmg * 1.3, bcol: "#ff5a3c" }); // 원한의 저주: 0.9초 뒤 폭발
+  if (curseOn("grudge") && t.kind === "mob" && t.team === 1) G.tele.push({ t: 0, team: 1, src: t, shape: "circle", x: t.x, y: t.y, r: 95 + t.r, max: 0.9, dmg: t.dmg * 1.3, bcol: "#ff5a3c" }); // 원한의 저주: 0.9초 뒤 폭발
   const p = G.p;
   if (t.kind === "mob" || t.kind === "boss") {
     G.kills++; SAVE.stats.kills = (SAVE.stats.kills || 0) + 1;
@@ -1313,11 +1313,11 @@ function useSkill(u, slot, at) {
   if (slot === "D") return dodge(u, at);
   if (slot === "A") {
     if (!u.active || u.cd.A > 0) return false;
-    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { tag: A.name, vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); (u.cdMax = u.cdMax || {}).A = u.cd.A; return true;
+    const A = ACTIVES[u.active.k]; castFx(u, A.fx, 1 + 0.25 * (u.active.lv - 1), at || aimPoint(u), { tag: A.name, vk: sigOf(A.fx, A.boss ? "cvfx_" + u.active.k : null) }); u.skillAnim = 0.4; u.cd.A = A.cd * (1 - u.cdr * 0.5) * (curseOn("seal") && u.team === 0 ? 1.3 : 1); (u.cdMax = u.cdMax || {}).A = u.cd.A; return true;
   }
   const s = u.sk[slot]; if (!s || u.cd[slot] > 0) return false;
   castFx(u, s.fx, (s.pow || 1) * (1 + (u.jobs || []).reduce((a, j) => a + (j.skPow || 0), 0)), at || aimPoint(u), { tag: s.name, vk: sigOf(s.fx, s.icon && s.icon.startsWith("sk_") ? "cvfx_" + s.icon : null) }); u.skillAnim = 0.4; u.atkAnim = 0; if (u === G.p) SAVE.stats.skillsUsed = (SAVE.stats.skillsUsed || 0) + 1;
-  let cd = s.cd * (1 - u.cdr) * (G.curse === "seal" && u.team === 0 ? 1.3 : 1); if (slot === "R") cd = Math.max((s.cd0 || s.cd) * ULT_MIN, cd * (1 - ((u.m && u.m.ultcd) || 0)));
+  let cd = s.cd * (1 - u.cdr) * (curseOn("seal") && u.team === 0 ? 1.3 : 1); if (slot === "R") cd = Math.max((s.cd0 || s.cd) * ULT_MIN, cd * (1 - ((u.m && u.m.ultcd) || 0)));
   if (u.m && u.m.echo && Math.random() < u.m.echo && slot !== "R") { cd = 0.3; addText(u.x, u.y - 100, "메아리!", "#9fe8ff", 18); }
   u.cd[slot] = cd; (u.cdMax = u.cdMax || {})[slot] = cd;
   return true;
@@ -1733,6 +1733,8 @@ function runReward(r) {
 // 11-20 도움 모드 (Hades 'God Mode' 재해석): 켜면 쓰러질 때마다 받는 피해 -2% (최대 -40%), 스토리·무한의 방만
 const assistOn = () => !!(SAVE && SAVE.settings && SAVE.settings.assist && G && (G.mode === "story" || G.mode === "endless") && !(G.opt && G.opt.multi));
 const assistDr = () => assistOn() ? Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) : 0;
+// 11-20 금기 계약 (Hades '처벌 계약' 재해석): 스토리를 한 번 끝낸 뒤, 출발 전에 저주를 골라 판 내내 걸면 하나마다 혼불 +20%
+const curseOn = (k) => !!G && (G.curse === k || (!!G.opt && Array.isArray(G.opt.taboo) && G.opt.taboo.includes(k)));
 function endRun(win, storyDone) {
   if (!win && assistOn()) { SAVE.assistN = Math.min(19, (SAVE.assistN || 0) + 1); }
   if (!G) return;
@@ -1852,7 +1854,7 @@ function render() {
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; // 11-17 타격 불꽃: 빛나는 줄
   for (const pt of G.parts) { if (!pt.sp) continue; const k = 1 - pt.t / pt.max; g.globalAlpha = k; g.strokeStyle = pt.col; g.lineWidth = pt.s * (0.6 + k * 0.6); g.beginPath(); g.moveTo(pt.x, pt.y); g.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); g.stroke(); }
   g.restore();
-  if (hq) {} else if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (G.curse === "dark") drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
+  if (hq) {} else if (!(SAVE && SAVE.settings.low)) drawLight(g, r); else if (curseOn("dark")) drawDarkLow(g); // 저사양 모드에서도 어둠의 저주가 보이게
   for (const t of G.texts) { // 11-17 하이엔드 숫자: 튀어나왔다 자리 잡음, 치명타는 금빛 그라디언트·빛
     const pop = t.num ? 1 + (t.big ? 0.9 : 0.55) * Math.max(0, 1 - t.t / 0.11) - 0.12 * Math.max(0, Math.min(1, (t.t - 0.11) / 0.1)) * (1 - Math.min(1, t.t / 0.4)) : 1, sz = t.size * pop;
     g.globalAlpha = Math.min(1, 1.6 - t.t * 1.6); g.font = `${t.big ? 900 : 700} ${sz}px "Do Hyeon", sans-serif`; g.textAlign = "center"; g.lineJoin = "round"; g.lineWidth = t.big ? 6 : 4; g.strokeStyle = "rgba(0,0,0,0.85)";
@@ -2381,11 +2383,11 @@ function drawLight(g, r) {
   const th0 = r.th || FLOORS[0], th = G.midnight ? Object.assign({}, th0, { light: "#7f9fff" }) : th0, p = G.p;
   const W2 = lightCv.width, H2 = lightCv.height, sc = W2 / RW;
   lctx.globalCompositeOperation = "source-over"; lctx.clearRect(0, 0, W2, H2);
-  const dark = G.mode === "duel" ? 0.22 : G.curse === "dark" ? 0.55 : roomLocked() ? 0.42 : 0.3;
+  const dark = G.mode === "duel" ? 0.22 : curseOn("dark") ? 0.55 : roomLocked() ? 0.42 : 0.3;
   lctx.fillStyle = `rgba(4,3,10,${dark})`; lctx.fillRect(0, 0, W2, H2);
   lctx.globalCompositeOperation = "destination-out";
   const hole = (x, y, R, a = 1) => { const gr = lctx.createRadialGradient(x * sc, y * sc, 0, x * sc, y * sc, R * sc); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(0.55, `rgba(0,0,0,${a * 0.75})`); gr.addColorStop(1, "rgba(0,0,0,0)"); lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(x * sc, y * sc, R * sc, 0, 7); lctx.fill(); };
-  hole(p.x, p.y - 30, 520 * (1 + (p.light || 0)) * (G.curse === "dark" ? 0.72 : 1) + Math.sin(G.time * 7) * 6, 1);
+  hole(p.x, p.y - 30, 520 * (1 + (p.light || 0)) * (curseOn("dark") ? 0.72 : 1) + Math.sin(G.time * 7) * 6, 1);
   for (const h of G.units) if (h.kind === "hero" && h !== p) hole(h.x, h.y - 30, h.team === 0 ? 420 : 330, 0.9);
   for (const l of r.lamps || []) hole(l.x, l.y + 40, 230 + Math.sin(G.time * 5 + l.ph) * 14, 0.85);
   for (const pr of G.projs) hole(pr.x, pr.y, 90, 0.6);
@@ -2846,7 +2848,7 @@ function glLights(r) {
   const th0 = r.th || FLOORS[0], th = G.midnight ? Object.assign({}, th0, { light: "#7f9fff" }) : th0, p = G.p, out = [];
   const add = (x, y, R, I, col, sh) => { if (out.length < 40 && Number.isFinite(x) && Number.isFinite(y) && R > 0 && I > 0.01) out.push([x, y, R, I, col, sh || 0]); };
   const warm = [1, 0.78, 0.52], tl = hexRGB(th.light);
-  add(p.x, p.y - 30, 560 * (1 + (p.light || 0)) * (G.curse === "dark" ? 0.72 : 1) + Math.sin(G.time * 7) * 6, 0.82, warm);
+  add(p.x, p.y - 30, 560 * (1 + (p.light || 0)) * (curseOn("dark") ? 0.72 : 1) + Math.sin(G.time * 7) * 6, 0.82, warm);
   for (const h of G.units) if (h.kind === "hero" && h !== p && h.alive) add(h.x, h.y - 30, h.team === 0 ? 420 : 330, 0.75, h.team === 0 ? warm : [1, 0.45, 0.4]);
   for (const l of r.lamps || []) { const fl = 0.85 + Math.sin(G.time * 6 + l.ph) * 0.1 + Math.sin(G.time * 13 + l.ph * 2) * 0.05; add(l.x, l.y + 40, 300, 0.95 * fl, tl, 1); }
   for (const u of G.units) if (u.alive && u.kind === "boss") add(u.x, u.y - 30, 300, 0.6, u.ph2 ? [1, 0.3, 0.25] : [0.6, 0.45, 1]);
@@ -2883,9 +2885,9 @@ function glRender(r, shx, shy) {
   { const cx = (view.x0 + view.x1) / 2, cy = (view.y0 + view.y1) / 2, cand = Ls.map((l, i) => [i, l]).filter(([, l]) => l[5]).sort((a, b) => Math.hypot(a[1][0] - cx, a[1][1] - cy) - Math.hypot(b[1][0] - cx, b[1][1] - cy)).slice(0, 4).map(([i]) => i);
     while (cand.length < 4) cand.push(-1); gl.uniform4i(sc.u.shI, cand[0], cand[1], cand[2], cand[3]); } // 화면 가운데에 가까운 등불 4개만 그림자
   gl.uniform4fv(sc.u.L, _LA); gl.uniform3fv(sc.u.LC, _LC); gl.uniform1i(sc.u.nL, Ls.length);
-  const dark = G.mode === "duel" ? 0.66 : G.curse === "dark" ? 0.32 : roomLocked() ? 0.56 : 0.64, tl = hexRGB(th.light);
+  const dark = G.mode === "duel" ? 0.66 : curseOn("dark") ? 0.32 : roomLocked() ? 0.56 : 0.64, tl = hexRGB(th.light);
   gl.uniform3f(sc.u.amb, dark * (0.8 + tl[0] * 0.2), dark * (0.8 + tl[1] * 0.2), dark * (0.85 + tl[2] * 0.25));
-  gl.uniform1f(sc.u.ambA, G.curse === "dark" ? 0.55 : 0.8); gl.uniform1f(sc.u.specK, 0.55);
+  gl.uniform1f(sc.u.ambA, curseOn("dark") ? 0.55 : 0.8); gl.uniform1f(sc.u.specK, 0.55);
   draw(S, W, H);
   // ② 블룸 (1/4·1/8 해상도 가우스)
   const br = P.bright; gl.useProgram(br.pr); bindT(br.u.t, 0, S.t); gl.uniform2f(br.u.px, 1 / W, 1 / H); gl.uniform1f(br.u.thr, 0.9); draw(B1, w2, h2);
