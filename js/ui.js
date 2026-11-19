@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.4.7";
+const GAME_VERSION = "2.4.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1852,7 +1852,7 @@ UI.loreOpen = function (k, isMob) {
   const im = isMob ? d.img : (ASSETS.img[k] ? k : d.art), tips = isMob ? [AI_TIP[d.ai]].filter(Boolean) : (d.pats || []).map((p) => PAT_TIP[p]).filter(Boolean);
   SAVE.loreRw = SAVE.loreRw || {};
   let rw = ""; if (n >= 10 && !SAVE.loreRw[k]) { SAVE.loreRw[k] = 1; SAVE.soul = (SAVE.soul || 0) + 10; saveGame(); rw = `<p class="lrw">🏮 토벌 완료 도장! 혼불 +10</p>`; }
-  UI.modal(`<div class="lorebox"><img src="${imgSrc(im)}" alt=""><div><h2>${d.name}</h2><p class="muted">토벌 ${n}번 ${n >= 10 ? '<span class="lst">토벌 완료</span>' : `· 10번이면 토벌 완료 도장`}</p>
+  UI.modal(`<div class="lorebox"><img src="${imgSrc(im)}" alt=""><div><h2>${d.name}</h2><p class="muted">토벌 ${n}번 ${n >= 10 ? '<span class="lst">토벌 완료</span>' : `· 10번이면 토벌 완료 도장`}${!isMob && SAVE.bt && SAVE.bt[k] ? ` · 최고 기록 <b style="color:#ffd84a">${SAVE.bt[k]}초</b>` : ""}</p>
     <h3>📜 설화</h3><p>${esc(LORE[k] || "아직 알려진 이야기가 없다.")}</p>
     <h3>⚔️ 토벌 요령 ${n >= 3 ? "" : `<span class="muted">(${n}/3 — 세 번 잡으면 열려요)</span>`}</h3>${n >= 3 ? `<ul>${tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p class="muted">???</p>`}${rw}
     <div class="center"><button class="btn gold" id="lok">닫기</button></div></div></div>`);

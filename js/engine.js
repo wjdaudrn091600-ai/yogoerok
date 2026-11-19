@@ -175,7 +175,7 @@ function makeBoss(key, mul, mini) {
   const d = BOSSES[key], hp = d.hp * mul.hp * BOSS_HP_MUL * (mini ? 0.5 : 1) * lateB; // 11-17 플레이 로봇: 보스가 5~11초에 쓰러져 패턴을 못 봄 → 2.6배 (성공작 보스 1분 안팎)
   const own = ASSETS.meta && ASSETS.meta[key]; if (!own && ASSETS.packs && d.fl) needPack("f" + d.fl);
   return { kind: "boss", team: 1, type: key, def: d, img: own || !d.art ? key : d.art, fx: d.art || key, name: mini ? "중간보스 · " + d.name : d.name, x: RW / 2, y: BT + 200, r: d.r * (mini ? 0.85 : 1),
-    hp, maxHp: hp, dmg: d.dmg * mul.dmg * (mini ? 0.8 : 1), spd: d.spd, alive: true, buffs: [], st: "move", t: 1.6, pi: 0, mini: !!mini,
+    hp, maxHp: hp, dmg: d.dmg * mul.dmg * (mini ? 0.8 : 1), spd: d.spd, alive: true, buffs: [], st: "move", t: 1.6, pi: 0, mini: !!mini, born: G ? G.time : 0,
     stunT: 0, slowT: 0, slow: 0, kx: 0, ky: 0, hitT: 0, markT: 0, mark: 0, burn: null, flip: false, ph: 0, exp: mini ? 40 : 90, spawnT: 1.0 };
 }
 
@@ -1067,6 +1067,8 @@ function heroDown(u) {
 function bossVoice(b, tag) { const k = b.type + "_" + tag; if (ASSETS.voice && ASSETS.voice[k] && !b.mini) setTimeout(() => voice(k), tag === "intro" ? 450 : 200); else if (tag === "intro") sfx("roar"); } // 11-16 보스 음성
 function bossDown(b) {
   bossVoice(b, "down");
+  // 11-20 보스 최고 처치 시간 (Dead Cells·Hades 처럼 속도 기록) — 같은 난이도 구분 없이 영웅 상관없이 가장 빠른 기록
+  if (G.mode !== "dev" && G.mode !== "practice" && !(G.opt && G.opt.multi) && b.born != null) { const sec = Math.max(1, Math.round(G.time - b.born)), bt = (SAVE.bt = SAVE.bt || {}), prev = bt[b.type]; if (!prev || sec < prev) { bt[b.type] = sec; if (prev) setTimeout(() => { if (G && G.p) addText(G.p.x, G.p.y - 150, `최고 기록! ${sec}초 (전 ${prev}초)`, "#ffd84a", 26, true); }, 900); } }
   if (typeof haptic === "function") haptic("heavy");
   if (typeof track === "function") track("boss_kill", { boss: b.type, mini: !!b.mini, floor: G.floor, char: G.p && G.p.id, t: Math.round(G.roomT || 0) });
   G.slowT = 0.9; // 처치 순간 잠깐 느리게
