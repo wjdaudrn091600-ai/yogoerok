@@ -428,7 +428,10 @@ const UI = {
   music,
   toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
   error(err) { reportError(err); const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
-  modal(html) { $("#mbox").innerHTML = html; $("#modal").hidden = false; },
+  modal(html) { // 11-20: 특별 모양(레벨업·상점·멈춤·괴이한 방·받기 방식)은 그 창 내용일 때만 남김 — 다른 창이 그 모양으로 열리던 것 방지
+    const M = { lvmode: "lvhead", shopmode: "shopw", pzmode: "pzw", evmode: "evbox", dlmode: "dlw" }, el = $("#modal");
+    for (const c in M) if (el.classList.contains(c) && !html.includes('class="' + M[c])) el.classList.remove(c);
+    $("#mbox").innerHTML = html; el.hidden = false; },
   closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode", "dlmode"); $("#mbox").innerHTML = ""; },
 
   // ----- 로그인 -----
@@ -1170,6 +1173,7 @@ const UI = {
   },
   capturing: false,
   keys(after) {
+    $("#modal").classList.remove("pzmode", "shopmode", "evmode", "dlmode", "lvmode"); // 11-20 멈춤 화면에서 열면 멈춤 모양이 남던 것
     const K = keyMap(), wasPaused = G && G.paused;
     const rows = KEY_ACTIONS.map(([a, n]) => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)"><span style="flex:1">${n}</span><span class="kbd" style="min-width:90px;text-align:center" id="kv_${a}">${keyLabel(K[a])}</span><button class="btn sm" data-ka="${a}">바꾸기</button></div>`).join("");
     UI.modal(`<h2>${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</h2>${IS_TOUCH ? "" : `<p class="muted" style="text-align:center">'바꾸기'를 누른 뒤 원하는 키나 마우스 버튼을 누르세요. 다른 동작과 겹치면 서로 바뀌어요. (방향키는 언제나 이동으로도 쓸 수 있어요)</p>`}
