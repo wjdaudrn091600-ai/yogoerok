@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.4.3";
+const GAME_VERSION = "2.4.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -601,7 +601,7 @@ const UI = {
         <div class="hubcol hubl">
           <div class="hubhero"><img src="${imgSrc("card_" + charArt(cur))}" alt=""><div><small>지금 영웅</small><b>${CHAR[cur].name}</b><span>${CHAR[cur].job}</span></div></div>
           ${SAVE.resume && CHAR[SAVE.resume.char] ? `<button class="btn gold hubgo" id="resume"><small>이어서 내려가기</small>${CHAR[SAVE.resume.char].name} · ${SAVE.resume.floor}장 ${SAVE.resume.stage}스테이지 · Lv.${SAVE.resume.lvl}${SAVE.resume.diff !== "normal" ? " · " + DIFF[SAVE.resume.diff].name : ""}</button>` : ""}
-          ${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
+          ${typeof todayCard === "function" ? todayCard() : ""}${typeof festivalBanner === "function" ? festivalBanner() : ""}${typeof dailyCard === "function" ? dailyCard() : ""}${typeof storeCard === "function" ? storeCard() : ""}
         </div>
         <div class="hubcol hubr">
           <h3 class="hubh">출정</h3>
@@ -640,6 +640,7 @@ const UI = {
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
     if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen() && (SAVE.stats.rooms || 0) >= 10) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
     dlPill(); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
+    document.querySelectorAll(".tdi[data-go]").forEach((b) => (b.onclick = () => { const g = b.dataset.go; if (g === "daily") { if (typeof dailyStart === "function") dailyStart(); } else if (g === "store") { if (typeof storeClaim === "function") storeClaim(); } else if (g === "bounty") UI.chars({ mode: "endless" }); else UI.open(g); }));
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
@@ -2310,6 +2311,19 @@ UI.wish = function () {
   window.addEventListener("keydown", kh);
   document.querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => done(+b.dataset.w)));
 };
+// ===================== 11-20 오늘 할 일 (메인 왼쪽 한눈에) =====================
+// 참고: 모바일 히트작의 '일일 할 일' 판 — 매일 와서 무엇을 하면 되는지 한 줄씩, 끝낸 건 붓 체크.
+function todayCard() {
+  if (!SAVE || (SAVE.stats.rooms || 0) < 3) return "";
+  const today = new Date().toDateString(), items = [];
+  items.push({ t: "출석", ok: SAVE.daily && SAVE.daily.day === today, go: "" });
+  items.push({ t: "무료 뽑기", ok: typeof freeToday === "function" && !freeToday(), go: "gacha" });
+  if (typeof dailyInfo === "function" && ((SAVE.stats.rooms || 0) >= 5)) { const D = dailyInfo(); items.push({ t: "오늘의 괴담", ok: !!((SAVE.daily2 || {})[D.key]), go: "daily" }); }
+  if (SAVE.bounty && SAVE.bounty.list) { const n = SAVE.bounty.list.filter((x) => SAVE.bounty.done[x]).length; items.push({ t: `토벌령 ${n}/${SAVE.bounty.list.length}`, ok: n >= SAVE.bounty.list.length, go: "bounty" }); }
+  if (typeof storeState === "function") { const s = storeState(); items.push({ t: "주막 창고", ok: s.soul <= 0, go: s.soul > 0 ? "store" : "" }); }
+  const left = items.filter((x) => !x.ok).length;
+  return `<div class="today"><div class="tdh"><b>오늘 할 일</b><span>${left ? `${left}개 남음` : "모두 끝!"}</span></div><div class="tdl">${items.map((x) => `<button class="tdi${x.ok ? " ok" : ""}" ${x.go && !x.ok ? `data-go="${x.go}"` : "disabled"}><i></i>${esc(x.t)}</button>`).join("")}</div></div>`;
+}
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
