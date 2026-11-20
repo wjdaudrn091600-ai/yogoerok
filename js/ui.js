@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.2";
+const GAME_VERSION = "2.7.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2088,7 +2088,7 @@ UI.shop = function (r) {
     if (d.what === "herb") return { ic: "obj_herb", em: "🌿", n: "회복 약초", t: "소모품", c: "#7fe08a", ds: "체력 40% 회복" };
     const I = SHOP_ITEMS[d.k]; return { lore: I.lore, ic: "obj_shop_" + d.k, em: I.ic || "📦", n: I.name, t: d.k === "coin" ? "코인" : "장비 · 이번 원정 동안", c: d.k === "coin" ? "#ffd27a" : "#9fd0ff", ds: I.desc };
   };
-  const rePrice = () => 40 + (r.reN || 0) * 35;
+  const rePrice = () => Math.round((40 + (r.reN || 0) * 35) * (1 + (G.mode === "endless" ? (G.endlessN || 0) / 12 : (G.floor || 1) - 1) * 0.45)); // 11-20 장이 깊을수록 다시 진열도 비싸게(엽전이 수천 개 남던 것)
   let sel = -1;
   const more = (d) => {
     if (d.what === "act") { const A = ACTIVES[d.k]; return [`재사용 대기 ${A.cd}초`, "사면 발밑에 놓여요 · 주우면 지금 액티브(F)와 바뀌어요"]; }

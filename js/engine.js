@@ -2972,7 +2972,7 @@ function drawMerchant(g, d) {
   g.restore();
 }
 function stockShop(out) {
-  const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.3) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
+  const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.45) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
   const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
   const bk = rollBoons(1, G.p.lvl)[0];
   const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(bk ? [{ what: "boon", k: bk, price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];
