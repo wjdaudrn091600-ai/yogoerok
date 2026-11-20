@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.8.7";
+const GAME_VERSION = "2.9.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -857,7 +857,7 @@ const UI = {
     const row = (name, v, n, coin, got, data) => `<div class="card" style="display:flex;gap:12px;align-items:center;${got ? "opacity:.5" : ""}"><div style="flex:1"><b>${name}</b><div class="prog"><i style="width:${(Math.min(v, n) / n) * 100}%"></i></div><span class="muted">${Math.min(v, n)} / ${n}</span></div>
       <button class="btn ${v >= n && !got ? "gold" : ""} sm" ${data} ${v >= n && !got ? "" : "disabled"}>${got ? "받음" : `${curIc("coin")} ${coin}`}</button></div>`;
     let body = "";
-    if (PERIOD_MISSIONS[tab]) { const P = periodState(tab); body = `<p class="muted">${PERIOD_NAME[tab]} 임무은 ${tab === "d" ? "매일" : tab === "w" ? "매주" : "매달"} 새로 시작해요.</p>` + PERIOD_MISSIONS[tab].map((m) => row(m.name, periodVal(tab, m.stat), m.n, m.coin, P.claimed[m.id], `data-pm="${tab}:${m.id}"`)).join(""); }
+    if (PERIOD_MISSIONS[tab]) { const P = periodState(tab); body = `<p class="muted">${PERIOD_NAME[tab]} 임무는 ${tab === "d" ? "매일" : tab === "w" ? "매주" : "매달"} 새로 시작해요.</p>` + PERIOD_MISSIONS[tab].map((m) => row(m.name, periodVal(tab, m.stat), m.n, m.coin, P.claimed[m.id], `data-pm="${tab}:${m.id}"`)).join(""); }
     else if (tab === "a") body = MISSIONS.filter((m) => !m.secret || missionDone(m)).map((m) => row(m.name, statVal(m.stat), m.n, m.coin, SAVE.missions[m.id], `data-m="${m.id}"`)).join("");
     else body = CHARS.filter((c) => c.unlock.type !== "start" && c.unlock.type !== "gacha" && (!c.unlock.secret || SAVE.chars[c.id])).map((c) => { const u = unlockProgress(c);
       return `<div class="card" style="display:flex;gap:10px;align-items:center"><img src="${imgSrc("spr_" + charArt(c.id, "wolf"))}" style="width:48px;height:48px;object-fit:contain;${SAVE.chars[c.id] ? "" : "filter:brightness(.35)"}" alt=""><div style="flex:1"><b>${c.name} · ${c.job}</b> <span class="muted">${CHAR_GRADE[c.id]}급 · ${UNLOCK_TYPE[c.unlock.type]}</span><div class="muted">${c.unlock.text}</div><div class="prog"><i style="width:${(u.cur / u.n) * 100}%"></i></div><div class="muted" style="font-size:.75rem">${(u.parts || []).join(" · ")}</div></div>${SAVE.chars[c.id] ? "✅" : "🔒"}</div>`; }).join("");
@@ -888,7 +888,8 @@ const UI = {
   settings() {
     const s = SAVE.settings;
     UI.frame("설정", `<div class="card setc"><h3>닉네임</h3><div style="display:flex;gap:8px"><input id="snick" maxlength="12" value="${esc(nick())}" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn gold" id="snickok">바꾸기</button></div><p class="muted">아이디: ${esc(ACCOUNT)} (로그인할 때만 써요)</p>
-      <div class="setg"><h4>소리</h4>
+      <div class="setg"><h4>언어 · Language</h4><p class="rg"><button class="btn sm ${I18N.lang === "ko" ? "gold" : ""}" data-lang="ko">한국어</button> <button class="btn sm ${I18N.lang === "en" ? "gold" : ""}" data-lang="en">English (beta)</button></p></div>
+      <div class="setg"><h4>소리·음악</h4>
       <p class="tg"><label><input type="checkbox" id="mus" ${s.music ? "checked" : ""}> 배경 음악</label></p>
       <p class="rg"><span class="rl">음악 크기</span><input type="range" id="vol" min="0" max="1" step="0.05" value="${s.vol}"></p>
       <p class="rg"><span class="rl">효과음 크기</span><input type="range" id="sfv" min="0" max="1" step="0.05" value="${s.sfx}"></p>
@@ -931,6 +932,7 @@ const UI = {
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
     $("#fbbtn").onclick = () => UI.feedback();
+    document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { if (b.dataset.lang !== I18N.lang) I18N.set(b.dataset.lang); }));
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
     $("#mus").onchange = (e) => { s.music = e.target.checked; saveGame(); if (!s.music) $("#bgm").pause(); else { curTrack = null; music("menu"); } };
     $("#vol").oninput = (e) => { s.vol = +e.target.value; $("#bgm").volume = s.vol; saveGame(); };
@@ -1168,7 +1170,7 @@ const UI = {
       let ic = "", cd = p.cd[s], max = 1, lv = "";
       let key = null;
       if (s === "D") { ic = "💨"; max = DODGE_CD; }
-      else if (s === "A") { if (p.active) { const A = ACTIVES[p.active.k]; ic = A.ic; key = A.img || "ic_" + p.active.k; max = (p.cdMax && p.cdMax.A) || A.cd; lv = ACT_TIER[A.rar].name + " " + p.active.lv; el.style.borderColor = ACT_TIER[A.rar].col; } else { ic = "·"; el.style.borderColor = ""; }
+      else if (s === "A") { if (p.active) { const A = ACTIVES[p.active.k]; ic = A.ic; key = A.img || "ic_" + p.active.k; max = (p.cdMax && p.cdMax.A) || A.cd; lv = ACT_TIER[A.rar].name + " " + p.active.lv; el.style.borderColor = ACT_TIER[A.rar].col; } else { ic = ""; el.style.borderColor = ""; } el.classList.toggle("empty", !p.active);
         el.classList.toggle("locked", !!p.actLock); const lb = el.querySelector(".alock"); if (lb) { const st = p.actLock ? "on" : "off"; if (lb.dataset.st !== st) { lb.dataset.st = st; const k = p.actLock ? "emo_lock" : "emo_unlock"; lb.innerHTML = ASSETS.img[k] ? `<img src="${imgSrc(k)}" alt="" style="width:18px;height:18px;vertical-align:middle">` : (p.actLock ? "🔒" : "🔓"); } } } // 상태가 바뀔 때만 (11-14 자물쇠 깜빡임: 이모지→그림 바꾸기와 매번 다시 쓰기가 반복됐음)
       else { const sk = p.sk[s]; ic = sk.ic; key = sk.icon; max = (p.cdMax && p.cdMax[s]) || sk.cd; if (sk.id) lv = sk.grade;
         const jt = el.querySelector(".jtag"), tag = sk.jobTag || ""; if (jt && jt.textContent !== tag) jt.textContent = tag; el.classList.toggle("jobsk", !!tag); }
@@ -1322,7 +1324,7 @@ const UI = {
     UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div>${r.coin > 0 ? `<div><b>${r.coin}</b>판에서 주운 코인</div>` : ""}${newChars > 0 ? `<div><b>${newChars}</b>새 영웅</div>` : ""}</div>
-      ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
+      ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴: " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 임무 보상이 있어요!</p>' : ""}
       <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="fbres">의견 보내기</button><button class="btn" id="home">처음 화면</button>${["story", "endless", "raid"].includes(r.mode) ? '<button class="btn" id="sharec">📸 기록 카드</button>' : ""}</div>`);
@@ -2181,7 +2183,7 @@ UI.vn = function (key, then) {
   const stopV = () => { if (vh) { vh.stop(); vh = null; } clearTimeout(autoT); };
   const finish = () => { if (closed) return; closed = true; stopV(); cancelAnimationFrame(typing); window.removeEventListener("keydown", kh); el.classList.remove("on"); setTimeout(() => el.remove(), 380); if (SAVE.settings) SAVE.settings.vnAuto = auto; then(); };
   const scheduleAuto = () => { clearTimeout(autoT); if (!auto) return; const go = () => { autoT = setTimeout(next, 700 + Math.min(1800, full.length * 25)); }; if (vh && !vh.done) vh.onend = go; else go(); };
-  const tick = () => { const n = Math.min(full.length, Math.floor((performance.now() - t0) / 1000 * 30)); if (n !== shown) { shown = n; el.querySelector(".vntext").textContent = full.slice(0, n); } if (n < full.length) typing = requestAnimationFrame(tick); else { typing = null; el.classList.add("done"); scheduleAuto(); } };
+  const tick = () => { const n = Math.min(full.length, Math.floor((performance.now() - t0) / 1000 * (I18N.lang === "en" ? 55 : 30))); if (n !== shown) { shown = n; el.querySelector(".vntext").textContent = full.slice(0, n); } if (n < full.length) typing = requestAnimationFrame(tick); else { typing = null; el.classList.add("done"); scheduleAuto(); } };
   const next = () => {
     if (closed) return; if (typing) { cancelAnimationFrame(typing); typing = null; shown = full.length; el.querySelector(".vntext").textContent = full; el.classList.add("done"); scheduleAuto(); return; }
     stopV(); i++; if (i >= L.length) { finish(); return; }
@@ -2189,7 +2191,7 @@ UI.vn = function (key, then) {
     el.classList.toggle("narr", w === "해설"); el.classList.toggle("me", w === "나"); el.classList.remove("done");
     el.querySelector(".vnface").innerHTML = f ? `<img src="${f}" alt="">` : ""; el.querySelector(".vnface").hidden = !f;
     el.querySelector(".vnname").textContent = w === "해설" ? "" : nm;
-    full = t; shown = 0; t0 = performance.now(); el.querySelector(".vntext").textContent = "";
+    full = I18N.lang === "en" ? I18N.tr(t) : t; shown = 0; t0 = performance.now(); el.querySelector(".vntext").textContent = ""; // 11-21 영어: 한 자씩 찍기 전에 통째로 번역
     const lg = el.querySelector(".vnlog"); lg.insertAdjacentHTML("beforeend", `<p>${w === "해설" ? "" : `<b>${esc(nm)}</b>`}${esc(t)}</p>`);
     if (w !== "나" && typeof voice === "function" && !/autotest/.test(location.hash)) vh = voice(`s2_${key}_${i}`);
     typing = requestAnimationFrame(tick);
