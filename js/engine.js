@@ -95,16 +95,22 @@ let WARM_P = null, _warmT = 0;
 function warmLate(k) { if (!WARM_P || WARMED.has(k) || !G || !G.p || !WARM_P.some((p) => k.startsWith(p))) return; if (!_warmT) _warmT = setTimeout(() => { _warmT = 0; if (WARM_P && G && G.p) warmKeys(WARM_P); }, 250); }
 let _warmCv = null;
 function warmCtx() { if (!_warmCv) { _warmCv = document.createElement("canvas"); _warmCv.width = _warmCv.height = 512; } return _warmCv.getContext("2d"); }
+// 11-21 2.8.3: 판 초반 끊김(S24 Ultra 사용자 지적) — 크롬 기록상 그림을 '처음 그리는 순간' 그 자리에서 풀었다(GpuImageDecodeCache 80~160ms).
+// decode()+작은 캔버스에 한 번 그리기는 그릴 크기가 달라지면 다시 풀어 효과가 없었음 → 이미 풀린 그림(ImageBitmap, 다른 스레드에서 풂)으로 바꿔 둔다.
+// 이번 판에 쓰는 그림만 바꾸고(메모리), 다음 장에서 안 쓰면 원래 그림으로 되돌리고 닫는다.
+function toBitmap(k) {
+  const im = IMG[k]; if (!im || im._bm || k.endsWith("_n") || typeof createImageBitmap !== "function") return Promise.resolve();
+  // 그림 파일(blob)에서 만들면 다른 스레드에서 풀림 (img 에서 만들면 화면 스레드에서 풀려 오히려 멈칫, 11-21 측정)
+  const go = () => (im.src && !im.src.startsWith("data:") ? fetch(im.src).then((r) => r.blob()).then((b) => createImageBitmap(b)) : createImageBitmap(im)).then((bm) => { if (IMG[k] !== im) { bm.close(); return; } bm._img = im; bm._bm = 1; bm.complete = true; bm.naturalWidth = bm.width; bm.naturalHeight = bm.height; IMG[k] = bm; }).catch(() => { });
+  return im.complete && im.naturalWidth ? go() : new Promise((r) => { im.addEventListener("load", () => go().then(r), { once: true }); im.addEventListener("error", r, { once: true }); });
+}
+function unBitmap(k) { const bm = IMG[k]; if (bm && bm._bm && bm._img) { IMG[k] = bm._img; try { bm.close(); } catch (e) { } } WARMED.delete(k); }
 function warmKeys(prefixes) {
   const keys = Object.keys(IMG).filter((k) => !WARMED.has(k) && prefixes.some((p) => k.startsWith(p)));
   let i = 0;
   const step = () => {
-    // 싸우는 중(방이 잠김)에는 쉬었다가, 조용할 때(시작 방·정리한 방·멈춤·이야기 화면) 이어서 푼다
-    if (G && !G.paused && typeof roomLocked === "function" && G.cur && roomLocked()) { setTimeout(step, 400); return; }
-    const batch = keys.slice(i, i + 6); i += 6;
-    Promise.all(batch.map((k) => { WARMED.add(k); const im = IMG[k]; return im && im.decode ? im.decode().then(() => { try { warmCtx().drawImage(im, 0, 0); } catch (e) { } }).catch(() => { }) : null; })).then(() => {
-      if (i < keys.length) requestAnimationFrame(step);
-    });
+    const batch = keys.slice(i, i + 4); i += 4;
+    Promise.all(batch.map((k) => { WARMED.add(k); return toBitmap(k); })).then(() => { if (i < keys.length) setTimeout(step, 16); });
   };
   if (keys.length) step();
   return keys.length;
@@ -118,6 +124,7 @@ function warmRun() {
   const bosses = Object.keys(BOSSES).filter((k) => BOSSES[k].fl === f || (G.mode === "raid" && !BOSSES[k].mid));
   for (const k of bosses) { const d = BOSSES[k]; if (!d) continue; const im = d.img || k; P.push(im, "cvfx_bfx_" + im, "cvfx_bp_" + im, "cvfx_btel_" + im); }
   P.push("sc_f" + f + "_", "wall", "room", "f" + f); WARM_P = P;
+  for (const k of [...WARMED]) if (!P.some((p) => k.startsWith(p))) unBitmap(k); // 지난 장 그림은 되돌려 메모리 비움
   return warmKeys(P);
 }
 function loadImages() { } // 11-20 2.3: IMG 가 필요할 때 만듦 (위 Proxy)
@@ -1737,13 +1744,13 @@ function stageClear() {
     // 층 끝
     if (G.opt.daily) { G.paused = true; endRun(true); return; } // 오늘의 괴담은 1층 돌파로 끝
     const clr = `f${G.floor}_clear`, afterClr = (fn) => (STORY[clr] && !G.opt.multi ? UI.story(clr, fn) : fn());
-    if (G.floor >= FLOORS.length) { SAVE.stats.storyClear = (SAVE.stats.storyClear || 0) + 1; checkUnlocks(); saveGame(); G.paused = true; afterClr(() => UI.story("end", () => endRun(true, true))); return; }
+    if (G.floor >= FLOORS.length) { SAVE.stats.storyClear = (SAVE.stats.storyClear || 0) + 1; checkUnlocks(); saveGame(); G.paused = true; afterClr(() => (G.opt.multi ? endRun(true, true) : UI.story("end", () => endRun(true, true)))); return; }
     G.floor++; G.stage = 1;
     SAVE.stats["story_floor" + G.floor] = 1;
     if (G.floor > (SAVE.story.maxFloor || 1)) { SAVE.story.maxFloor = G.floor; gainCoin(4, `스토리 ${G.floor}장 첫 도달`); }
     checkUnlocks(); saveGame(); healUnit(p, p.maxHp * 0.35);
     G.paused = true;
-    afterClr(() => UI.story(G.floor, () => { G.paused = false; startStage(); }));
+    afterClr(() => (G.opt.multi ? (G.paused = false, startStage()) : UI.story(G.floor, () => { G.paused = false; startStage(); }))); // 11-21 함께하기는 이야기 장면 건너뜀(친구가 기다리지 않게, 이야기책에서 다시 보기)
   } };
 }
 // 원정 보상 엽전: 처치·방·보스·진행도 + 남은 금화의 절반 (엽전 보너스 아티팩트·칭호 적용)

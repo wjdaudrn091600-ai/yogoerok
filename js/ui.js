@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.8.2";
+const GAME_VERSION = "2.8.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -734,8 +734,8 @@ const UI = {
     }
     if (ASSETS.packs && !opt._ready) { UI.loading(opt); return; }
     $("#screens").innerHTML = ""; $("#hud").hidden = false;
-    if (opt.mode === "story" && !opt.daily && !SAVE.story.seen.open) { SAVE.story.seen.open = 1; saveGame(); UI.story("open", () => { UI.story(opt.floor, () => newRun(opt)); }); return; }
-    if (opt.mode === "story" && !(opt.resume && opt.resume.stage > 1)) { UI.story(opt.floor, () => newRun(opt)); return; }
+    if (opt.mode === "story" && !opt.daily && !opt.multi && !SAVE.story.seen.open) { SAVE.story.seen.open = 1; saveGame(); UI.story("open", () => { UI.story(opt.floor, () => newRun(opt)); }); return; }
+    if (opt.mode === "story" && !opt.multi && !(opt.resume && opt.resume.stage > 1)) { UI.story(opt.floor, () => newRun(opt)); return; }
     newRun(opt);
   },
 
@@ -1027,14 +1027,14 @@ const UI = {
       body = `<div class="card"><h3 style="margin:0">참가 · 코드 ${esc(NET.code)} ${h ? "· " + MODE[h.mode] : ""}</h3><p class="muted" style="margin:4px 0">${h ? `방장이 '함께 출발'을 누르면 시작돼요${h.diff && h.mode !== "duel" && h.mode !== "raid" ? ` · 난이도 <b style="color:${DIFF[h.diff].col}">${DIFF[h.diff].name}</b> (보상 ×${DIFF[h.diff].rw})` : ""}` : "연결하는 중…"}</p></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">${panel("방장", h && h.char, h && h.name, duel ? "#ff6a5a" : "#7fe08a")}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel("나", SAVE.sel, nick(), "var(--gold)")}</div>${myPick}`;
     } else {
-      body = `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
-        <div class="card"><h3>방 만들기 (방장)</h3><p class="muted">모드를 고르면 방 코드가 나와요</p>
-          <div style="display:flex;flex-direction:column;gap:8px">${Object.entries(MODE).map(([k, n]) => `<button class="btn" data-host="${k}">${n}</button>`).join("")}</div></div>
-        <div class="card"><h3>코드로 참가</h3><div class="field"><label for="mcode">방 코드 5자리</label><input id="mcode" maxlength="5" style="text-transform:uppercase;font-size:1.4rem;letter-spacing:.2em"></div>
-          <button class="btn gold" id="mjoin" style="margin-top:10px">참가</button></div></div>
+      body = `<div class="grid mpgrid">
+        <div class="card"><h3>방 만들기 (방장)</h3><p class="muted">모드를 고르면 방 코드가 나와요 · 친구에게 코드를 알려 주세요</p>
+          <div class="mphost">${[["story", "스토리 협동", "둘이서 다섯 장의 이야기를"], ["endless", "무한의 방 협동", "끝없이 내려가는 방"], ["raid", "보스 레이드 협동", "장 보스 다섯 연속"], ["duel", "1대1 대전", "레벨 10 · 3판 2선승"]].map(([k, n, d]) => `<button class="mpc" data-host="${k}"><span class="img" style="background-image:url(${imgSrc("ui_mode_" + k)})"></span><b>${n}</b><small>${d}</small></button>`).join("")}</div></div>
+        <div class="card mpjoin"><h3>코드로 참가</h3><p class="muted">친구가 알려 준 방 코드 5자리를 넣어요</p><div class="field"><input id="mcode" maxlength="5" placeholder="ABCDE" aria-label="방 코드 5자리" autocomplete="off"></div>
+          <button class="btn gold" id="mjoin" style="margin-top:10px;width:100%">참가</button></div></div>
         <div class="card" style="margin-top:12px"><h3>안내</h3><ul class="muted">
-          <li>인터넷이 필요해요. 둘 다 같은 최신 파일(또는 같은 주소)을 써야 해요.</li>
-          <li>협동: 두 사람이 같은 방에서 함께 싸워요. 요괴가 더 많아지지는 않지만 서로 도울 수 있어요. 한 명이 쓰러지면 다음 스테이지에서 체력 30%로 일어나요.</li>
+          <li>인터넷이 필요해요. 둘 다 같은 버전(오른쪽 아래 숫자)이어야 해요.</li>
+          <li>협동: 두 사람이 같은 방에서 함께 싸워요. 둘이면 요괴가 조금 더 많고 튼튼해져요. 한 명이 쓰러지면 다음 스테이지에서 체력 30%로 일어나요.</li>
           <li>경험치는 둘 다 받고, 엽전·코인은 주운 사람이 가져요. 상인은 방장만 이용해요.</li>
           <li>1대1 대전: 친구와 레벨 10으로 맞춰 3판 2선승 (보물·펫·칭호 빠짐).</li></ul></div>`;
     }
