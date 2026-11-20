@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.7";
+const GAME_VERSION = "2.9.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2052,7 +2052,7 @@ function seasonHtml(s) { if (!s || !s.xp) return ""; return `<div class="sres">�
 UI.season = function () {
   const S = seasonState(), lv = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP)), cur = S.xp % SEASON_XP, d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 1), left = Math.ceil((end - d) / 864e5);
   const cells = Array.from({ length: SEASON_TIER }, (_, i) => { const n = i + 1, R = seasonRw(n), got = S.claimed[n], can = n <= lv && !got;
-    return `<div class="stier ${got ? "got" : can ? "can" : n <= lv ? "" : "lock"} ${n % 5 === 0 ? "big" : ""}" ${can ? `data-n="${n}"` : ""}><b>${n}</b><span>${R.t}</span>${got ? "<i>✔ 받음</i>" : can ? "<i>받기</i>" : ""}</div>`; }).join("");
+    return `<div class="stier ${got ? "got" : can ? "can" : n <= lv ? "" : "lock"} ${n % 5 === 0 ? "big" : ""}" ${can ? `data-n="${n}"` : ""}><b>${n}</b><div class="sic">${[R.hero ? "card_" + charArt(R.hero) : "", R.coin ? "cur_coin" : "", R.soul ? "ui_soul" : "", R.shard ? "ic_s_shard" : ""].filter((k) => k && imgSrc(k)).map((k) => `<img src="${imgSrc(k)}" alt="">`).join("")}</div><span>${R.t}</span>${got ? "<i>✔ 받음</i>" : can ? "<i>받기</i>" : ""}</div>`; }).join("");
   UI.frame("🏮 토벌 시즌", `<div class="shead"><div><h2>${d.getMonth() + 1}월 토벌 시즌</h2><p class="muted">판을 할 때마다 경험이 쌓여요 (방·처치·완주·오늘의 괴담). 시즌은 ${left}일 뒤 새로 시작해요.</p></div>
     <div class="slv"><b>${lv}</b>/${SEASON_TIER}단계<div class="prog"><i style="width:${lv >= SEASON_TIER ? 100 : (cur / SEASON_XP) * 100}%"></i></div><span class="muted">${lv >= SEASON_TIER ? "완주!" : `다음 단계까지 ${SEASON_XP - cur}`}</span></div></div>
     <div class="strack">${cells}</div><p class="muted" style="text-align:center">${seasonUnclaimed() ? `<button class="btn gold" id="sall">모두 받기 (${seasonUnclaimed()})</button>` : ""}</p>`, () => UI.menu());
