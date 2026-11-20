@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.8.0";
+const GAME_VERSION = "2.8.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -888,30 +888,40 @@ const UI = {
   settings() {
     const s = SAVE.settings;
     UI.frame("설정", `<div class="card setc"><h3>닉네임</h3><div style="display:flex;gap:8px"><input id="snick" maxlength="12" value="${esc(nick())}" style="flex:1;background:#0b0a10;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink)"><button class="btn gold" id="snickok">바꾸기</button></div><p class="muted">아이디: ${esc(ACCOUNT)} (로그인할 때만 써요)</p>
-      <p><label><input type="checkbox" id="mus" ${s.music ? "checked" : ""}> 배경 음악</label></p>
-      <p>음악 크기 <input type="range" id="vol" min="0" max="1" step="0.05" value="${s.vol}"></p>
-      <p>효과음 크기 <input type="range" id="sfv" min="0" max="1" step="0.05" value="${s.sfx}"></p>
-      <p>보스 음악 크기 <input type="range" id="bsv" min="0" max="1.5" step="0.05" value="${s.bossVol != null ? s.bossVol : 1}"> <span class="muted" style="font-size:.8rem">(보통 음악 대비)</span></p>
-      <p><label><input type="checkbox" id="shk" ${s.shake === false ? "" : "checked"}> 화면 흔들림</label></p>
-      <p>화면 확대 <input type="range" id="zoomr" min="1" max="2" step="0.1" value="${s.zoom != null ? s.zoom : 1.5}"> <small>(1 = 방 전체)</small></p>
-      <p>흔들림 세기 <input type="range" id="shka" min="0" max="1.5" step="0.1" value="${s.shakeAmt != null ? s.shakeAmt : 1}"></p>
-      <p><label><input type="checkbox" id="dmgn" ${s.dmgNum === false ? "" : "checked"}> 피해 숫자 보이기</label></p>
-      <p><label><input type="checkbox" id="hstp" ${s.hitstop === false ? "" : "checked"}> 타격 멈칫 (치명타·처치 순간)</label></p>
-      <p><label><input type="checkbox" id="hapt" ${s.haptic === false ? "" : "checked"}> 진동 (앱·게임패드: 크게 맞거나 보스를 쓰러뜨릴 때)</label></p>
-      <p><label><input type="checkbox" id="anly" ${s.analytics === false ? "" : "checked"}> 익명 통계·오류 보내기</label> <span class="muted" style="font-size:.8rem">(게임 개선용 · 아이디·닉네임은 보내지 않아요)</span></p>
-      <p><label><input type="checkbox" id="vce" ${s.voice === false ? "" : "checked"}> 음성 (보스·이야기)</label></p>
-      <p>효과 밝기 <input type="range" id="fxa" min="0.4" max="1" step="0.05" value="${s.fxAmt != null ? s.fxAmt : 1}"> <span class="muted" style="font-size:.8rem">(번쩍임이 부담되면 낮추세요)</span></p>
-      <p>엽전·코인 줍기 범위 <input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
-      <p><label><input type="checkbox" id="telebold" ${s.teleBold ? "checked" : ""}> 공격 예고 진하게 (붉은 공격 영역에 굵은 노란 테두리 — 작은 화면·색이 잘 안 보일 때)</label></p>
-      <p><label><input type="checkbox" id="assist" ${s.assist ? "checked" : ""}> 도움 모드 (쓰러질 때마다 받는 피해 -2%, 최대 -40% · 스토리·무한의 방, 지금 -${Math.round(Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) * 100)}%)</label></p>
-      <p><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> 자동 공격 (켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접)</label></p>
-      <p><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> 고급 그래픽 (실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요)</label></p>
-      <p><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> 저사양 모드 (화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때)</label></p>
-      <p><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> 절전 모드 (초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때)</label></p>
-      <p><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> 글자 크게 (작은 휴대폰에서 읽기 편하게)</label></p>
+      <div class="setg"><h4>소리</h4>
+      <p class="tg"><label><input type="checkbox" id="mus" ${s.music ? "checked" : ""}> 배경 음악</label></p>
+      <p class="rg"><span class="rl">음악 크기</span><input type="range" id="vol" min="0" max="1" step="0.05" value="${s.vol}"></p>
+      <p class="rg"><span class="rl">효과음 크기</span><input type="range" id="sfv" min="0" max="1" step="0.05" value="${s.sfx}"></p>
+      <p class="rg"><span class="rl">보스 음악 크기</span><input type="range" id="bsv" min="0" max="1.5" step="0.05" value="${s.bossVol != null ? s.bossVol : 1}"> <span class="muted" style="font-size:.8rem">(보통 음악 대비)</span></p>
+      <p class="tg"><label><input type="checkbox" id="vce" ${s.voice === false ? "" : "checked"}> <span class="sl">음성<small>보스·이야기</small></span></label></p>
+      </div>
+      <div class="setg"><h4>화면</h4>
+      <p class="rg"><span class="rl">화면 확대</span><input type="range" id="zoomr" min="1" max="2" step="0.1" value="${s.zoom != null ? s.zoom : 1.5}"> <small>(1 = 방 전체)</small></p>
+      <p class="tg"><label><input type="checkbox" id="shk" ${s.shake === false ? "" : "checked"}> 화면 흔들림</label></p>
+      <p class="rg"><span class="rl">흔들림 세기</span><input type="range" id="shka" min="0" max="1.5" step="0.1" value="${s.shakeAmt != null ? s.shakeAmt : 1}"></p>
+      <p class="tg"><label><input type="checkbox" id="dmgn" ${s.dmgNum === false ? "" : "checked"}> 피해 숫자 보이기</label></p>
+      <p class="tg"><label><input type="checkbox" id="hstp" ${s.hitstop === false ? "" : "checked"}> <span class="sl">타격 멈칫<small>치명타·처치 순간</small></span></label></p>
+      <p class="rg"><span class="rl">효과 밝기</span><input type="range" id="fxa" min="0.4" max="1" step="0.05" value="${s.fxAmt != null ? s.fxAmt : 1}"> <span class="muted" style="font-size:.8rem">(번쩍임이 부담되면 낮추세요)</span></p>
+      <p class="tg"><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> <span class="sl">글자 크게<small>작은 휴대폰에서 읽기 편하게</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="telebold" ${s.teleBold ? "checked" : ""}> <span class="sl">공격 예고 진하게<small>붉은 공격 영역에 굵은 노란 테두리 — 작은 화면·색이 잘 안 보일 때</small></span></label></p>
+      </div>
+      <div class="setg"><h4>조작 · 도움</h4>
+      <p class="tg"><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> <span class="sl">자동 공격<small>켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="assist" ${s.assist ? "checked" : ""}> <span class="sl">도움 모드<small>쓰러질 때마다 받는 피해 -2%, 최대 -40% · 스토리·무한의 방, 지금 -${Math.round(Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) * 100)}%</small></span></label></p>
+      <p class="rg"><span class="rl">엽전·코인 줍기 범위</span><input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
+      <p class="tg"><label><input type="checkbox" id="hapt" ${s.haptic === false ? "" : "checked"}> <span class="sl">진동<small>앱·게임패드: 크게 맞거나 보스를 쓰러뜨릴 때</small></span></label></p>
+      </div>
+      <div class="setg"><h4>그래픽 · 성능</h4>
+      <p class="tg"><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> <span class="sl">고급 그래픽<small>실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="lowfx" ${s.low ? "checked" : ""}> <span class="sl">저사양 모드<small>화면 선명도·불빛·파편 줄이기 — 폰이 끊길 때</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="fps30" ${s.fps30 ? "checked" : ""}> <span class="sl">절전 모드<small>초당 30번 그리기 — 휴대폰이 뜨겁거나 배터리를 아낄 때</small></span></label></p>
+      </div>
+      <div class="setg"><h4>정보 보내기</h4>
+      <p class="tg"><label><input type="checkbox" id="anly" ${s.analytics === false ? "" : "checked"}> <span class="sl">익명 통계·오류 보내기<small>게임 개선용 · 아이디·닉네임은 보내지 않아요</small></span></label></p>
+      </div>
       ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
       <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
-      <p class="muted">음악: 한입 미스터리 채널 국악 · 층별 음악·효과음·보스 음성 (11-16)</p>
+      <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
@@ -1546,17 +1556,18 @@ function goalsHtml(r) {
   if (goals.length) h += `<div class="goals"><h3>다음 목표</h3>${goals.map((g) => `<div class="goal" data-go="${g.go}"><span class="gi">${g.ic}</span><div class="gt">${esc(g.t)}<div class="prog"><i style="width:${Math.min(100, (g.cur / g.n) * 100)}%"></i></div></div><span class="gn">${Math.min(g.cur, g.n)}/${g.n}</span></div>`).join("")}</div>`;
   return h;
 }
+const soulIc = (px) => `<img src="${imgSrc("ui_soul")}" alt="" style="width:${px}px;height:${px}px;object-fit:contain;vertical-align:-4px">`; // 11-21 혼불 수묵 그림
 UI.altar = function () {
   const S = SAVE; S.altar = S.altar || {};
   const card = (a) => { const l = altarLv(a.k), full = l >= a.max, c = full ? 0 : a.cost[l], can = !full && (S.soul || 0) >= c;
-    return `<div class="acard ${full ? "full" : ""} ${can ? "can" : ""}"><div class="aic">${a.ic}</div><div class="atx"><b>${a.name}</b><div class="pips">${Array.from({ length: a.max }, (_, i) => `<i class="${i < l ? "on" : ""}"></i>`).join("")}</div>
+    return `<div class="acard ${full ? "full" : ""} ${can ? "can" : ""}"><div class="aic"><img src="${imgSrc("altar_" + a.k)}" alt=""></div><div class="atx"><b>${a.name}</b><div class="pips">${Array.from({ length: a.max }, (_, i) => `<i class="${i < l ? "on" : ""}"></i>`).join("")}</div>
       <p class="muted">${l ? "지금: " + a.desc(l) : "아직 없음"}${full ? "" : `<br>다음: <span style="color:var(--gold2)">${a.desc(l + 1)}</span>`}</p></div>
-      <button class="btn ${can ? "gold" : ""}" data-a="${a.k}" ${can ? "" : "disabled"}>${full ? "완성" : `🔥 ${c}`}</button></div>`; };
-  UI.frame("🔥 혼불 제단", `<div class="altarhead"><div class="flame"></div><div><h2>등불 사당의 제단</h2><p class="muted">쓰러뜨린 요괴의 넋은 혼불이 되어 남아요. 판에서 쓰러져도 혼불은 그대로 — 바쳐서 토벌대 모두를 강하게.</p><p class="soulnow">가진 혼불 <b>🔥 ${S.soul || 0}</b> <span class="muted">· 지금까지 모은 혼불 ${S.soulTotal || 0}</span></p></div></div>
+      <button class="btn ${can ? "gold" : ""}" data-a="${a.k}" ${can ? "" : "disabled"}>${full ? "완성" : `${soulIc(18)} ${c}`}</button></div>`; };
+  UI.frame("혼불 제단", `<div class="altarhead"><div class="soulbig"><img src="${imgSrc("ui_soul")}" alt=""></div><div><h2>등불 사당의 제단</h2><p class="muted">쓰러뜨린 요괴의 넋은 혼불이 되어 남아요. 판에서 쓰러져도 혼불은 그대로 — 바쳐서 토벌대 모두를 강하게.</p><p class="soulnow">가진 혼불 <b>${soulIc(22)} ${S.soul || 0}</b> <span class="muted">· 지금까지 모은 혼불 ${S.soulTotal || 0}</span></p></div></div>
     <div class="agrid">${ALTAR.map(card).join("")}</div>${ALTAR.every((x) => altarLv(x.k) >= x.max) ? `<div class="card" style="text-align:center;margin-top:10px"><b>🏮 혼불 공양</b> <span class="muted">제단을 모두 밝혔어요. 남는 혼불 ${OFFER_SOUL}을 바치면 코인 1개</span><br><button class="btn gold" id="offer" ${(S.soul || 0) < OFFER_SOUL ? "disabled" : ""}>공양하기 (🔥 ${OFFER_SOUL} → 코인 1)</button></div>` : ""}<p class="muted" style="text-align:center">제단 강화는 모든 영웅에게 적용돼요 (1대1 대전·함께하기 제외)</p>`, () => UI.menu());
   if ($("#offer")) $("#offer").onclick = () => { if ((S.soul || 0) < OFFER_SOUL) return; S.soul -= OFFER_SOUL; S.coins += 1; track("soul_offer"); saveGame(); sfx("coin"); UI.toast("🏮 혼불 공양 · 코인 +1"); UI.altar(); };
   document.querySelectorAll(".acard button[data-a]").forEach((b) => (b.onclick = () => { const a = ALTAR.find((x) => x.k === b.dataset.a), l = altarLv(a.k); if (l >= a.max || (S.soul || 0) < a.cost[l]) return;
-    S.soul -= a.cost[l]; S.altar[a.k] = l + 1; track("altar_buy", { k: a.k, lv: l + 1 }); saveGame(); sfx("level"); UI.toast(`${a.ic} ${a.name} ${l + 1}단계 — ${a.desc(l + 1)}`, 2600); UI.altar(); }));
+    S.soul -= a.cost[l]; S.altar[a.k] = l + 1; track("altar_buy", { k: a.k, lv: l + 1 }); saveGame(); sfx("level"); UI.toast(`${a.name} ${l + 1}단계 — ${a.desc(l + 1)}`, 2600); UI.altar(); }));
 };
 
 // ===================== 11-18 1.7.1 괴이한 방 (선택 이벤트) =====================
@@ -2089,7 +2100,7 @@ function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = 
 function storeCard() {
   if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
   const s = storeState(), pct = Math.round((s.h / STORE_CAP_H) * 100);
-  return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("npc_jumo")}" alt=""><div class="stx"><b>주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
+  return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("ui_store_jar")}" alt=""><div class="stx"><b>주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
 }
 function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아직 쌓인 혼불이 없어요 — 조금 뒤에 다시 와요"); return; } SAVE.soul = (SAVE.soul || 0) + s.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + s.soul; SAVE.storeT = Date.now(); saveGame(); sfx("coin"); track("store_claim", { soul: s.soul, h: Math.round(s.h) }); UI.toast(`🏮 주막 창고에서 혼불 ${s.soul}을 받았어요`); UI.menu(); }
 const isFestival = () => { const d = new Date().getDay(); return d === 0 || d === 6; }; // 토·일
