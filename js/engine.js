@@ -2790,7 +2790,7 @@ void main(){
   vec3 rim = vec3(0.0);
   if (a.a > 0.05) for (int j = 0; j < 4; j++) { int i = j == 0 ? shI.x : j == 1 ? shI.y : j == 2 ? shI.z : shI.w; if (i < 0 || i >= nL) continue;
     vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z * 1.3) continue; float att = 1.0 - dist / (l.z * 1.3); vec2 dl = d / max(dist, 1.0);
-    float a2 = texture(tA, uv + vec2(dl.x, -dl.y) * vec2(3.5 / scr.x, 3.5 / scr.y)).a; rim += LC[i] * l.w * att * clamp(a.a - a2, 0.0, 1.0) * 1.6; }
+    float a2 = texture(tA, uv + vec2(dl.x, -dl.y) * vec2(3.5 / scr.x, 3.5 / scr.y)).a; rim += LC[i] * l.w * att * clamp(a.a - a2, 0.0, 1.0) * 0.8; }
   col = col * (1.0 - a.a) + a.rgb * la + rim * a.a;
   vec4 b = texture(tB, uv);
   col = col * (1.0 - b.a) + b.rgb;
