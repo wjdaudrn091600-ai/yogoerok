@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.4";
+const GAME_VERSION = "2.9.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -282,7 +282,7 @@ function unlockProgress(c) {
   if (u.type === "gacha") return { ok: !!SAVE.chars[c.id], cur: Math.min((SAVE.shards || {})[c.id] || 0, shardNeed(c.id)), n: shardNeed(c.id) };
   const reqs = (u.reqs || []).slice(); if (u.type === "floor") reqs.unshift({ floor: u.n });
   let frac = 1, ok = true; const parts = [];
-  for (const r of reqs) { const v = r.floor ? SAVE.story.maxFloor || 1 : statVal(r.stat), n = r.floor || r.n; frac = Math.min(frac, Math.min(v, n) / n); if (v < n) ok = false; parts.push(`${r.floor ? "스토리 " + n + "층" : r.text} ${Math.min(v, n)}/${n}`); }
+  for (const r of reqs) { const v = r.floor ? SAVE.story.maxFloor || 1 : statVal(r.stat), n = r.floor || r.n; frac = Math.min(frac, Math.min(v, n) / n); if (v < n) ok = false; parts.push(`${r.floor ? "스토리 " + n + "장" : r.text} ${Math.min(v, n)}/${n}`); }
   return { ok, cur: Math.round(frac * 100), n: 100, parts };
 }
 function checkUnlocks() {
@@ -1613,7 +1613,7 @@ const EVENTS = {
   peddler: { ic: "🎒", name: "떠도는 보부상", text: "등짐을 진 보부상이 쉬어 가는 중이다. \"요괴 잡는 데 쓸 만한 물건이 있소. 싸게 드리리다.\"",
     ch: [{ t: "물건을 산다", s: "엽전 -90 → 액티브 기술 하나", ok: () => (G.p.gold || 0) >= 90, run: () => (evGold(-90), G.drops.push({ type: "act", k: rollActive([], 2), x: G.p.x + 80, y: G.p.y }), "희귀 이상의 액티브를 받았다 (바닥에서 줍기)") },
       { t: "약초를 산다", s: "엽전 -40 → 약초 2개", ok: () => (G.p.gold || 0) >= 40, run: () => (evGold(-40), G.drops.push({ type: "herb", x: G.p.x - 60, y: G.p.y + 30 }, { type: "herb", x: G.p.x + 60, y: G.p.y + 30 }), "약초 2개") },
-      { t: "길만 묻는다", s: "혼불 +5", run: () => ((SAVE.soul = (SAVE.soul || 0) + 5), "\"이 아래층엔 두꺼비가 왕 노릇을 한다오.\" 혼불 +5") }] },
+      { t: "길만 묻는다", s: "혼불 +5", run: () => ((SAVE.soul = (SAVE.soul || 0) + 5), "\"이 아래엔 두꺼비가 왕 노릇을 한다오.\" 혼불 +5") }] },
   bowl: { ic: "🥣", name: "정화수 한 그릇", text: "장독대 위에 정화수가 놓여 있다. 누군가 소원을 빌다 떠난 자리다.",
     ch: [{ t: "몸 성히 해 주소서", s: "체력 50% 회복", run: () => (evHeal(0.5), "맑은 물이 피로를 씻어 간다") },
       { t: "재물을 주소서", s: "엽전 +120", run: () => (evGold(120), "물그릇 아래 엽전 꾸러미가 있었다") },
@@ -1666,16 +1666,16 @@ UI.event = function (k) {
 const TALK_ONCE = [
   { id: "first", p: 100, if: (c) => c.runs === 0, t: "어서 와요, 토벌꾼 양반. 미궁에 처음 들어갔다 나온 얼굴이네. 쓰러져도 괜찮아요 — 요괴 넋은 혼불이 되어 남으니까, 제단에 바치고 다시 내려가 봐요." },
   { id: "story_done", p: 99, if: (c) => c.r.storyDone, t: "다섯 장을 다 찾아 묶었다고요…? 세상에. 오늘 주막 술은 전부 내가 낼게요. 반디가 우는 건 처음 봤네." },
-  { id: "floor2", p: 95, if: (c) => c.newMax >= 2 && c.prevMax < 2, t: "첫째 장을 되찾았다면서요! 반디가 신나서 주막을 세 바퀴나 돌더라니까. 아래층은 얼음 동굴이에요. 따뜻하게 입고 가요." },
+  { id: "floor2", p: 95, if: (c) => c.newMax >= 2 && c.prevMax < 2, t: "첫째 장을 되찾았다면서요! 반디가 신나서 주막을 세 바퀴나 돌더라니까. 다음 장은 얼음 동굴이에요. 따뜻하게 입고 가요." },
   { id: "floor3", p: 95, if: (c) => c.newMax >= 3 && c.prevMax < 3, t: "얼음 장군까지 넘었어요? 그 장군, 원래는 이 마을을 지키던 분이었대요. 원한을 풀어 줬으니 이제 편히 쉬시겠지." },
-  { id: "floor4", p: 95, if: (c) => c.newMax >= 4 && c.prevMax < 4, t: "불 도깨비 왕을 이겼다고! 대장간 쇠 냄새가 옷에 배었네. 넷째 층 늪은 독 안개가 짙으니 해독 약초를 꼭 챙겨요." },
+  { id: "floor4", p: 95, if: (c) => c.newMax >= 4 && c.prevMax < 4, t: "불 도깨비 왕을 이겼다고! 대장간 쇠 냄새가 옷에 배었네. 넷째 장 늪은 독 안개가 짙으니 해독 약초를 꼭 챙겨요." },
   { id: "floor5", p: 95, if: (c) => c.newMax >= 5 && c.prevMax < 5, t: "…저승 궁궐까지 갔군요. 거기선 누가 불러도 대답하지 마요. 산 사람이 대답하면 이름이 명부에 적힌대요." },
   { id: "boss_death", p: 80, if: (c) => c.died && c.bossDeath, t: (c) => `${c.killer}한테 당했어요? 큰 놈들은 때리기 전에 바닥이 붉게 물들어요. 그 순간 Space 로 굴러요. 몸이 기억할 때까지.` },
   { id: "stuck3", p: 85, if: (c) => c.died && c.stuck >= 3, t: (c) => `${c.r.floor}층에서만 벌써 ${c.stuck}번째네요. 혼불 제단에 '등불 심지'를 올려 보고, 요괴 속성의 약점(층 이름 아래 적힌 것)에 맞는 영웅로 가 봐요.` },
   { id: "first_event", p: 70, if: (c) => (SAVE.stats.events || 0) > 0, t: "도깨비 씨름판 봤어요? 그 외뿔 도깨비, 지면 삐져서 사흘은 안 나와요. 장승 물음은… 우리 마을 아이들도 다 아는 거니 틀리면 창피해요." },
   { id: "first_altar", p: 65, if: () => Object.keys(SAVE.altar || {}).length > 0, t: "제단에 혼불 바친 거 봤어요. 등불이 한결 밝아졌네. 그 불빛이 미궁 아래까지 닿는대요." },
   { id: "endless", p: 60, if: (c) => c.r.mode === "endless", t: "무한의 방이라… 끝이 없다던데, 정말 끝까지 가 볼 셈이에요? 갔다 와서 끝이 어땠는지 꼭 얘기해 줘요." },
-  { id: "raid", p: 60, if: (c) => c.r.mode === "raid", t: "층 보스들을 줄줄이 상대하다니 배짱 한번 좋네. 다음엔 펫이랑 보물도 잘 맞춰 가요." },
+  { id: "raid", p: 60, if: (c) => c.r.mode === "raid", t: "장 보스들을 줄줄이 상대하다니 배짱 한번 좋네. 다음엔 펫이랑 보물도 잘 맞춰 가요." },
   { id: "many_kills", p: 55, if: (c) => c.r.kills >= 300, t: (c) => `한 판에 요괴 ${c.r.kills}마리라니! 주막 앞 혼불이 반딧불 떼처럼 날아다녀요.` },
 ];
 const TALK_CHAR = {
@@ -1717,7 +1717,7 @@ const TALK_ARC = [ // 주모 홍매의 사연 — 판마다 한 토막씩 (순�
   "이 주막요? 원래는 미궁 입구를 지키던 등불 사당 자리예요. 등불이 꺼진 날 사당은 무너지고, 나는 그 터에 솥을 걸었죠.",
   "달래 할멈이랑은 오래된 사이예요. 할멈이 요괴록을 지킬 때, 나는 할멈 밥을 지켰거든요.",
   "그믐밤마다 미궁에서 바람 소리가 올라와요. 반디 말로는 찢긴 장들이 서로를 부르는 소리래요.",
-  "우리 바깥양반도 토벌꾼이었어요. 등불 하나 들고 미궁에 내려가서… 다섯째 층 어딘가에서 소식이 끊겼죠.",
+  "우리 바깥양반도 토벌꾼이었어요. 등불 하나 들고 미궁에 내려가서… 다섯째 장 어딘가에서 소식이 끊겼죠.",
   "그 양반이 남긴 게 이 등롱이에요. 신기하죠, 기름을 안 넣어도 꺼지질 않아요.",
   "가끔 생각해요. 저승 궁궐 명부에 그 양반 이름이 적혀 있을까, 아직 비어 있을까.",
   "토벌꾼들이 쓰러져 돌아올 때마다 혼불이 조금씩 남아요. 그게 다 그 사람들 용기예요. 그래서 제단에 바치는 거고요.",
@@ -1982,7 +1982,7 @@ function histAdd(r) {
 UI.history = function () {
   const H = SAVE.hist || [], MN = { story: "스토리", endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전" };
   const best = (f) => H.reduce((a, x) => Math.max(a, f(x) || 0), 0);
-  const rows = H.map((x) => `<tr><td>${x.t}</td><td>${CHAR[x.c] ? CHAR[x.c].name : x.c}</td><td>${x.dy ? "🌙 괴담" : MN[x.m] || x.m}</td><td>${x.m === "endless" ? x.e + "번째 방" : x.m === "story" ? `${x.f}층 ${x.s}` : "-"}</td><td>${x.w ? "✅" : "💀"}</td><td>${x.k}</td><td>Lv.${x.l}</td><td>${x.cb || "-"}</td><td>${x.so ? "🔥" + x.so : "-"}</td><td>${Math.floor(x.sec / 60)}분</td></tr>`).join("");
+  const rows = H.map((x) => `<tr><td>${x.t}</td><td>${CHAR[x.c] ? CHAR[x.c].name : x.c}</td><td>${x.dy ? "🌙 괴담" : MN[x.m] || x.m}</td><td>${x.m === "endless" ? x.e + "번째 방" : x.m === "story" ? `${x.f}장 ${x.s}` : "-"}</td><td>${x.w ? "✅" : "💀"}</td><td>${x.k}</td><td>Lv.${x.l}</td><td>${x.cb || "-"}</td><td>${x.so ? "🔥" + x.so : "-"}</td><td>${Math.floor(x.sec / 60)}분</td></tr>`).join("");
   UI.frame("📜 토벌 기록", `<div class="card" style="max-width:980px;margin:0 auto"><p><button class="btn sm gold" id="toBoard">주간 순위표 (무한의 방)</button></p><p class="muted">최근 ${H.length}판 · 가장 많이 잡은 판 ${best((x) => x.k)}마리 · 최고 연격 ${Math.max(best((x) => x.cb), SAVE.stats.maxCombo || 0)} · 최고 무한의 방 ${SAVE.stats.endlessBest || 0}</p>
     ${H.length ? `<div style="overflow-x:auto"><table class="ptab"><tr><th>때</th><th>영웅</th><th>모드</th><th>도달</th><th>결과</th><th>처치</th><th>레벨</th><th>연격</th><th>혼불</th><th>시간</th></tr>${rows}</table></div>` : '<p class="muted">아직 기록이 없어요. 첫 토벌을 떠나 보세요!</p>'}</div>`, () => UI.menu());
 };
@@ -2255,7 +2255,7 @@ UI.feedback = function (o) {
 };
 // ===================== 11-20 판 들어가기 로딩 화면 =====================
 // 사용자: "그림받는중 이후 바로 게임으로 입장이 안되고 다시 눌러야함, 이미지가 별로". 전체 화면 그림 + 받는 양 막대 + 한마디, 다 받으면 바로 들어감(다시 누를 필요 없음).
-const LOAD_TIPS = ["구르기(Space) 중에는 공격을 맞지 않아요", "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 층 이름 아래를 보세요"];
+const LOAD_TIPS = ["구르기(Space) 중에는 공격을 맞지 않아요", "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 장 이름 아래를 보세요"];
 UI.loading = function (opt) {
   if (UI._ld) return; UI._ld = true;
   const L = runPackList(opt), names = L.need.map((x) => x[0]).filter((n) => ASSETS.packs[n] && !PACK.done[n]);

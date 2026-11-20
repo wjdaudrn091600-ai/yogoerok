@@ -71,7 +71,7 @@ const CHARS = [
       { name: "은신", ic: "🕶️", cd: 14, desc: "3초 동안 적이 놓침, 이동 +40%, 다음 공격 치명타", fx: [{ t: "buff", dur: 3, stealth: true, spd: 0.4, crit: 1, col: "#ff8fa3" }] },
       { name: "그림자 난도", ic: "🗡️", cd: 38, ult: true, desc: "가까운 적 8명에게 차례로 날아가 각 260% 피해", fx: [{ t: "flurry", n: 8, d: 2.6, gap: 0.12 }] },
     ] },
-  { id: "dosa", name: "청운", job: "도사", unlock: { type: "floor", n: 2, reqs: [{ stat: "curses", n: 3, text: "저주 스테이지 3번" }], text: "스토리 2층 도달 + 저주 스테이지 3번" }, col: "#5fd4c4", hp: 185, atk: 23, spd: 255, range: "원거리",
+  { id: "dosa", name: "청운", job: "도사", unlock: { type: "floor", n: 2, reqs: [{ stat: "curses", n: 3, text: "저주 스테이지 3번" }], text: "스토리 2장 도달 + 저주 스테이지 3번" }, col: "#5fd4c4", hp: 185, atk: 23, spd: 255, range: "원거리",
     basic: { name: "부적 던지기", cd: 0.5, fx: [{ t: "proj", d: 1, spd: 760, life: 0.9, r: 10, col: "#ffe08a", shape: "talisman", home: 3 }] },
     sk: [
       { name: "화염 부적", ic: "🔥", cd: 6, desc: "부딪히면 폭발 200% 피해 + 불태움", fx: [{ t: "proj", d: 2.0, spd: 750, life: 1, r: 14, col: "#ff8a3d", shape: "talisman", explode: 120, burn: 3 }] },
@@ -79,7 +79,7 @@ const CHARS = [
       { name: "뇌우 부적", ic: "⚡", cd: 9, desc: "번개가 적 6명에게 튀며 각 170% 피해", fx: [{ t: "chain", n: 6, d: 1.7, range: 420, col: "#9fe8ff" }] },
       { name: "오행진", ic: "☯️", cd: 42, ult: true, desc: "커서에 6초 동안 큰 진 (초당 220% 피해, 크게 느려짐)", fx: [{ t: "zone", r: 260, dur: 6, dps: 2.2, slow: 0.6, col: "#5fd4c4", at: "cursor", rune: true }] },
     ] },
-  { id: "yinyang", name: "백야", job: "음양사", unlock: { type: "floor", n: 3, reqs: [{ stat: "skillsUsed", n: 800, text: "스킬 800번" }], text: "스토리 3층 도달 + 스킬 800번 사용" }, col: "#e8e3f5", hp: 195, atk: 19, spd: 255, range: "원거리",
+  { id: "yinyang", name: "백야", job: "음양사", unlock: { type: "floor", n: 3, reqs: [{ stat: "skillsUsed", n: 800, text: "스킬 800번" }], text: "스토리 3장 도달 + 스킬 800번 사용" }, col: "#e8e3f5", hp: 195, atk: 19, spd: 255, range: "원거리",
     basic: { name: "음양 구슬", cd: 0.48, fx: [{ t: "proj", d: 1, spd: 720, life: 0.9, r: 11, col: "#f5f2ff", alt: "#2a2440" }] },
     sk: [
       { name: "태극 구슬", ic: "⚪", cd: 9, desc: "8초 동안 흑백 구슬 4개가 주위를 돌며 피해 (각 90%)", fx: [{ t: "orbit", n: 4, dur: 8, r: 110, d: 0.9, col: "#f5f2ff", alt: "#2a2440" }] },
@@ -87,7 +87,7 @@ const CHARS = [
       { name: "식신 부르기", ic: "📜", cd: 13, desc: "종이 식신 3마리를 9초 동안 부름", fx: [{ t: "summon", kind: "shikigami", n: 3, dur: 9 }] },
       { name: "태극 대폭발", ic: "☯️", cd: 44, ult: true, desc: "커서에 1.2초 뒤 거대 폭발 750% + 기절", fx: [{ t: "strike", n: 1, r: 300, d: 7.5, delay: 1.2, stun: 1.5, col: "#e8e3f5", taeguk: true }] },
     ] },
-  { id: "summoner", name: "소담", job: "소환사", unlock: { type: "floor", n: 4, reqs: [{ stat: "petsOwned", n: 8, text: "펫 8종" }], text: "스토리 4층 도달 + 펫 8종 모으기" }, col: "#3fd0d8", hp: 200, atk: 19, spd: 255, range: "원거리",
+  { id: "summoner", name: "소담", job: "소환사", unlock: { type: "floor", n: 4, reqs: [{ stat: "petsOwned", n: 8, text: "펫 8종" }], text: "스토리 4장 도달 + 펫 8종 모으기" }, col: "#3fd0d8", hp: 200, atk: 19, spd: 255, range: "원거리",
     basic: { name: "영혼 화살", cd: 0.55, fx: [{ t: "proj", d: 1, spd: 760, life: 0.85, r: 10, col: "#9ff3f8" }] },
     sk: [
       { name: "영호 소환", ic: "🐯", cd: 12, desc: "영혼 호랑이를 14초 동안 부름 (강함)", fx: [{ t: "summon", kind: "tiger", n: 1, dur: 14 }] },
@@ -291,7 +291,7 @@ function charDef(id, form) {
   return Object.assign({}, c, f, { form, formName: f.formName });
 }
 const charArt = (id, form) => (CHAR[id].forms ? (CHAR[id].forms[form] || Object.values(CHAR[id].forms)[0]).art : id);
-const UNLOCK_TYPE = { start: "기본", mission: "임무 해금", special: "특수 임무", floor: "층 도달", gacha: "뽑기" };
+const UNLOCK_TYPE = { start: "기본", mission: "임무 해금", special: "특수 임무", floor: "장 도달", gacha: "뽑기" };
 
 // ===== 액티브 (Space) — 원정 중 랜덤으로 얻어 1개만 들기 =====
 // 사용자 요청 11-10: 기본 50 · 저급 25 · 중급 15 · 상급 7 · 특급 3 (총 100) + 보스 전용 6 (따로 특수 제작)
@@ -441,9 +441,9 @@ const MISSIONS = [
   { id: "sp3", stat: "fastClear", n: 1, coin: 3, name: "[특수] 요괴 5마리 이상 방을 10초 안에 정리" },
   { id: "sp4", stat: "noHitFloor", n: 1, coin: 5, name: "[특수] 맞지 않고 스테이지 하나 끝내기" },
   { id: "sp5", stat: "storyClear", n: 1, coin: 6, name: "[특수] 스토리 5층 최종보스 처치" },
-  { id: "dex1", stat: "dex_f1", n: 11, coin: 8, name: "요괴록 1층 도감 완성 (11종)" }, { id: "dex2", stat: "dex_f2", n: 11, coin: 8, name: "요괴록 2층 도감 완성 (11종)" },
-  { id: "dex3", stat: "dex_f3", n: 11, coin: 10, name: "요괴록 3층 도감 완성 (11종)" }, { id: "dex4", stat: "dex_f4", n: 11, coin: 10, name: "요괴록 4층 도감 완성 (11종)" },
-  { id: "dex5", stat: "dex_f5", n: 11, coin: 12, name: "요괴록 5층 도감 완성 (11종)" }, { id: "dexAll", stat: "dexAll", n: 55, coin: 30, name: "요괴록 도감 55종 모두 완성" },
+  { id: "dex1", stat: "dex_f1", n: 11, coin: 8, name: "요괴록 1장 도감 완성 (11종)" }, { id: "dex2", stat: "dex_f2", n: 11, coin: 8, name: "요괴록 2장 도감 완성 (11종)" },
+  { id: "dex3", stat: "dex_f3", n: 11, coin: 10, name: "요괴록 3장 도감 완성 (11종)" }, { id: "dex4", stat: "dex_f4", n: 11, coin: 10, name: "요괴록 4장 도감 완성 (11종)" },
+  { id: "dex5", stat: "dex_f5", n: 11, coin: 12, name: "요괴록 5장 도감 완성 (11종)" }, { id: "dexAll", stat: "dexAll", n: 55, coin: 30, name: "요괴록 도감 55종 모두 완성" },
   // 11-18 새 시스템 미션 (괴이한 방·시련·오늘의 괴담·연격·혼불·숙련)
   { id: "ev5", stat: "events", n: 5, coin: 2, name: "괴이한 방 5번 만나기" },
   { id: "ev25", stat: "events", n: 25, coin: 5, name: "괴이한 방 25번 만나기" },
@@ -460,7 +460,7 @@ const MISSIONS = [
   { id: "pd10", stat: "perfectDodge", n: 10, coin: 3, name: "완벽 회피 10번" },
   { id: "pd100", stat: "perfectDodge", n: 100, coin: 10, name: "완벽 회피 100번 — 바람의 몸놀림" },
   { id: "ms10", stat: "mastMax", n: 10, coin: 15, name: "한 영웅 숙련 Lv.10 (옥 표식)" },
-  { id: "sec_boss100", stat: "floorBossKills", n: 100, coin: 20, secret: true, name: "[숨은 업적] 층 보스 100번 처치 — 보스펫 '꼬마 도깨비 왕' 획득" },
+  { id: "sec_boss100", stat: "floorBossKills", n: 100, coin: 20, secret: true, name: "[숨은 업적] 장 보스 100번 처치 — 보스펫 '아기 도깨비 왕' 획득" },
   { id: "sec_dummy200", stat: "dummyKills", n: 200, coin: 8, secret: true, name: "[숨은 업적] 허수아비 200번 쓰러뜨리기 (+ 스토리 클리어 시 숨은 영웅 '짚신' 해금)" },
 ];
 
