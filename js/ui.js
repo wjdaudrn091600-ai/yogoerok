@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.9";
+const GAME_VERSION = "3.0.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -437,7 +437,7 @@ const UI = {
     const M = { lvmode: "lvhead", shopmode: "shopw", pzmode: "pzw", evmode: "evbox", dlmode: "dlw" }, el = $("#modal");
     for (const c in M) if (el.classList.contains(c) && !html.includes('class="' + M[c])) el.classList.remove(c);
     $("#mbox").innerHTML = html; el.hidden = false; },
-  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode", "dlmode"); $("#mbox").innerHTML = ""; },
+  closeModal() { $("#modal").hidden = true; $("#modal").classList.remove("lvmode", "shopmode", "pzmode", "evmode", "dlmode", "noticem", "gachafx"); $("#mbox").innerHTML = ""; },
 
   // ----- 로그인 -----
   login() {
@@ -606,7 +606,7 @@ const UI = {
     const dock = (k, ic, t, badge) => `<button class="sub" data-s="${k}"><span class="ic">${uiIc(ic, "")}</span><span class="dl">${t}</span>${badge || ""}</button>`;
     const altarDot = (() => { const n = altarNext(); return n && (SAVE.soul || 0) >= n.c ? '<i class="dot"></i>' : ""; })();
     $("#screens").innerHTML = `<div class="screen hub" id="menu"><div class="hero-bg kb" style="background-image:url(${imgSrc("ui_menu_bg")})"></div><div class="hubshade"></div><canvas id="tparts" class="mparts"></canvas>
-      <div class="top"><div class="hublogo"><b>요괴록</b><small>조선 요괴 토벌기</small></div><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}"><b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} <b>${SAVE.coins}</b></span><span class="pill soul">${uiIc("soul", "")} <b>${SAVE.soul || 0}</b></span><button class="pill dlp" id="dlp" hidden></button></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? (PLAY_URL ? `<a class="back" href="${PLAY_URL}" target="_blank" rel="noopener">앱 받기</a>` : '<a class="back" href="요괴록.apk" download>앱 받기</a>') : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst">PC 앱 설치</button>' : ""}<button class="back" id="logout">로그아웃</button></div>
+      <div class="top"><div class="hublogo"><b>요괴록</b><small>조선 요괴 토벌기</small></div><div class="money"><span class="pill" title="아이디: ${esc(ACCOUNT)}"><b>${esc(nick())}</b></span><span class="pill coin">${curIc("coin")} <b>${SAVE.coins}</b></span><span class="pill soul">${uiIc("soul", "")} <b>${SAVE.soul || 0}</b></span><button class="pill dlp" id="dlp" hidden></button></div>${location.protocol.startsWith("http") && /Android/i.test(navigator.userAgent) && !/; wv\)/.test(navigator.userAgent) ? (PLAY_URL ? `<a class="back" href="${PLAY_URL}" target="_blank" rel="noopener">앱 받기</a>` : '<a class="back" href="요괴록.apk" download>앱 받기</a>') : ""}${isWebPlay() && !IS_TOUCH && !window.YogoApp ? '<button class="back" id="pcinst">PC 앱 설치</button>' : ""}<button class="back" id="noticeb">공지${noticeNew() ? '<i class="ndot"></i>' : ""}</button><button class="back" id="logout">로그아웃</button></div>
       <div class="body hubbody">
         <div class="hubcol hubl">
           <div class="hubhero"><img src="${imgSrc("card_" + charArt(cur))}" alt=""><div><small>지금 영웅</small><b>${CHAR[cur].name}</b><span>${CHAR[cur].job}</span></div></div>
@@ -653,6 +653,8 @@ const UI = {
     document.querySelectorAll(".tdi[data-go]").forEach((b) => (b.onclick = () => { const g = b.dataset.go; if (g === "daily") { if (typeof dailyStart === "function") dailyStart(); } else if (g === "store") { if (typeof storeClaim === "function") storeClaim(); } else if (g === "bounty") UI.chars({ mode: "endless" }); else UI.open(g); }));
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
+    $("#noticeb").onclick = () => UI.notice();
+    if (!UI._noticeAuto && noticeAutoOk()) { UI._noticeAuto = 1; let n = 0; const tryN = () => { if (G) return; if (UI.modalOpen() || document.querySelector("#tutor, #langpick")) { if (++n < 60) setTimeout(tryN, 700); return; } UI.notice(true); }; setTimeout(tryN, 700); } // 출석 등 다른 창을 닫으면 이어서
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
   },
 
@@ -804,12 +806,15 @@ const UI = {
     document.querySelectorAll(".row").forEach((rw) => { if (freeToday() && rw.querySelector('[data-p="1"]') && !rw.querySelector(".freeb")) { const fb = document.createElement("button"); fb.className = "btn freeb"; fb.innerHTML = "오늘 무료 1회"; fb.onclick = () => doPull(tab === "skill" ? "skill" : tab, 1, slot, false, true); rw.prepend(fb); } });
     document.querySelectorAll("[data-py]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.py, slot, true)));
   },
-  showPulls(res, after) {
+  showPulls(res, after, revealed) {
+    // 11-21 새 영웅은 결과 목록 전에 한 명씩 전체 화면으로 (수집형 게임의 '새 캐릭터 획득' 연출을 수묵식으로)
+    const fresh = res.filter((r) => r.kind === "char" && r.isNew && CHAR[r.id]);
+    if (fresh.length && !revealed) { UI.heroReveal(fresh, () => UI.showPulls(res, after, true)); return; }
     const cards = res.map((r, i) => {
       let col, inner, bg = "";
       if (r.kind === "char") { col = r.grade ? GRADE_INFO[r.grade].col : RARITY[4].col; inner = animCard(charArt(r.id, CHAR[r.id].forms ? "wolf" : null)) + `<span class="t" style="margin-top:auto">${r.direct ? `<b style="font-size:1.15em">${CHAR[r.id].name}</b>` : r.label}</span>`; return `<div class="rv anim-card legend" style="border-color:${col};animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
       else if (r.kind === "skill") { const s = SKILLS[r.id]; col = SK_GRADE[r.grade].col; inner = `<span class="ico">${abIc("gs_" + r.id, s.ic, 64)}</span><span class="grade" style="background:${col}">${r.grade}</span><span class="t">${r.label}</span><span class="muted" style="font-size:0.7rem">${{ Q: "1", W: "2", E: "3", R: "4" }[s.slot]}번 칸${s.owner ? " · " + CHAR[s.owner].name : ""}</span>`; }
-      else if (r.kind === "shard") { col = "#9fb0c8"; inner = animCard(charArt(r.id, CHAR[r.id].forms ? "wolf" : null)) + `<span class="t" style="margin-top:auto">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${inner}</div>`; }
+      else if (r.kind === "shard") { col = "#ffd27a"; inner = animCard(charArt(r.id, CHAR[r.id].forms ? "wolf" : null)) + `<span class="t" style="margin-top:auto">${r.label}</span>`; return `<div class="rv anim-card shardfx" style="border-color:${col};box-shadow:0 0 22px ${col}88;animation-delay:${i * 0.12}s;--d:${(i * 0.12 + 0.35).toFixed(2)}s"><i class="sfx-ink"></i><i class="sfx-sp"></i><span class="sfx-tag">조각</span>${inner}</div>`; }
       else if (r.kind === "pet" && ASSETS.img["pcard_" + PETS[r.id].img.slice(3)]) { col = RARITY[r.rar].col; const pk = PETS[r.id].img.slice(3); inner = `<div class="kb" style="background-image:url(${imgSrc("pcard_" + pk)})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
       else if (r.kind === "art" && ASSETS.img["acard_" + ARTIFACTS[r.id].img.slice(3)]) { col = RARITY[r.rar].col; inner = `<div class="kb" style="background-image:url(${imgSrc("acard_" + ARTIFACTS[r.id].img.slice(3))})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
       else if (r.kind === "title" && ASSETS.img["tcard_" + r.id]) { col = RARITY[r.rar].col; inner = `<div class="kb" style="background-image:url(${imgSrc("tcard_" + r.id)})"></div><i class="shine"></i><span class="t" style="margin-top:auto;color:${col};position:relative;z-index:2">${r.label}</span>`; return `<div class="rv anim-card" style="border-color:${col};box-shadow:0 0 18px ${col}66;animation-delay:${i * 0.12}s">${r.isNew ? '<span class="new">NEW</span>' : ""}${inner}</div>`; }
@@ -1417,7 +1422,7 @@ window.addEventListener("beforeunload", () => saveGame());
   window.addEventListener("keydown", (e) => { if (G || !SAVE || UI.typing()) return; i = e.code === seq[i] ? i + 1 : e.code === seq[0] ? 1 : 0;
     if (i === seq.length) { i = 0; if (SAVE.eggs.konami) { UI.toast("🎮 이미 받은 비밀 명령어예요", 2500); return; } SAVE.eggs.konami = 1; SAVE.coins += 10; saveGame(); UI.toast("🎮 비밀 명령어! 토벌꾼의 축복 · 코인 +10", 4500); if ($("#menu")) UI.menu(); } }); })();
 window.addEventListener("error", (e) => UI.error(e.error || { message: e.message }));
-loadImages(); initEngine(); UI.login(); setTimeout(checkUpdate, 1500);
+loadImages(); initEngine(); setTimeout(() => UI.langFirst(() => UI.login()), 0); setTimeout(checkUpdate, 1500); // 11-21 언어 선택은 이 파일 아래쪽에서 정의되므로 다 읽은 뒤 실행
 if (!/autotest/.test(location.hash) && ls.get("ygr_auto")) { if ($("#lerr")) $("#lerr").textContent = "☁️ 자동 로그인 중…"; autoLogin().then((ok) => { if (ok && !G) afterLogin(); else if ($("#lerr")) $("#lerr").textContent = ""; }).catch(() => { if ($("#lerr")) $("#lerr").textContent = ""; }); }
 // ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
 // 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
@@ -2252,6 +2257,56 @@ UI.feedback = function (o) {
     if (window.Sentry && Sentry.captureFeedback && send()) { track && track("feedback", { cat }); close(); UI.toast("고마워요! 의견이 잘 전해졌어요", 2600); return; }
     UI.toast(`지금은 보낼 수 없어요 — ${SUPPORT.mail} 로 보내 주세요`, 4000);
   };
+};
+// ===================== 11-21 뽑기: 새 영웅 획득 연출 =====================
+UI.heroReveal = function (list, done) {
+  let i = 0;
+  const show = () => {
+    if (i >= list.length) { done(); return; }
+    const r = list[i++], c = CHAR[r.id], gi = GRADE_INFO[r.grade || CHAR_GRADE[r.id]] || GRADE_INFO.C, col = gi.col || "#ffd27a", gname = r.grade || CHAR_GRADE[r.id] || "";
+    const d = document.createElement("div"); d.id = "hreveal"; d.style.setProperty("--gc", col);
+    d.innerHTML = `<div class="hr-bg"></div><div class="hr-rays"></div><div class="hr-ink"></div><div class="hr-card"><img src="${imgSrc("card_" + charArt(r.id, c.forms ? "wolf" : null))}" alt=""><i class="hr-shine"></i></div>
+      <div class="hr-tx"><small>새 영웅 합류</small><b>${esc(c.name)}</b><span><em style="background:${col}">${gname}급</em> ${esc(c.job)}</span>${typeof HERO_LINES !== "undefined" && HERO_LINES[r.id] ? `<q>${esc(HERO_LINES[r.id][0])}</q>` : ""}</div><div class="hr-tap">눌러서 계속${list.length > 1 ? ` · ${i}/${list.length}` : ""}</div>`;
+    document.body.appendChild(d); try { sfx("level"); } catch (e) { }
+    if (navigator.vibrate && SAVE && SAVE.settings && SAVE.settings.haptic !== false) try { navigator.vibrate([30, 60, 60]); } catch (e) { }
+    const t0 = performance.now();
+    d.onclick = () => { if (performance.now() - t0 < 900) return; d.classList.add("out"); setTimeout(() => { d.remove(); show(); }, 320); };
+  };
+  show();
+};
+// ===================== 11-21 처음 실행 언어 선택 · 공지창 =====================
+// 상업용 게임처럼: 첫 실행에 언어 고르기(한 번), 접속하면 새 공지·하루 한 번 공지창(오늘 하루 보지 않기), 메인 위 '공지' 버튼(새 공지면 빨간 점)
+const todayKey = () => { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); };
+const noticeMax = () => (typeof NOTICES !== "undefined" && NOTICES.length ? Math.max(...NOTICES.map((n) => n.id)) : 0);
+function noticeNew() { return noticeMax() > (+ls.get("ygr_notice_seen") || 0); }
+function noticeAutoOk() {
+  if (/autotest/.test(location.hash) || !noticeMax() || !SAVE || (SAVE.stats.rooms || 0) < 3) return false; // 처음 온 사람의 첫 흐름은 막지 않음
+  if (noticeNew()) return true;
+  const t = todayKey(); return ls.get("ygr_notice_hide") !== t && ls.get("ygr_notice_day") !== t;
+}
+UI.notice = function () {
+  if (typeof NOTICES === "undefined" || !NOTICES.length) return;
+  const en = I18N.lang === "en", T = (n) => (en && n.en ? n.en : n), seen = +ls.get("ygr_notice_seen") || 0;
+  const TYPE_EN = { "공지": "Notice", "업데이트": "Update", "안내": "Guide", "이벤트": "Event" };
+  const ty = (x) => (en ? TYPE_EN[x] || x : x);
+  let cur = 0;
+  const draw = () => {
+    const n = NOTICES[cur], t = T(n);
+    const list = NOTICES.map((x, i) => `<button class="nli ${i === cur ? "on" : ""}" data-i="${i}"><span class="nty t-${x.type}">${ty(x.type)}</span><b>${esc(T(x).title)}</b>${x.id > seen ? '<i class="ndot"></i>' : ""}<small>${x.date}</small></button>`).join("");
+    $("#mbox").innerHTML = `<div class="ntc"><div class="nhead"><h2>${en ? "Notices" : "공지"}</h2></div><div class="nbody"><div class="nlist">${list}</div><div class="nview">${n.img && imgSrc(n.img) ? `<div class="nban" style="background-image:url(${imgSrc(n.img)})"><span class="nty t-${n.type}">${ty(n.type)}</span></div>` : ""}<h3>${esc(t.title)}</h3><small class="muted">${n.date}</small><ul>${t.body.map((b) => `<li>${b}</li>`).join("")}</ul></div></div>
+      <div class="nfoot"><label><input type="checkbox" id="nhide"> ${en ? "Don't show again today" : "오늘 하루 보지 않기"}</label><button class="btn gold" id="nclose">${en ? "Close" : "닫기"}</button></div></div>`;
+    document.querySelectorAll(".nli").forEach((b) => (b.onclick = () => { cur = +b.dataset.i; draw(); }));
+    $("#nclose").onclick = () => { if ($("#nhide").checked) ls.set("ygr_notice_hide", todayKey()); ls.set("ygr_notice_seen", String(noticeMax())); ls.set("ygr_notice_day", todayKey()); UI.closeModal(); $("#modal").classList.remove("noticem"); const d = $("#noticeb .ndot"); if (d) d.remove(); };
+  };
+  UI.modal('<div class="ntc"></div>'); $("#modal").classList.add("noticem"); draw();
+};
+UI.langFirst = function (done) {
+  if (/autotest/.test(location.hash) || ls.get("ygr_lang_set")) { done(); return; }
+  const sug = /^ko/i.test(navigator.language || "ko") ? "ko" : "en";
+  const d = document.createElement("div"); d.id = "langpick";
+  d.innerHTML = `<div class="lpbg" style="background-image:url(${imgSrc("ui_menu_bg")})"></div><div class="lpin">${imgSrc("ui_logo") ? `<img class="lplogo" src="${imgSrc("ui_logo")}" alt="요괴록">` : "<h1>요괴록</h1>"}<p>언어를 선택해 주세요 · Choose your language</p><div class="lpbtns"><button class="btn ${sug === "ko" ? "gold" : ""}" data-l="ko">한국어</button><button class="btn ${sug === "en" ? "gold" : ""}" data-l="en">English <small>(beta)</small></button></div><small class="muted">설정에서 언제든 바꿀 수 있어요 · You can change this anytime in Settings</small></div>`;
+  document.body.appendChild(d);
+  d.querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => { ls.set("ygr_lang_set", "1"); const l = b.dataset.l; if (l !== I18N.lang) { I18N.set(l); return; } d.classList.add("out"); setTimeout(() => d.remove(), 350); done(); }));
 };
 // ===================== 11-20 판 들어가기 로딩 화면 =====================
 // 사용자: "그림받는중 이후 바로 게임으로 입장이 안되고 다시 눌러야함, 이미지가 별로". 전체 화면 그림 + 받는 양 막대 + 한마디, 다 받으면 바로 들어감(다시 누를 필요 없음).
