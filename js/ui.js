@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.14";
+const GAME_VERSION = "2.7.15";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2116,6 +2116,7 @@ UI.shop = function (r) {
     document.querySelectorAll("[data-lk]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const d = r.stock[+b.dataset.lk]; d.lock = !d.lock; draw(line); }));
     document.querySelectorAll(".shopit[data-i]").forEach((c) => (c.onclick = () => { const i = +c.dataset.i; sel = sel === i ? -1 : i; draw(line); }));
     if ($("#shdx")) $("#shdx").onclick = () => { sel = -1; draw(line); };
+    { const sd = document.querySelector(".shopdet"); if (sd) requestAnimationFrame(() => sd.scrollIntoView({ block: "nearest" })); } // 11-20 2.7.15: 낮은 폰 화면에서 설명 칸이 아래 버튼줄 밑에 깔림 → 보이게 굴림
     if ($("#shdb")) $("#shdb").onclick = () => buy(sel);
     $("#shre").onclick = () => { if (performance.now() < arm) return; const c = rePrice(); if ((p.gold || 0) < c) return; p.gold -= c; r.reN = (r.reN || 0) + 1; { const keep = r.stock.filter((d) => d.lock && !d.sold), fresh = makeStock(); r.stock = keep.concat(fresh.slice(0, Math.max(0, fresh.length - keep.length))); } sfx("coin"); draw(SHOP_LINES[4]); };
     $("#shx").onclick = close;

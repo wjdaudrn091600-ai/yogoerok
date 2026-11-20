@@ -1881,7 +1881,7 @@ function render() {
     g.fillText(t.s, t.x + jx, t.y); g.shadowBlur = 0; } g.globalAlpha = 1;
   // 클릭 표시
   drawAim(g); drawItemInfo(g); if (G.mode !== "dev" && G.mode !== "practice") drawGuide(g);
-  if (G.cur.devLabel) { g.save(); g.font = '24px "Do Hyeon"'; g.textAlign = "center"; g.fillStyle = "rgba(255,226,160,0.85)"; const dim = IMG.emo_tools; if (dim && dim.naturalWidth) { const tw = g.measureText(G.cur.devLabel).width; g.drawImage(dim, RW / 2 - tw / 2 - 40, BT + 12, 34, 34); g.fillText(G.cur.devLabel, RW / 2 + 4, BT + 40); } else g.fillText("🛠 " + G.cur.devLabel, RW / 2, BT + 40); g.restore(); }
+  if (G.cur.devLabel) { g.save(); g.font = '24px "Do Hyeon"'; g.textAlign = "center"; g.fillStyle = "rgba(255,226,160,0.85)"; const dim = IMG.emo_tools; if (dim && dim.naturalWidth) { const tw = g.measureText(G.cur.devLabel).width; g.drawImage(dim, RW / 2 - tw / 2 - 40, BT + 12, 34, 34); g.fillText(G.cur.devLabel, RW / 2 + 4, BT + 40); } else g.fillText(G.cur.devLabel, RW / 2, BT + 40); g.restore(); }
   if (G.target && G.target.alive && !G.client) { const t = G.target, R = t.r + 22, a = G.time * 2; g.save(); g.strokeStyle = "#ff5a4d"; g.lineWidth = 3; g.shadowColor = "#ff5a4d"; g.shadowBlur = 10;
     for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(t.x, t.y + t.r * 0.4, R, R * 0.5, 0, a + i * Math.PI / 2, a + i * Math.PI / 2 + 0.9); g.stroke(); } g.restore(); }
   else if (G.target && !G.target.alive) G.target = null;
@@ -2058,8 +2058,8 @@ function drawDrop(g, d) {
   const cg = IMG.cur_yeop || IMG.cur_gold;
   if (d.type === "gold" && cg && cg.naturalWidth) { g.drawImage(cg, d.x - 13, d.y - 13 + (d.z || 0), 26, 26); }
   else if (d.type === "gold") { g.fillStyle = "#ffcf4a"; g.strokeStyle = "#8a5a10"; g.lineWidth = 2; g.beginPath(); g.ellipse(d.x, d.y + (d.z || 0), 8, 6, 0, 0, 7); g.fill(); g.stroke(); g.fillStyle = "#8a5a10"; g.fillRect(d.x - 2, d.y - 2 + (d.z || 0), 4, 4); }
-  else if (d.type === "coin") { glowDot(g, d.x, d.y - 10 + bob, 18, "#8fe9ff"); const ci = IMG.cur_coin; if (ci && ci.naturalWidth) g.drawImage(ci, d.x - 16, d.y - 28 + bob, 32, 32); else { g.font = "22px sans-serif"; g.textAlign = "center"; g.fillText("🪙", d.x, d.y - 3 + bob); } }
-  else if (d.type === "herb") { const hi = IMG.obj_herb; if (hi && hi.naturalWidth) g.drawImage(hi, d.x - 20, d.y - 34 + bob, 40, 40 * hi.naturalHeight / hi.naturalWidth); else { g.font = "26px sans-serif"; g.textAlign = "center"; g.fillText("🌿", d.x, d.y + bob); } }
+  else if (d.type === "coin") { glowDot(g, d.x, d.y - 10 + bob, 18, "#8fe9ff"); const ci = IMG.cur_coin; if (ci && ci.naturalWidth) g.drawImage(ci, d.x - 16, d.y - 28 + bob, 32, 32);  }
+  else if (d.type === "herb") { const hi = IMG.obj_herb; if (hi && hi.naturalWidth) g.drawImage(hi, d.x - 20, d.y - 34 + bob, 40, 40 * hi.naturalHeight / hi.naturalWidth);  }
   else if (d.type === "act" || (d.type === "shop" && !d.sold)) {
     const isShop = d.type === "shop";
     const isAct = !isShop || d.what === "act", A = isAct ? ACTIVES[d.k] : null;
@@ -2970,7 +2970,7 @@ function drawMerchant(g, d) {
   g.save(); g.fillStyle = "rgba(0,0,0,0.42)"; g.beginPath(); g.ellipse(d.x, d.y + 8, 62, 16, 0, 0, 7); g.fill();
   const gr = g.createRadialGradient(d.x, d.y - 70, 4, d.x, d.y - 70, 150); gr.addColorStop(0, "rgba(255,210,130,0.22)"); gr.addColorStop(1, "rgba(255,180,90,0)"); g.fillStyle = gr; g.beginPath(); g.arc(d.x, d.y - 70, 150, 0, 7); g.fill();
   if (im && im.complete && im.naturalWidth) { const h = 190, w = h * im.naturalWidth / im.naturalHeight, by = Math.sin(t * 2) * 2; g.drawImage(im, d.x - w / 2, d.y - h + 10 + by, w, h); }
-  else { g.font = "64px serif"; g.textAlign = "center"; g.fillText("🎒", d.x, d.y - 30); }
+  // 그림이 아직 없으면 빛만 (이모지 금지)
   g.font = '700 20px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = near ? "보부상 · 다가가면 상점" : "보부상";
   g.strokeText(tx, d.x, d.y + 36); g.fillStyle = "#ffe08a"; g.fillText(tx, d.x, d.y + 36);
   g.restore();
@@ -2988,7 +2988,7 @@ function drawShopRe(g, d) {
   const t = G.time, y = d.y - 30 + Math.sin(t * 3) * 3; if (G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) > 100) d.away = true; // 한 번 쓰면 떨어졌다 와야 다시
   g.save(); g.fillStyle = "rgba(0,0,0,0.4)"; g.beginPath(); g.ellipse(d.x, d.y + 6, 34, 10, 0, 0, 7); g.fill();
   const gr = g.createRadialGradient(d.x, y, 2, d.x, y, 40); gr.addColorStop(0, "rgba(255,230,150,0.55)"); gr.addColorStop(1, "rgba(255,200,90,0)"); g.fillStyle = gr; g.beginPath(); g.arc(d.x, y, 40, 0, 7); g.fill();
-  g.font = "38px serif"; g.textAlign = "center"; g.fillText("🔔", d.x, y + 13);
+  { const bi = IMG.ui_ic_sound; if (bi && bi.naturalWidth) g.drawImage(bi, d.x - 24, y - 24, 48, 48); } g.textAlign = "center"; // 11-20 2.7.15: 이모지 종 → 수묵 종 그림
   g.font = '700 18px "Do Hyeon"'; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = `다시 진열 · 엽전 ${d.price}`; g.strokeText(tx, d.x, d.y + 34); g.fillStyle = (G.p.gold || 0) >= d.price ? "#ffe08a" : "#a99"; g.fillText(tx, d.x, d.y + 34);
   g.restore();
 }
