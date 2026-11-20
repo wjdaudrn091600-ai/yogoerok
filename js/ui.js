@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.1";
+const GAME_VERSION = "2.9.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -552,10 +552,12 @@ const UI = {
   cutin(b) {
     if (!b || (G && G.opt && G.opt.multi && NET.client)) return;
     const d = BOSSES[b.type] || {}, Y = typeof yokaiEl === "function" ? yokaiEl(b) : null, im = ASSETS.img[b.img] || ASSETS.img[d.art] || "";
+    const lk = LORE[b.type] ? b.type : LORE[b.img] ? b.img : LORE[d.art] ? d.art : null, lore = lk && typeof LORE[lk] === "string" ? (LORE[lk].match(/^[^.!?…]+[.!?…]/) || [LORE[lk]])[0].trim() : "";
     const el = document.createElement("div"); el.className = "cutin" + (b.mini ? "" : " big");
-    el.innerHTML = `<div class="cbar"></div><img src="${im}" alt=""><div class="ctx"><small>${b.mini ? "중간보스" : (G && G.mode === "endless" ? "층 보스" : "장 보스")} · ${d.style === "ranged" ? "원거리" : "근거리"}${Y ? " · " + Y.n + " 속성" : ""}</small><b>${d.name || b.name}</b></div>`;
-    document.body.appendChild(el); setTimeout(() => el.remove(), 2300);
-    { for (const c of ["t", "b"]) { const x = document.createElement("div"); x.className = "lbox " + c + (b.mini ? " mini" : ""); document.body.appendChild(x); setTimeout(() => x.remove(), 2700); } if (G) G.camFocus = { u: b, t: b.mini ? 1.1 : 1.7 }; } // 11-17 하이엔드 보스 등장: 띠 + 카메라가 보스를 비춤
+    el.innerHTML = `<div class="cbar"></div><img src="${im}" alt=""><div class="ctx"><small>${b.mini ? "중간보스" : (G && G.mode === "endless" ? "층 보스" : "장 보스")} · ${d.style === "ranged" ? "원거리" : "근거리"}${Y ? " · " + Y.n + " 속성" : ""}</small><b>${d.name || b.name}</b>${lore ? `<i class="clore">${esc(lore)}</i>` : ""}</div>`;
+    if (lore) { el.style.animationDuration = "3s"; el.classList.add("haslore"); } // 11-21 B3 보스 등장: 이름 아래 세계관 한 줄(LORE 첫 문장) — 읽을 시간만큼 조금 길게
+    document.body.appendChild(el); setTimeout(() => el.remove(), lore ? 3100 : 2300);
+    { for (const c of ["t", "b"]) { const x = document.createElement("div"); x.className = "lbox " + c + (b.mini ? " mini" : ""); document.body.appendChild(x); setTimeout(() => x.remove(), lore ? 3400 : 2700); } if (G) G.camFocus = { u: b, t: (b.mini ? 1.1 : 1.7) + (lore ? 0.6 : 0) }; } // 11-17 하이엔드 보스 등장: 띠 + 카메라가 보스를 비춤
   },
   bountyCard() {
     const B = ensureBounty(); if (!B) return "";
