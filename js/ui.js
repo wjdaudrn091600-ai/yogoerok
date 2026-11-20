@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.6";
+const GAME_VERSION = "2.7.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -552,7 +552,7 @@ const UI = {
     if (!b || (G && G.opt && G.opt.multi && NET.client)) return;
     const d = BOSSES[b.type] || {}, Y = typeof yokaiEl === "function" ? yokaiEl(b) : null, im = ASSETS.img[b.img] || ASSETS.img[d.art] || "";
     const el = document.createElement("div"); el.className = "cutin" + (b.mini ? "" : " big");
-    el.innerHTML = `<div class="cbar"></div><img src="${im}" alt=""><div class="ctx"><small>${b.mini ? "중간보스" : "층 보스"} · ${d.style === "ranged" ? "원거리" : "근거리"}${Y ? " · " + Y.n + " 속성" : ""}</small><b>${d.name || b.name}</b></div>`;
+    el.innerHTML = `<div class="cbar"></div><img src="${im}" alt=""><div class="ctx"><small>${b.mini ? "중간보스" : (G && G.mode === "endless" ? "층 보스" : "장 보스")} · ${d.style === "ranged" ? "원거리" : "근거리"}${Y ? " · " + Y.n + " 속성" : ""}</small><b>${d.name || b.name}</b></div>`;
     document.body.appendChild(el); setTimeout(() => el.remove(), 2300);
     { for (const c of ["t", "b"]) { const x = document.createElement("div"); x.className = "lbox " + c + (b.mini ? " mini" : ""); document.body.appendChild(x); setTimeout(() => x.remove(), 2700); } if (G) G.camFocus = { u: b, t: b.mini ? 1.1 : 1.7 }; } // 11-17 하이엔드 보스 등장: 띠 + 카메라가 보스를 비춤
   },
@@ -568,9 +568,9 @@ const UI = {
     const kb = SAVE.kb || {}, all = Object.keys(BOSSES).length, got = Object.keys(kb).length;
     const card = (k) => { const d = BOSSES[k], n = kb[k] || 0, im = ASSETS.img[k] ? k : d.art; return `<div class="item ${n ? "" : "off"}" data-lore="${k}" style="min-height:0;padding:8px;text-align:center">
       <div style="height:110px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(im)}" alt="" style="max-height:108px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div>
-      <b style="color:${d.mid ? "#c9a0ff" : "#ff8a6a"}">${n ? d.name : "???"}</b><span class="muted" style="font-size:.75rem">${d.mid ? "중간보스" : "층보스"} · ${d.style === "ranged" ? "원거리" : "근거리"} · <b style="color:${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].col}">${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].n}</b>${n >= 10 ? ' · <b style="color:#7fe08a">피해 +5%</b>' : n ? ` · ${n}/10` : ""}${n ? " · " + n + "번 토벌" : ""}</span></div>`; };
+      <b style="color:${d.mid ? "#c9a0ff" : "#ff8a6a"}">${n ? d.name : "???"}</b><span class="muted" style="font-size:.75rem">${d.mid ? "중간보스" : "장 보스"} · ${d.style === "ranged" ? "원거리" : "근거리"} · <b style="color:${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].col}">${YOKAI_EL[((d.fl || FLOORS.findIndex((f) => f.boss === k) + 1) - 1) % 5].n}</b>${n >= 10 ? ' · <b style="color:#7fe08a">피해 +5%</b>' : n ? ` · ${n}/10` : ""}${n ? " · " + n + "번 토벌" : ""}</span></div>`; };
     const floors = [1, 2, 3, 4, 5].map((f) => { const th = FLOORS[f - 1], boss = th.boss, mids = MID_BY_FLOOR[f - 1];
-      return `<h3 style="margin-top:14px">${f}층 · ${th.name} <span class="muted">${[boss, ...mids].filter((k) => kb[k]).length}/${mids.length + 1}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${card(boss)}${mids.map(card).join("")}</div>`; }).join("");
+      return `<h3 style="margin-top:14px">${f}장 · ${th.name} <span class="muted">${[boss, ...mids].filter((k) => kb[k]).length}/${mids.length + 1}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${card(boss)}${mids.map(card).join("")}</div>`; }).join("");
     // 11-16: 일반 요괴(한 번 잡으면 공개)·엘리트 특성·조합 패시브(한 번 얻으면 공개)
     const mk = SAVE.mk || {}, AI_T = { chase: "쫓아옴", weave: "지그재그로 날아옴", ranged: "멀리서 쏨", charger: "돌진", caster: "발밑에 주술", blinker: "순간이동" };
     const mobs = Object.keys(ENEMIES).map((k) => { const e = ENEMIES[k], n = mk[k] || 0; return `<div class="item ${n ? "" : "off"}" data-lmob="${k}" style="min-height:0;padding:8px;text-align:center"><div style="height:90px;display:flex;align-items:flex-end;justify-content:center"><img src="${imgSrc(e.img)}" alt="" style="max-height:88px;max-width:100%;object-fit:contain;${n ? "" : "filter:brightness(0) opacity(.55)"}"></div><b>${n ? e.name : "???"}</b><span class="muted" style="font-size:.75rem">${n ? AI_T[e.ai] || "" : "아직 못 만남"}${n ? " · " + n + "번 처치" : ""}</span></div>`; }).join("");
@@ -594,8 +594,8 @@ const UI = {
     const mc = unclaimed();
     // 11-18 처음 하는 사람에게 시스템이 한꺼번에 쏟아지지 않게: 진행하면 하나씩 열림 (예전부터 하던 계정은 이미 다 열려 있음)
     const st = SAVE.stats || {}, dev = ACCOUNT === DEV_ID, f1 = dev || (SAVE.story.maxFloor || 1) >= 2 || (st.bosses || 0) >= 1, r1 = dev || (st.rooms || 0) >= 5;
-    const GATE = { endless: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", raid: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", duel: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요",
-      multi: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", gacha: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", bag: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", skills: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요" };
+    const GATE = { endless: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", raid: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", duel: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요",
+      multi: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", gacha: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", bag: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", skills: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요" };
     const opened = Object.keys(GATE).filter((k) => !GATE[k]); SAVE.gateSeen = SAVE.gateSeen || {}; const fresh = opened.filter((k) => !SAVE.gateSeen[k]);
     if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "함께하기", gacha: "뽑기", bag: "보물·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
     for (const k of opened) SAVE.gateSeen[k] = 1; if (!Object.keys(SAVE.gateSeen).length) SAVE.gateSeen._ = 1;
@@ -615,7 +615,7 @@ const UI = {
           <div class="modes">
             ${modeRow("story", "스토리", `다섯 장의 이야기 · 도달 ${SAVE.story.maxFloor}장`)}
             ${modeRow("endless", "무한의 방", `끝없는 방 · 최고 ${SAVE.stats.endlessBest || 0}번째`)}
-            ${modeRow("raid", "보스 레이드", "층 보스 다섯 연속")}
+            ${modeRow("raid", "보스 레이드", "장 보스 다섯 연속")}
             ${modeRow("duel", "1대1 대전", `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
             ${modeRow("practice", "연습장", "모든 영웅 체험 · 허수아비")}
             ${ACCOUNT === DEV_ID ? modeRow("dev", "개발자 맵", "보스·상점·스킬 확인") : ""}
@@ -1006,7 +1006,7 @@ const UI = {
       const L = NET.lobby, g = L.guest, duel = L.mode === "duel";
       body = `<div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div><h3 style="margin:0">방장 · ${MODE[L.mode]}</h3><p class="muted" style="margin:4px 0">친구에게 이 코드를 알려 주세요</p></div>
           <div style="font-family:var(--display);font-size:3rem;letter-spacing:.3em;color:var(--gold)">${NET.peer && NET.peer.open ? NET.code : "…"}</div>
-          ${L.mode === "story" ? `<div>시작 층: ${FLOORS.map((f, i) => `<button class="btn sm ${L.floor === i + 1 ? "gold" : ""}" data-f="${i + 1}" ${i + 1 > SAVE.story.maxFloor ? "disabled" : ""}>${i + 1}층</button>`).join(" ")}</div>` : ""}
+          ${L.mode === "story" ? `<div>시작 장: ${FLOORS.map((f, i) => `<button class="btn sm ${L.floor === i + 1 ? "gold" : ""}" data-f="${i + 1}" ${i + 1 > SAVE.story.maxFloor ? "disabled" : ""}>${i + 1}장</button>`).join(" ")}</div>` : ""}
           ${L.mode === "story" || L.mode === "endless" ? `<div>난이도: ${(L.mode === "story" ? ["easy", "normal", "hard", "hell"] : ["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]).map((k) => `<button class="btn sm ${(L.diff || "normal") === k ? "gold" : ""}" data-md="${k}" style="color:${DIFF[k].col}">${DIFF[k].name}</button>`).join(" ")} <span class="muted" style="font-size:.78rem">보상 ×${DIFF[L.diff || "normal"].rw}</span></div>` : ""}
           <button class="btn gold" id="mgo" ${g ? "" : "disabled"} style="font-size:1.3rem;margin-left:auto">함께 출발 ▶</button></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:stretch">${panel("나 (방장)", SAVE.sel, nick(), "var(--gold)")}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel("친구", g && g.load.char, g && g.name, duel ? "#ff6a5a" : "#7fe08a")}</div>
