@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.12";
+const GAME_VERSION = "2.7.13";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -559,7 +559,7 @@ const UI = {
   bountyCard() {
     const B = ensureBounty(); if (!B) return "";
     const cell = (k) => { const d = BOSSES[k], ok = B.done[k], im = ASSETS.img[k] ? k : d.art; return `<div style="text-align:center;flex:1;min-width:84px;opacity:${ok ? 0.55 : 1}"><img src="${imgSrc(im)}" style="height:62px;object-fit:contain;${(SAVE.kb || {})[k] || ok ? "" : "filter:brightness(0) drop-shadow(0 0 1px rgba(240,228,204,.9)) drop-shadow(0 0 6px rgba(243,194,122,.45))"}" alt=""><div style="font-size:.8rem">${ok ? "✅ " : ""}${d.name} <span class="muted">${d.fl || (FLOORS.findIndex((f) => f.boss === k) + 1) || "?"}장 ${d.mid ? "중간보스" : "보스"}</span></div></div>`; }; // 11-20 처음 보는 요괴도 이름은 보이게 (무엇을 잡을지 알 수 있게)
-    return `<div class="card" style="margin:8px 0"><b>오늘의 토벌령</b> <span class="muted" style="font-size:.8rem">지정 요괴를 토벌하면 코인 3 · 셋 다 토벌하면 코인 +5, 강화 조각 +5 (매일 새로)</span><div style="display:flex;gap:8px;margin-top:6px">${B.list.map(cell).join("")}</div></div>`;
+    return `<div class="card bntc" style="margin:8px 0"><b>오늘의 토벌령</b> <span class="muted" style="font-size:.8rem">지정 요괴를 토벌하면 코인 3 · 셋 다 토벌하면 코인 +5, 강화 조각 +5 (매일 새로)</span><div style="display:flex;gap:8px;margin-top:6px">${B.list.map(cell).join("")}</div></div>`;
   },
   // 요괴록 도감 (11-12): 처치한 보스·중간보스 모음 — 층별, 처치 전엔 그림자
   bestiary() {
@@ -614,7 +614,7 @@ const UI = {
           <h3 class="hubh">출정</h3>
           <div class="modes">
             ${modeRow("story", "스토리", `다섯 장의 이야기 · 도달 ${SAVE.story.maxFloor}장`)}
-            ${modeRow("endless", "무한의 방", `끝없는 방 · 최고 ${SAVE.stats.endlessBest || 0}번째`)}
+            ${modeRow("endless", "무한의 방", (SAVE.stats.endlessBest ? `끝없는 방 · 최고 ${SAVE.stats.endlessBest}번째` : "끝없이 내려가는 방"))}
             ${modeRow("raid", "보스 레이드", "장 보스 다섯 연속")}
             ${modeRow("duel", "1대1 대전", `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
             ${modeRow("practice", "연습장", "모든 영웅 체험 · 허수아비")}
@@ -1928,7 +1928,7 @@ const BOARD = {
 };
 UI.board = async function () {
   const wk = weekKey(), mine = (SAVE.wkBest || {})[wk] || 0;
-  const show = (inner) => UI.frame("주간 순위표", `<div class="card board" style="max-width:640px;margin:0 auto"><p class="muted">무한의 방 · 이번 주 가장 깊이 내려간 방 · 월요일마다 새로 · 내 기록 <b>${mine}</b>번째 방</p>${inner}</div>`, () => UI.history());
+  const show = (inner) => UI.frame("주간 순위표", `<div class="card board" style="max-width:640px;margin:0 auto"><p class="muted">무한의 방 · 이번 주 가장 깊이 내려간 방 · 월요일마다 새로 · ${mine ? `내 기록 <b>${mine}</b>번째 방` : "내 기록 아직 없음"}</p>${inner}</div>`, () => UI.history());
   show('<p class="muted">불러오는 중…</p>');
   if (!CLOUD.on) { show('<p>순위표는 로그인(계정 연동)해야 볼 수 있어요.</p>'); return; }
   try { const L = await BOARD.top(50); if (UI._frameTitle !== "주간 순위표") return;
