@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.7";
+const GAME_VERSION = "2.7.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -774,7 +774,7 @@ const UI = {
       const heroes = CHARS.filter((c) => c.unlock.type === "gacha");
       body = `${typeof pickupHtml === "function" ? pickupHtml() : ""}<div class="banner"><h3>🧑 영웅 뽑기</h3>${cntPill("char")}<div class="grcount">${["SS", "S", "A", "B", "C"].map((g) => { const hs = heroes.filter((c) => CHAR_GRADE[c.id] === g); return `<span style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}</b> ${hs.filter((c) => SAVE.chars[c.id]).length}/${hs.length}</span>`; }).join("")}</div>
         <div class="chars" style="grid-template-columns:repeat(auto-fill,minmax(110px,140px))">${heroes.sort((a, b) => ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[a.id]) - ["SS", "S", "A", "B", "C"].indexOf(CHAR_GRADE[b.id])).map((c) => `<div class="ch anim-card ${SAVE.chars[c.id] ? "" : "lock"}">${animCard(c.id)}<span class="tag" style="z-index:2"><b style="color:${GRADE_INFO[CHAR_GRADE[c.id]].col}">${CHAR_GRADE[c.id]}급</b></span><span class="nm" style="z-index:2">${c.name}<small>${c.job} · ${SAVE.chars[c.id] ? "보유" : "조각 " + ((SAVE.shards || {})[c.id] || 0) + "/" + shardNeed(c.id)}</small></span></div>`).join("")}</div>
-        <div class="rates">${["SS", "S", "A", "B", "C"].map((g) => `<span class="pill" style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> ${(GACHA_GRADE_RATE[g] * 100).toFixed(2)}% · 조각 ${SHARD.per[g][0]}~${SHARD.per[g][1]}개 (해금 ${SHARD.need[g]}개) · 바로 획득 ${(GACHA_GRADE_RATE[g] * SHARD.direct[g] * 100).toFixed(3)}%</span>`).join("")}<span class="pill">나머지: 가진 영웅 조각 2~5개 (강화용)</span><span class="pill">천장 ${SHARD.pity}회 · 지금 <b>${SAVE.pity || 0}</b>회째</span></div>
+        <div class="rates">${["SS", "S", "A", "B", "C"].map((g) => `<span class="pill" style="border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> ${(GACHA_GRADE_RATE[g] * 100).toFixed(2)}% · 조각 ${SHARD.per[g][0]}~${SHARD.per[g][1]}개 (해금 ${SHARD.need[g]}개) · 바로 획득 ${(GACHA_GRADE_RATE[g] * SHARD.direct[g] * 100).toFixed(3)}%</span>`).join("")}<span class="pill">나머지: 가진 영웅 조각 2~5개 (강화용)</span><span class="pill">보장까지 ${SHARD.pity}회 · 지금 <b>${SAVE.pity || 0}</b>회째</span></div>
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${GACHA.char.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${GACHA.char.cost10}</button></div></div>`;
     } else if (tab === "skill") {
       const st = ["Q", "W", "E", "R"].map((s) => `<button class="tab ${s === slot ? "on" : ""}" data-sl="${s}">${{ Q: "1", W: "2", E: "3", R: "4" }[s]}번 칸${s === "R" ? " (궁극기)" : ""}</button>`).join("");
@@ -1403,8 +1403,8 @@ function probTables() {
   }
   rows.push(["가진 영웅 조각 2~5개", pct(1 - sum), "-", "강화 재료"]);
   h += `<h3>🎰 영웅 뽑기 (1회 코인 ${pullCost("char", 1)} · 10회 ${pullCost("char", 10)})</h3>` + T(rows, ["결과", "1회 확률", "영웅 1명당", "내용"]);
-  h += `<p class="muted">천장: 영웅이 ${SHARD.pity}번 연속 안 나오면 ${SHARD.pity}번째에 반드시 영웅 (A급 ${pct(PITY_GRADE.A)} · S급 ${pct(PITY_GRADE.S)} · SS급 ${pct(PITY_GRADE.SS)}). 영웅이 나오면 천장 횟수는 0으로 돌아가요.</p>`;
-  { const pu = pickupHero(); if (pu) h += `<p class="muted">⭐ 이번 주 픽업: ${CHAR[pu].name}(${CHAR_GRADE[pu]}급) — ${CHAR_GRADE[pu]}급이 나오면 ${Math.round(PICKUP_SHARE * 100)}%는 ${CHAR[pu].name}, 나머지는 같은 등급 다른 영웅이 고르게. 1회 ${CHAR[pu].name} 확률 ${pct((GACHA_GRADE_RATE[CHAR_GRADE[pu]] || 0) * (PICKUP_SHARE + (1 - PICKUP_SHARE) / CHARS.filter((c) => c.unlock.type === "gacha" && CHAR_GRADE[c.id] === CHAR_GRADE[pu]).length))}</p>`; }
+  h += `<p class="muted">보장: 영웅이 ${SHARD.pity}번 연속 안 나오면 ${SHARD.pity}번째에 반드시 영웅 (A급 ${pct(PITY_GRADE.A)} · S급 ${pct(PITY_GRADE.S)} · SS급 ${pct(PITY_GRADE.SS)}). 영웅이 나오면 보장 횟수는 0으로 돌아가요.</p>`;
+  { const pu = pickupHero(); if (pu) h += `<p class="muted">⭐ 이번 주 길한 영웅: ${CHAR[pu].name}(${CHAR_GRADE[pu]}급) — ${CHAR_GRADE[pu]}급이 나오면 ${Math.round(PICKUP_SHARE * 100)}%는 ${CHAR[pu].name}, 나머지는 같은 등급 다른 영웅이 고르게. 1회 ${CHAR[pu].name} 확률 ${pct((GACHA_GRADE_RATE[CHAR_GRADE[pu]] || 0) * (PICKUP_SHARE + (1 - PICKUP_SHARE) / CHARS.filter((c) => c.unlock.type === "gacha" && CHAR_GRADE[c.id] === CHAR_GRADE[pu]).length))}</p>`; }
   h += `<details><summary>영웅 목록</summary><p class="muted">${GR.map((g) => `${g}: ` + heroes.filter((c) => CHAR_GRADE[c.id] === g).map((c) => c.name).join(", ")).join("<br>")}</p></details>`;
   // 스킬 뽑기
   const sg = ["S", "A", "B", "C", "D"];
@@ -2058,7 +2058,7 @@ function pickupHero() { // 주마다 바뀌는 픽업 (공개된 뽑기 영웅 �
 }
 function pickupHtml() {
   const id = pickupHero(); if (!id) return ""; const c = CHAR[id], g = CHAR_GRADE[id], d = new Date(), left = 7 - ((Math.floor(Date.now() / 864e5) + 3) % 7);
-  return `<div class="pickup"><div class="pimg" style="background-image:url(${imgSrc("card_" + charArt(id))})"></div><div><b>⭐ 이번 주 픽업 · ${c.name} (${c.job})</b><span>${g}급 영웅이 나오면 <b>${Math.round(PICKUP_SHARE * 100)}%</b> 확률로 ${c.name} · ${left}일 뒤 바뀜</span></div></div>`;
+  return `<div class="pickup"><div class="pimg" style="background-image:url(${imgSrc("card_" + charArt(id))})"></div><div><b>⭐ 이번 주 길한 영웅 · ${c.name} (${c.job})</b><span>${g}급 영웅이 나오면 <b>${Math.round(PICKUP_SHARE * 100)}%</b> 확률로 ${c.name} · ${left}일 뒤 바뀜</span></div></div>`;
 }
 
 // ===================== 11-19 2.0 주막 창고(쉬는 동안 쌓이는 혼불) · 주말 혼불 축제 =====================
