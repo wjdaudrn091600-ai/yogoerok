@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.3";
+const GAME_VERSION = "2.9.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -633,7 +633,7 @@ const UI = {
       </nav>
       <p class="hubver">v${GAME_VERSION}</p></div>`;
     if (!(st.rooms || 0) && !dev) { const sm = document.querySelector('.mode[data-m="story"]'); if (sm) { sm.classList.add("starthere"); const e = document.createElement("em"); e.className = "shere"; e.textContent = "▶ 여기서 시작!"; sm.appendChild(e); } } // 11-18 처음 온 사람 길잡이
-    document.querySelectorAll(".mode,.sub").forEach((b) => { const k = b.dataset.m || b.dataset.s; if (GATE[k]) { b.classList.add("lock"); const e = document.createElement("em"); e.className = "lkb"; e.textContent = "🔒 " + GATE[k]; b.appendChild(e); } });
+    document.querySelectorAll(".mode,.sub").forEach((b) => { const k = b.dataset.m || b.dataset.s; if (GATE[k]) { b.classList.add("lock"); const e = document.createElement("em"); e.className = "lkb"; e.textContent = "🔒 " + GATE[k].replace(/^스토리 (\d)장 보스를 쓰러뜨리면 열려요$/, "$1장 보스 토벌 뒤 열림"); b.appendChild(e); } });
     document.querySelectorAll(".mode").forEach((b) => (b.onclick = () => GATE[b.dataset.m] ? UI.toast("🔒 " + GATE[b.dataset.m], 2500) : b.dataset.m === "story" ? ((SAVE.stats.rooms || 0) < 3 && !SAVE.resume && SAVE.chars[SAVE.sel] ? UI.startRun({ mode: "story", char: SAVE.sel, floor: 1, diff: "normal" }) : UI.saga()) : UI.chars({ mode: b.dataset.m })));
     setArtVars(); titleParts(); // 11-17 하이엔드 메뉴: 떠오르는 풍등 + 카드가 마우스를 따라 기울고 금빛이 훑음
     if (matchMedia("(hover: hover)").matches) document.querySelectorAll(".mode").forEach((b) => {
