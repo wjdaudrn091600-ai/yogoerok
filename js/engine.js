@@ -1288,7 +1288,7 @@ function updateHero(u, dt) {
     u.x += d.vx * dt; u.y += d.vy * dt; collide(u);
     if (d.d > 0) for (const f of foesOf(u.team)) if (!d.hit.has(f) && dist(f, u) < f.r + u.r + 24) { d.hit.add(f); hit(u, f, d.d, { knock: 50, from: u }); }
     if (Math.random() < 0.8) G.parts.push({ x: u.x + rnd(-10, 10), y: u.y - rnd(0, 40), vx: -d.vx * 0.05, vy: -d.vy * 0.05 - 20, t: 0, max: 0.35, col: d.col || "#fff", s: rnd(3, 6) });
-    if (d.t <= 0) u.dash = null;
+    d.age = (d.age || 0) + dt; if (!(d.t > 0) || d.age > 2.5) u.dash = null; // 11-20 안전장치: 대기 시간이 NaN 이거나 너무 길면 돌진을 끝냄(영웅이 멈춘 채 엽전도 못 줍던 의심 사례)
     return;
   }
   if (u.bot) return updateBot(u, dt);
@@ -1384,7 +1384,7 @@ function pickups(u, dt = 1 / 60) {
 }
 function updateDrops(dt) {
   for (const d of G.drops) {
-    if (d.type !== "stairs" && d.type !== "spring") { d.x = clamp(d.x, BL + 50, BR - 50); d.y = clamp(d.y, BT + 60, BB - 40); if (!d.mag) for (const o of G.cur.obs) { const dx = d.x - o.x, dy = d.y - o.y, dd = Math.hypot(dx, dy), m = o.r + 34; if (dd < m) { const a = dd > 0.1 ? Math.atan2(dy, dx) : Math.random() * 6.28; d.x = o.x + Math.cos(a) * m; d.y = o.y + Math.sin(a) * m; } } }
+    if (d.type !== "stairs" && d.type !== "spring" && !d.mag) { d.x = clamp(d.x, BL + 50, BR - 50); d.y = clamp(d.y, BT + 60, BB - 40); if (!d.mag) for (const o of G.cur.obs) { const dx = d.x - o.x, dy = d.y - o.y, dd = Math.hypot(dx, dy), m = o.r + 34; if (dd < m) { const a = dd > 0.1 ? Math.atan2(dy, dx) : Math.random() * 6.28; d.x = o.x + Math.cos(a) * m; d.y = o.y + Math.sin(a) * m; } } }
     if (d.cool) { d.cool -= dt; if (d.cool <= 0) d.cool = 0; }
     if (d.vy) { d.z = (d.z || 0) + d.vy * dt; d.vy += 600 * dt; if (d.z >= 0) { d.z = 0; d.vy = 0; } }
   }
