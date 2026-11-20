@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.3";
+const GAME_VERSION = "2.7.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2297,9 +2297,11 @@ function coachStart() {
     c.moved += Math.hypot(G.p.x - c.lx, G.p.y - c.ly); c.lx = G.p.x; c.ly = G.p.y; if (G.cur !== c.lastRoom) { c.lastRoom = G.cur; c.rooms++; }
     const s = steps[c.i]; if (!s) { el.classList.add("done"); el.innerHTML = "<b>좋아요!</b> 이제 혼자서도 충분해요"; setTimeout(() => el.remove(), 2600); clearInterval(UI._coachT); SAVE.tutorial = true; if (typeof track === "function") track("tutorial_done"); saveGame(); return; }
     if (G.banner && !c.shownT) return; // 스테이지 제목이 사라진 뒤에 (겹침 방지)
+    if (G.bossUnit && G.bossUnit.alive) { el.classList.remove("on"); if (c.shownT) c.shownT = performance.now(); return; } // 보스 이름·체력 막대와 겹치지 않게 보스 중엔 숨김
     if (s.wait && !s.wait() && !c.shownT) { el.classList.remove("on"); return; }
+    if (c.shownT && !el.classList.contains("on")) el.classList.add("on");
     if (!c.shownT) { c.shownT = performance.now(); el.innerHTML = `<small>${c.i + 1} / ${steps.length}</small> ${typeof s.t === "function" ? s.t() : s.t}`; el.classList.add("on"); }
-    if (s.ok(c) && performance.now() - c.shownT > 900) { c.i++; c.shownT = 0; el.classList.remove("on"); sfx("pick"); }
+    if ((s.ok(c) && performance.now() - c.shownT > 900) || performance.now() - c.shownT > 15000) { c.i++; c.shownT = 0; el.classList.remove("on"); if (s.ok(c)) sfx("pick"); } // 11-20 15초가 지나도 못 하면 다음으로(구르기를 안 써서 판 내내 남던 것)
   }, 250);
 }
 // ===================== 11-20 서낭당 소원 (원정 시작 선택) =====================
