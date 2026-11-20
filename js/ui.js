@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.16";
+const GAME_VERSION = "2.7.17";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1501,9 +1501,10 @@ function altarEarn(r) { // endRun 에서 부름 → 혼불 계산·저장
   if (!SAVE || !["story", "endless", "raid"].includes(r.mode) || (G && G.opt && G.opt.multi && NET.client)) return null;
   const boss = Math.max(0, (SAVE.stats.bosses || 0) - ((G && G.bossAtStart) || 0));
   const parts = [[`방 ${r.rooms || 0}개`, r.rooms || 0, 1], [`요괴 ${r.kills || 0}마리`, Math.floor((r.kills || 0) / 12), 1], [`보스 ${boss}`, boss, 15]];
-  if (r.mode === "story") parts.push([`${r.floor || 1}층 도달`, r.floor || 1, 6]);
+  if (r.mode === "story") parts.push([`${r.floor || 1}장 도달`, r.floor || 1, 6]);
   if (r.mode === "endless") parts.push([`무한의 방 ${r.endless || 0}`, Math.floor((r.endless || 0) / 3), 2]);
   if (r.win || r.storyDone) parts.push(["완주", 1, 40]);
+  if ((r.goldRun || 0) >= 25) parts.push([`남은 엽전 ${r.goldRun}닢`, Math.floor(r.goldRun / 25), 1]); // 11-21 남은 엽전은 혼불로(엽전이 쌓이기만 하던 것)
   const dRw = ((r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1) * (typeof isFestival === "function" && isFestival() ? 1.5 : 1); // 주말 축제 ×1.5 // 11-19 높은 난이도 = 혼불 더
   const tb = G && G.opt && Array.isArray(G.opt.taboo) ? G.opt.taboo.length : 0; if (tb) parts.push([`금기 ${tb}개`, 0, 0]);
   let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw * (1 + 0.2 * tb)); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;

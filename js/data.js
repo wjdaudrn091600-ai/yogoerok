@@ -597,7 +597,7 @@ Object.assign(BOSSES.m_jangsan, { fl: 2 }); Object.assign(BOSSES.f_imugi, { mid:
 Object.assign(BOSSES.m_gangcheol, { fl: 3 }); Object.assign(BOSSES.f_bulgasari, { mid: true, floor: false, fl: 3 });
 Object.assign(BOSSES.m_mulgwi, { fl: 4 }); Object.assign(BOSSES.f_gumiho, { mid: true, floor: false, fl: 4 });
 // 난이도 (사용자 요청 11-12): 스토리는 처음부터 고름 / 무한의 방은 1회차 클리어 → 어려움, 어려움 1회차 클리어 → 매우 어려움. 보상(rw)은 어려울수록 많이
-const DIFF = { easy: { name: "쉬움", hp: 0.7, dmg: 0.7, rw: 0.7, col: "#7fe08a" }, normal: { name: "보통", hp: 1, dmg: 1, rw: 1, col: "#e8dcc4" },
+const DIFF = { easy: { name: "쉬움", hp: 0.7, dmg: 0.7, rw: 0.7, col: "#7fe08a" }, normal: { name: "보통", hp: 1.1, dmg: 1.12, rw: 1, col: "#e8dcc4" },
   hard: { name: "어려움", hp: 1.6, dmg: 1.4, rw: 1.5, col: "#ffb547" }, hell: { name: "매우 어려움", hp: 2.6, dmg: 1.9, rw: 2, col: "#ff5a5a" } };
 // 요괴 속성 상성 (사용자 요청 11-12): 층마다 요괴 속성, 유리한 공격 +10% · 불리한 공격 -5%
 const YOKAI_EL = [

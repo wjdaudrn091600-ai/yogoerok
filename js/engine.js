@@ -240,7 +240,7 @@ function scaleMods(m, k) { const o = {}; for (const x in m) o[x] = x === "revive
 // 난이도: 층·스테이지가 오를수록 강해짐 (이전판보다 가파르게)
 function diffMul() {
   const m = diffBase(), D = (G.mode === "story" || G.mode === "endless") && DIFF[(G.opt && G.opt.diff) || "normal"];
-  if (D && D !== DIFF.normal) { m.hp *= D.hp; m.dmg *= D.dmg; }
+  if (D) { m.hp *= D.hp; m.dmg *= D.dmg; } // 11-21 보통도 곱함(보통이 쉬워 1.1/1.12)
   const dh = typeof dailyRule === "function" && dailyRule("hp"); if (dh) { m.hp *= dh; m.dmg *= dailyRule("dmg") || 1; }
   const n = partyN(); if (n > 1) { m.hp *= 1 + PARTY_HP * (n - 1); m.dmg *= 1 + PARTY_DMG * (n - 1); m.party = n; } // 사용자 요청 11-12: 인원수만큼 강해짐
   return m;
@@ -252,7 +252,7 @@ const diffRw = () => (G && (G.mode === "story" || G.mode === "endless") && DIFF[
 function diffBase() {
   if (G.mode === "endless") { const n = G.endlessN; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02), dmg: Math.pow(1.28, n / 8), spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
   const f = G.floor - 1, s = G.stage - 1;
-  if (G.mode === "raid") { const n = G.raidN || 0; return { hp: 1.4 * Math.pow(1.45, n), dmg: 1.2 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; } // 11-20 첫 보스에서 S급도 자주 쓰러져 1.6/1.3 → 1.4/1.2 (보스 사이 보부상이 생겨 뒤로 갈수록 정비 가능)
+  if (G.mode === "raid") { const n = G.raidN || 0, lo = SAVE && SAVE.story && SAVE.story.maxFloor < 3 ? 0.7 : 1; return { hp: lo * 1.4 * Math.pow(1.45, n), dmg: lo * 1.2 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; } // 11-20 첫 보스에서 S급도 자주 쓰러져 1.6/1.3 → 1.4/1.2 (보스 사이 보부상이 생겨 뒤로 갈수록 정비 가능)
   const late = f >= 2 ? f - 1 : 0; // 11-19 5배속 봇: 3층부터 보스가 8~18초 만에 쓰러지고 체력 90% 유지 → 2차 측정도 2층부터 피해 0 → 층마다 체력·공격 +30% (3층부터, 초보 봇도 3~4층이 1~2층보다 쉬웠음)
   return { hp: Math.pow(1.6, f) * (1 + 0.07 * s) * (1 + 0.3 * late), dmg: Math.pow(1.45, f) * (1 + 0.045 * s) * (1 + 0.3 * late), spd: 1 + f * 0.05 + s * 0.008, tier: f }; // 11-17 dmg 1.33→1.45: 3층부터 체력이 거의 안 줄던 문제(플레이 로봇)
 }
