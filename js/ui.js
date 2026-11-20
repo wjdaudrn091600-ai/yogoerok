@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.5.5";
+const GAME_VERSION = "2.5.6";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -558,7 +558,7 @@ const UI = {
   },
   bountyCard() {
     const B = ensureBounty(); if (!B) return "";
-    const cell = (k) => { const d = BOSSES[k], ok = B.done[k], im = ASSETS.img[k] ? k : d.art; return `<div style="text-align:center;flex:1;min-width:84px;opacity:${ok ? 0.55 : 1}"><img src="${imgSrc(im)}" style="height:62px;object-fit:contain;${(SAVE.kb || {})[k] || ok ? "" : "filter:brightness(0) drop-shadow(0 0 1px rgba(240,228,204,.9)) drop-shadow(0 0 6px rgba(243,194,122,.45))"}" alt=""><div style="font-size:.8rem">${ok ? "✅ " : ""}${d.name} <span class="muted">${d.fl}장${d.mid ? " 중간보스" : ""}</span></div></div>`; }; // 11-20 처음 보는 요괴도 이름은 보이게 (무엇을 잡을지 알 수 있게)
+    const cell = (k) => { const d = BOSSES[k], ok = B.done[k], im = ASSETS.img[k] ? k : d.art; return `<div style="text-align:center;flex:1;min-width:84px;opacity:${ok ? 0.55 : 1}"><img src="${imgSrc(im)}" style="height:62px;object-fit:contain;${(SAVE.kb || {})[k] || ok ? "" : "filter:brightness(0) drop-shadow(0 0 1px rgba(240,228,204,.9)) drop-shadow(0 0 6px rgba(243,194,122,.45))"}" alt=""><div style="font-size:.8rem">${ok ? "✅ " : ""}${d.name} <span class="muted">${d.fl || (FLOORS.findIndex((f) => f.boss === k) + 1) || "?"}장 ${d.mid ? "중간보스" : "보스"}</span></div></div>`; }; // 11-20 처음 보는 요괴도 이름은 보이게 (무엇을 잡을지 알 수 있게)
     return `<div class="card" style="margin:8px 0"><b>오늘의 토벌령</b> <span class="muted" style="font-size:.8rem">지정 요괴를 토벌하면 코인 3 · 셋 다 토벌하면 코인 +5, 강화 조각 +5 (매일 새로)</span><div style="display:flex;gap:8px;margin-top:6px">${B.list.map(cell).join("")}</div></div>`;
   },
   // 요괴록 도감 (11-12): 처치한 보스·중간보스 모음 — 층별, 처치 전엔 그림자
@@ -2335,6 +2335,17 @@ function todayCard() {
   return `<div class="today"><div class="tdh"><b>오늘 할 일</b><span>${left ? `${left}개 남음` : "모두 끝!"}</span></div><div class="tdl">${items.map((x) => `<button class="tdi${x.ok ? " ok" : ""}" ${x.go && !x.ok ? `data-go="${x.go}"` : "disabled"}><i></i>${esc(x.t)}</button>`).join("")}</div></div>`;
 }
 const HERO_LINES = {musa: ["칼은 무겁게, 마음은 가볍게. 그게 내 아버지의 가르침이었다.", "앞장서겠소. 뒤는 맡기지."], archer: ["바람 소리를 읽으면 화살은 저절로 간다.", "숨 한 번, 시위 한 번."], spear: ["창끝이 닿는 데까지가 내 땅이다.", "길이에서 이기면 반은 이긴 거요."], monk: ["주먹은 미움이 아니라 고요에서 나온다.", "나무아미타불… 그럼 시작해 볼까."], gunner: ["화약 냄새가 나야 잠이 온다니까.", "심지 붙였어. 다들 귀 막아!"], priest: ["방울이 울리면, 길 잃은 넋도 돌아온다.", "신령님, 오늘도 길을 밝혀 주소서."], necro: ["죽은 자는 거짓말을 하지 않지. 산 자보다 낫다.", "일어나라. 아직 할 일이 남았다."], assassin: ["달이 없는 밤이 내 편이다.", "…소리 내지 마."], dosa: ["부적 한 장에 하늘과 땅의 이치가 다 들었다.", "급급여율령!"], yinyang: ["음이 다하면 양이 오고, 양이 다하면 음이 온다.", "오늘의 점괘는… 대길."], summoner: ["난 혼자 싸운 적이 없어. 늘 친구들이 있었지.", "얘들아, 나와!"], berserker: ["생각은 끝나고 하는 거다.", "으아아아! 덤벼라!"], moon: ["달빛 아래 한 번의 칼춤이면 충분해요.", "달이 밝네요. 베기 좋은 밤이에요."], thunder: ["하늘이 노하면, 내가 그 노여움이다.", "천둥 소리가 들리면 이미 늦은 거다."], fox: ["천 년을 기다렸어. 사람의 마음 하나 알려고.", "여우비 오는 날엔 조심하는 게 좋아."], reaper: ["명부에 적힌 이름은 지워지지 않는다. 대개는.", "때가 되었다."], haerang: ["바다에서 살아남은 놈은 어디서든 살아남지.", "닻 올려라!"], danbi: ["매가 먼저 본다. 나는 따라갈 뿐.", "가자, 해동청."], cheonrang: ["백두의 눈보라가 나를 길렀다.", "산의 주인이 내려간다."], hwaryeon: ["재가 되어도 다시 피어나는 게 주작이에요.", "불꽃이여, 춤을 춰라."], dolsoe: ["논밭 지키던 낫으로 나라도 지킨다.", "이까짓 거, 모내기보다 쉽지!"], pojol: ["순라 돌다 보면 별의별 놈을 다 만나지.", "게 섰거라!"], yakcho: ["독도 약도 한 뿌리에서 나와요.", "다치면 말해요. 약은 넉넉해요."], namu: ["나무는 결 따라 쪼개야 잘 쪼개지는 법.", "어디, 한 번 패 볼까."], geommu: ["춤이 칼이 되고, 칼이 춤이 되는 거예요.", "장단 맞춰 주세요."], mudang: ["굿판엔 산 사람과 죽은 사람이 함께 서지.", "어허, 신이 내리신다!"], hwarang: ["세속오계, 그중 임전무퇴.", "물러서지 않는다."], eosa: ["마패 하나면 탐관오리도 요괴도 다 무릎 꿇지.", "암행어사 출두야!"], sorikun: ["한 소리에 울고, 한 소리에 웃게 하는 게 소리꾼이오.", "얼씨구, 한번 놀아 보세!"], eulji: ["싸움에서 이기려면 먼저 마음에서 이겨야 한다.", "적의 계략은 이미 읽었다."], haemosu: ["하늘의 수레를 타고 내려온 지 오래구나.", "하늘이 보고 있다."], jipsin: ["새를 쫓던 허수아비가 이젠 요괴를 쫓는다네.", "바람아, 도와다오!"], bong: ["봉인 속에서 오래 잤더니 몸이 근질근질해.", "냥! 아니, 크르릉!"]}; // 11-20 영웅마다 한마디 (Hades 처럼 인물 개성) [0] 고르는 화면 [1] 출발할 때
+// ===================== 11-20 휴대폰 세로 → 판 안에서 '가로로 돌려 주세요' =====================
+// 모바일 액션 게임처럼: 판 중 세로가 되면 멈추고 안내, 가로로 돌리면 그대로 이어서. (앱·설치판은 manifest 가 가로 고정)
+(function () {
+  const mq = matchMedia("(orientation: portrait) and (max-width: 820px)"); let el = null, byRot = false;
+  const chk = () => {
+    const inRun = !!(G && G.p && !G.over && $("#hud") && !$("#hud").hidden), on = mq.matches && inRun && IS_TOUCH;
+    if (on && !el) { el = document.createElement("div"); el.id = "rotate"; el.innerHTML = '<div class="rtph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>돌리면 바로 이어서 해요</span>'; document.body.appendChild(el); if (!G.paused) { G.paused = true; byRot = true; } }
+    else if (!on && el) { el.remove(); el = null; if (byRot && G) { G.paused = false; } byRot = false; }
+  };
+  mq.addEventListener ? mq.addEventListener("change", chk) : mq.addListener(chk); setInterval(chk, 700);
+})();
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
