@@ -252,7 +252,7 @@ const diffRw = () => (G && (G.mode === "story" || G.mode === "endless") && DIFF[
 function diffBase() {
   if (G.mode === "endless") { const n = G.endlessN; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02), dmg: Math.pow(1.28, n / 8), spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
   const f = G.floor - 1, s = G.stage - 1;
-  if (G.mode === "raid") { const n = G.raidN || 0, lo = SAVE && SAVE.story && SAVE.story.maxFloor < 3 ? 0.7 : 1; return { hp: lo * 1.4 * Math.pow(1.45, n), dmg: lo * 1.2 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; } // 11-20 첫 보스에서 S급도 자주 쓰러져 1.6/1.3 → 1.4/1.2 (보스 사이 보부상이 생겨 뒤로 갈수록 정비 가능)
+  if (G.mode === "raid") { const n = G.raidN || 0; return { hp: 1.4 * Math.pow(1.45, n), dmg: 1.2 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; } // 11-20 첫 보스에서 S급도 자주 쓰러져 1.6/1.3 → 1.4/1.2 (보스 사이 보부상이 생겨 뒤로 갈수록 정비 가능)
   const late = f >= 2 ? f - 1 : 0; // 11-19 5배속 봇: 3층부터 보스가 8~18초 만에 쓰러지고 체력 90% 유지 → 2차 측정도 2층부터 피해 0 → 층마다 체력·공격 +30% (3층부터, 초보 봇도 3~4층이 1~2층보다 쉬웠음)
   return { hp: Math.pow(1.6, f) * (1 + 0.07 * s) * (1 + 0.3 * late), dmg: Math.pow(1.45, f) * (1 + 0.045 * s) * (1 + 0.3 * late), spd: 1 + f * 0.05 + s * 0.008, tier: f }; // 11-17 dmg 1.33→1.45: 3층부터 체력이 거의 안 줄던 문제(플레이 로봇)
 }
@@ -503,7 +503,7 @@ function populate(r) {
     setTimeout(() => { if (G && !G.over) UI.tip("event"); }, 600);
     r.cleared = true; r.evDone = true; G.drops.push({ type: "evt", k: typeof pickEvent === "function" ? pickEvent() : "bowl", x: RW / 2, y: RH / 2 - 10, used: false });
   } else if (r.type === "rest" && !r.cleared) {
-    r.cleared = true; G.drops.push({ type: "spring", x: RW / 2, y: RH / 2 + 20, used: false });
+    r.cleared = true; G.drops.push({ type: "spring", x: RW / 2, y: RH / 2 + 20, used: false, wish: 0, price: Math.round(90 * shopPm() / 5) * 5 });
   } else if (r.type === "start" || r.type === "arena" || r.type === "raid") {
     r.cleared = true;
   }
@@ -1364,7 +1364,11 @@ function pickups(u, dt = 1 / 60) {
       else if (Math.random() < COIN_DROP.chest * (1 + (u.m.coinLuck || 0))) G.drops.push({ type: "coin", x: d.x, y: d.y + 50 });
       if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
-    else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; healUnit(u, u.maxHp); sfx("heal"); }
+    else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; d.away = false; healUnit(u, u.maxHp); sfx("heal"); }
+    else if (d.type === "spring" && d.used && !d.wish && u === G.p && d.price) { // 11-21 소원 엽전: 마른 우물에 엽전을 던지면 강화 하나 (판 안 엽전 쓸 곳)
+      if (dd > 110) d.away = true; else if (dd < 70 && d.away && !d.cool) { d.cool = 1.2; d.away = false;
+        if ((u.gold || 0) < d.price) { addText(d.x, d.y - 90, "엽전이 모자라요", "#ff8a8a", 18); continue; }
+        u.gold -= d.price; d.wish = 1; sfx("coin"); G.levelQueue = (G.levelQueue || 0) + 1; addText(d.x, d.y - 100, "엽전이 바닥에 닿자 우물이 답했다", "#ffe08a", 22); for (let i = 0; i < 10; i++) spark(d.x + rnd(-60, 60), d.y + rnd(-60, 20), "#ffe6b0", 4); } }
     else if (d.type === "merchant" && u === G.p) { if (dd > 170) d.away = true; else if (dd < 95 && d.away && !UI.modalOpen() && !G.over) { d.away = false; UI.shop(G.cur); } }
     else if (d.type === "shopre" && dd < 50 && !d.cool && u === G.p && d.away !== false) {
       d.cool = 1.2; d.away = false; if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); continue; }
@@ -2091,7 +2095,7 @@ function drawDrop(g, d) {
     if (wl && wl.naturalWidth) { const H = 190, sc = M ? H * M.s : H / wl.naturalHeight; g.save(); if (d.used) g.filter = "grayscale(0.8) brightness(0.7)"; else { const gl = g.createRadialGradient(d.x, d.y - 40, 5, d.x, d.y - 40, 130); gl.addColorStop(0, "rgba(140,230,255,0.35)"); gl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gl; g.fillRect(d.x - 140, d.y - 170, 280, 280); }
       g.drawImage(wl, d.x - (M ? M.fx * sc : wl.naturalWidth * sc / 2), d.y + 40 - (M ? M.fy * sc : wl.naturalHeight * sc), wl.naturalWidth * sc, wl.naturalHeight * sc); g.restore(); }
     else { g.fillStyle = d.used ? "rgba(80,90,100,0.6)" : "rgba(140,240,255,0.9)"; g.beginPath(); g.ellipse(d.x, d.y, 80, 50, 0, 0, 7); g.fill(); }
-    g.font = '700 18px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = d.used ? "말라붙은 우물" : "약수 우물 · 다가가면 회복"; g.strokeText(tx, d.x, d.y + 70); g.fillStyle = d.used ? "#8a8a9a" : "#cff8ff"; g.fillText(tx, d.x, d.y + 70);
+    g.font = '700 18px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const wsh = d.used && !d.wish && d.price, tx = !d.used ? "약수 우물 · 다가가면 회복" : wsh ? `소원 엽전 · 엽전 ${d.price} → 강화 하나` : "말라붙은 우물"; g.strokeText(tx, d.x, d.y + 70); g.fillStyle = !d.used ? "#cff8ff" : wsh ? ((G.p && G.p.gold || 0) >= d.price ? "#ffe08a" : "#a99") : "#8a8a9a"; g.fillText(tx, d.x, d.y + 70);
   }
   else if (d.type === "stairs" && IMG.portal_gate && IMG.portal_gate.naturalWidth) {
     const im = IMG.portal_gate, M = ASSETS.meta && ASSETS.meta.portal_gate, H = 190, sc = M ? H * M.s : H / im.naturalHeight, w = im.naturalWidth * sc, h = im.naturalHeight * sc;
@@ -2126,7 +2130,7 @@ function drawGuide(g) {
 function drawItemInfo(g) {
   const p = G.p; if (!p || !p.alive) return;
   let best = null, bd = 170;
-  for (const d of G.drops) { if (!["act", "shop", "chest", "spring", "stairs"].includes(d.type) || d.sold || (d.type === "chest" && d.open) || (d.type === "spring" && d.used)) continue; const dd = Math.hypot(d.x - p.x, d.y - p.y); if (dd < bd) { bd = dd; best = d; } }
+  for (const d of G.drops) { if (!["act", "shop", "chest", "spring", "stairs"].includes(d.type) || d.sold || (d.type === "chest" && d.open) || (d.type === "spring" && d.used && (d.wish || !d.price))) continue; const dd = Math.hypot(d.x - p.x, d.y - p.y); if (dd < bd) { bd = dd; best = d; } }
   if (!best) return;
   const d = best; let title = "", col = "#ffe08a", lines = [];
   if (d.type === "act" || (d.type === "shop" && d.what === "act")) {
@@ -2136,7 +2140,7 @@ function drawItemInfo(g) {
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
   else if (d.type === "chest") { title = d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자"; lines = ["다가가면 열려요 · 엽전, 가끔 코인·회복 약초"]; }
-  else if (d.type === "spring") { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력을 최대치까지 회복 (보호막 없음, 한 번)"]; }
+  else if (d.type === "spring") { if (d.used) { title = "소원 엽전"; lines = ["마른 우물에 엽전을 던지면 소원 하나는 들어준다지", `엽전 ${d.price} — 떨어졌다 다시 다가가면 강화 하나 고르기 (한 번)`]; } else { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력을 최대치까지 회복 (보호막 없음, 한 번)"]; } }
   else if (d.type === "stairs" && d.raid) { title = "다음 보스 홍살문"; lines = [`문 안에 1초 서 있으면 ${G.raidN + 1}번째 보스가 나와요`, "그 전에 보부상에게 물건을 사 두세요"]; }
   else if (d.type === "stairs") { title = "홍살문"; lines = [hellNoHeal() ? "문 안에 1초 서 있으면 다음 스테이지로 (매우 어려움: 회복 없음)" : "문 안에 1초 서 있으면 다음 스테이지로 · 체력 25% 회복", "그 전에 다른 방을 둘러봐도 돼요"]; }
   if (d.type === "shop") lines.push(`가격 엽전 ${d.price} · 내 엽전 ${p.gold || 0}${(p.gold || 0) >= d.price ? " · 밟으면 사요" : " · 모자라요"}`);
@@ -2975,8 +2979,9 @@ function drawMerchant(g, d) {
   g.strokeText(tx, d.x, d.y + 36); g.fillStyle = "#ffe08a"; g.fillText(tx, d.x, d.y + 36);
   g.restore();
 }
+function shopPm() { return (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.45) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1); }
 function stockShop(out) {
-  const pm = (1 + (G.mode === "endless" ? G.endlessN / 12 : G.floor - 1) * 0.45) * ((typeof dailyRule === "function" && dailyRule("shop")) || 1);
+  const pm = shopPm();
   const stat = ["speed", "power", "armor", "eye", "wind"].sort(() => Math.random() - 0.5).slice(0, 2);
   const bk = rollBoons(1, G.p.lvl)[0];
   const list = [{ what: "herb" }, { what: "item", k: stat[0] }, { what: "item", k: stat[1] }, ...(bk ? [{ what: "boon", k: bk, price: 140 }] : []), { what: "act", k: rollActive(), price: 120 }, Math.random() < 0.35 ? { what: "item", k: "coin" } : { what: "herb" }];

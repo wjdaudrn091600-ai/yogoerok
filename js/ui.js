@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.18";
+const GAME_VERSION = "2.7.19";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -493,9 +493,9 @@ const UI = {
   // ① 새 시스템 첫 안내 (11-12): 계정마다 한 번씩, 짧게
   tip(key) {
     const T = {
-      elem: ["⚔️ 요괴 속성 상성", "층마다 요괴의 속성이 달라요. 약점 속성(스테이지 시작 때 표시)으로 때리면 피해 <b>+10%</b>, 같은 계열이면 <b>-5%</b>예요.<br>영웅 상세 화면에서 내 영웅의 속성을 볼 수 있어요."],
+      elem: ["⚔️ 요괴 속성 상성", "장마다 요괴의 속성이 달라요. 약점 속성(스테이지 시작 때 표시)으로 때리면 피해 <b>+10%</b>, 같은 계열이면 <b>-5%</b>예요.<br>영웅 상세 화면에서 내 영웅의 속성을 볼 수 있어요."],
       portal: ["⛩️ 홍살문", "보스를 잡으면 홍살문이 열려요. 다른 방을 더 둘러봐도 되고, 준비가 되면 <b>문 안에 1초</b> 서 있으면 다음 스테이지로 가요."],
-      dex: ["📖 요괴록 도감", "토벌한 요괴는 도감에 기록돼요. 같은 요괴를 <b>10번</b> 토벌하면 그 요괴에게 피해 <b>+5%</b>, 층 도감을 다 채우면 칭호와 코인을 받아요."],
+      dex: ["📖 요괴록 도감", "토벌한 요괴는 도감에 기록돼요. 같은 요괴를 <b>10번</b> 토벌하면 그 요괴에게 피해 <b>+5%</b>, 장 도감을 다 채우면 칭호와 코인을 받아요."],
       place: ["📍 위치 지정 스킬", "설치·낙하·순간이동 스킬은 자리를 고를 수 있어요.<br>PC: <b>키를 누른 채</b> 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)<br>폰: <b>스킬 버튼을 끌어서</b> 자리를 고르고 떼면 시전 (그냥 누르면 가까운 적에게)"],
       bounty: ["📜 오늘의 토벌령", "날마다 지정 요괴 3마리가 바뀌어요. 하나 토벌할 때마다 코인 3개, 셋 다 하면 코인 5개와 강화 조각 5개를 더 받아요."],
       altar: ["🔥 혼불 제단", "판에서 쓰러져도 <b>혼불</b>은 남아요. 처음 화면 <b>혼불 제단</b>에 바치면 모든 영웅이 영구히 강해져요.<br>판이 끝날 때 '다음 목표'에서 얼마나 남았는지 볼 수 있어요."],
@@ -509,6 +509,7 @@ const UI = {
     SAVE.tips = SAVE.tips || {}; if (SAVE.tips[key]) return; SAVE.tips[key] = 1; saveGame();
     if (G && !G.over) { // 11-18 판 안에서는 게임을 멈추지 않는 옆 카드로 (전투 중 안내창이 흐름을 끊어 첫 판 이탈 원인)
       if (UI.modalOpen()) { SAVE.tips[key] = 0; setTimeout(() => { if (SAVE && G && !G.over) UI.tip(key); }, 1500); return; } // 11-19 다른 창 위에 겹치지 않게
+      if (G.banner && G.banner.t > 0.2) { SAVE.tips[key] = 0; setTimeout(() => { if (SAVE && G && !G.over) UI.tip(key); }, G.banner.t * 1000 + 400); return; } // 11-21 가운데 큰 글(보스 토벌! 등)과 겹치지 않게 끝난 뒤에
       let c = document.getElementById("tipcard"); if (!c) { c = document.createElement("div"); c.id = "tipcard"; document.body.appendChild(c); }
       c.innerHTML = `<button class="tx" aria-label="닫기">×</button><b>${T[0]}</b><p>${T[1]}</p><i></i>`; c.className = "on"; clearTimeout(UI._tipT);
       c.querySelector(".tx").onclick = () => { c.className = ""; }; UI._tipT = setTimeout(() => { c.className = ""; }, 9000); return;
@@ -1506,7 +1507,6 @@ function altarEarn(r) { // endRun 에서 부름 → 혼불 계산·저장
   if (r.mode === "story") parts.push([`${r.floor || 1}장 도달`, r.floor || 1, 6]);
   if (r.mode === "endless") parts.push([`무한의 방 ${r.endless || 0}`, Math.floor((r.endless || 0) / 3), 2]);
   if (r.win || r.storyDone) parts.push(["완주", 1, 40]);
-  if ((r.goldRun || 0) >= 25) parts.push([`남은 엽전 ${r.goldRun}닢`, Math.floor(r.goldRun / 25), 1]); // 11-21 남은 엽전은 혼불로(엽전이 쌓이기만 하던 것)
   const dRw = ((r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1) * (typeof isFestival === "function" && isFestival() ? 1.5 : 1); // 주말 축제 ×1.5 // 11-19 높은 난이도 = 혼불 더
   const tb = G && G.opt && Array.isArray(G.opt.taboo) ? G.opt.taboo.length : 0; if (tb) parts.push([`금기 ${tb}개`, 0, 0]);
   let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw * (1 + 0.2 * tb)); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
