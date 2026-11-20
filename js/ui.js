@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.11";
+const GAME_VERSION = "2.7.12";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1076,7 +1076,7 @@ const UI = {
   buildHud() {
     const p = G.p, touch = matchMedia("(pointer: coarse)").matches;
     input.touch = touch;
-    const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span>${s === "A" ? `<button class="alock" id="alock" title="액티브 잠금 (${keyLabel(keyMap().lock)})">🔓</button>` : ""}<span class="jtag"></span></div>`;
+    const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key${String(key).length > 2 ? " long" : ""}">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span>${s === "A" ? `<button class="alock" id="alock" title="액티브 잠금 (${keyLabel(keyMap().lock)})">🔓</button>` : ""}<span class="jtag"></span></div>`;
     $("#hud").innerHTML = `<div class="hp-box"><div class="face" style="background-image:url(${imgSrc("card_" + p.art)})"></div><div class="meta">
         <div class="nm" id="hnm"></div><div class="bar hp"><b class="lag" id="hhpl"></b><s id="hsh"></s><i id="hhp"></i><span id="hhpt"></span></div><div class="bar xp"><i id="hxp"></i></div></div></div>
       <div class="hp-box" id="fbox" hidden style="top:86px;min-width:260px;border-color:#7fe08a"><div class="face" id="fface" style="width:44px;height:44px"></div><div class="meta"><div class="nm" id="fnm"></div><div class="bar" style="height:10px"><s id="fsh"></s><i id="fhp" style="background:linear-gradient(#9fffb0,#3a9a4a)"></i></div></div></div>
@@ -1084,7 +1084,7 @@ const UI = {
       <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><b class="lag" id="hbhpl"></b><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
       <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="멈춤 · 소리 · 키 설정 (Esc)">${uiIc("pause", "⏸")}</button></div></div>
       ${touch ? `<div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
-        : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
+        : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key${String(keyLabel(K.atk)).length > 2 ? " long" : ""}">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
     $("#hp").onclick = () => UI.togglePause();
     const al = $("#alock"); if (al) { al.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (!G || !G.p) return; if (NET.client) NET.send({ t: "lock", on: !G.p.actLock }); toggleActLock(G.p); }; }
