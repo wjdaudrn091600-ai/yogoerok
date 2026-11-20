@@ -17,8 +17,9 @@ function imgPump() {
   while (IMGQ.act < 12 && (IMGQ.hi.length || IMGQ.lo.length)) {
     const j = IMGQ.hi.shift() || IMGQ.lo.shift(); if (j.started) continue; j.started = true; IMGQ.act++;
     const im = new Image(); im.decoding = "async"; IMG[j.k] = im;
-    im.onload = im.onerror = () => { IMGQ.act--; j.done = true; if (typeof warmLate === "function") warmLate(j.k); for (const f of j.cb) f(); j.cb = []; imgPump(); };
-    im.src = j.url;
+    im.onerror = () => { if ((j.try = (j.try || 0) + 1) <= 2) { IMGQ.act--; j.started = false; setTimeout(() => { IMGQ.lo.unshift(j); imgPump(); }, 1500 * j.try); return; } im.onload(); }; // 11-20 2.7.11: 받기 실패(망 끊김·서버 바쁨)면 두 번까지 다시 받음 — 예전엔 깨진 그림이 판 끝까지 남음
+    im.onload = () => { IMGQ.act--; j.done = true; if (typeof warmLate === "function") warmLate(j.k); for (const f of j.cb) f(); j.cb = []; imgPump(); };
+    im.src = j.try ? j.url + (j.url.includes("?") ? "&" : "?") + "r=" + j.try : j.url;
   }
 }
 function imgGet(k, url, hi) {

@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.10";
+const GAME_VERSION = "2.7.11";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2363,6 +2363,8 @@ function heroSex(id, form) { id = id || (G && G.p && G.p.id) || UI._runChar || (
     requestAnimationFrame(f); };
   requestAnimationFrame(f);
 })();
+// 11-20 2.7.11: 화면 글 안의 그림(<img>)도 받기 실패면 두 번까지 다시 받음 (자동 플레이 화면에서 엽전·혼불 아이콘이 깨진 채 남음)
+document.addEventListener("error", (e) => { const im = e.target; if (!im || im.tagName !== "IMG") return; const src = im.getAttribute("src") || ""; if (!src || src.startsWith("data:")) return; const n = +(im.dataset.rt || 0); if (n >= 2) return; im.dataset.rt = n + 1; setTimeout(() => { im.src = src.replace(/[?&]r=\d+$/, "") + (src.includes("?") ? "&" : "?") + "r=" + (n + 1); }, 1500 * (n + 1)); }, true);
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
