@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.9.8";
+const GAME_VERSION = "2.9.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1324,7 +1324,7 @@ const UI = {
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
     UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
-      ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
+      ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}스테이지</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div>${r.coin > 0 ? `<div><b>${r.coin}</b>판에서 주운 코인</div>` : ""}${newChars > 0 ? `<div><b>${newChars}</b>새 영웅</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴: " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
