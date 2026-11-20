@@ -18,6 +18,13 @@ function imgPump() {
     // 11-21: 꼭 필요한 그림(hi)을 받는 동안엔 뒤에서 받을 그림(lo)은 시작하지 않음 — 판 입장 전 34MB 중 보스 그림 등이 회선을 나눠 써서 대기가 길었다
     if (!IMGQ.hi.length && IMGQ.hiAct > 0) break;
     const j = IMGQ.hi.shift() || IMGQ.lo.shift(); if (j.started) continue; j.started = true; IMGQ.act++; if (j.hi) { j.hiOn = 1; IMGQ.hiAct = (IMGQ.hiAct || 0) + 1; }
+    // 11-21: 다른 곳(IMG 바로 읽기)에서 이미 같은 그림을 받기 시작했으면 새로 받지 않고 그것을 기다림 (입장 때 20개·5.9MB 두 번 받던 것)
+    const ex = !j.try && j.k in IMG ? IMG[j.k] : null;
+    if (ex && !ex._bm && ex.src && ex.src.split("?")[0] === j.url.split("?")[0]) {
+      const fin = () => { IMGQ.act--; if (j.hiOn) { j.hiOn = 0; IMGQ.hiAct--; } j.done = true; if (typeof warmLate === "function") warmLate(j.k); for (const f of j.cb) f(); j.cb = []; imgPump(); };
+      if (ex.complete) { setTimeout(fin, 0); } else { ex.addEventListener("load", fin, { once: true }); ex.addEventListener("error", fin, { once: true }); }
+      continue;
+    }
     const im = new Image(); im.decoding = "async"; IMG[j.k] = im;
     im.onerror = () => { if ((j.try = (j.try || 0) + 1) <= 2) { IMGQ.act--; if (j.hiOn) { j.hiOn = 0; IMGQ.hiAct--; } j.started = false; setTimeout(() => { IMGQ.lo.unshift(j); imgPump(); }, 1500 * j.try); return; } im.onload(); }; // 11-20 2.7.11: 받기 실패(망 끊김·서버 바쁨)면 두 번까지 다시 받음 — 예전엔 깨진 그림이 판 끝까지 남음
     im.onload = () => { IMGQ.act--; if (j.hiOn) { j.hiOn = 0; IMGQ.hiAct--; } j.done = true; if (typeof warmLate === "function") warmLate(j.k); for (const f of j.cb) f(); j.cb = []; imgPump(); };
