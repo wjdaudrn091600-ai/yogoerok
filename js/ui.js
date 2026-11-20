@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.5.7";
+const GAME_VERSION = "2.6.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -599,7 +599,7 @@ const UI = {
     const opened = Object.keys(GATE).filter((k) => !GATE[k]); SAVE.gateSeen = SAVE.gateSeen || {}; const fresh = opened.filter((k) => !SAVE.gateSeen[k]);
     if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "멀티", gacha: "가챠", bag: "아티팩트·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
     for (const k of opened) SAVE.gateSeen[k] = 1; if (!Object.keys(SAVE.gateSeen).length) SAVE.gateSeen._ = 1;
-    const modeRow = (m, t, d, extra) => `<button class="mode" data-m="${m}"${extra || ""}><div class="img" style="background-image:url(${imgSrc("ui_mode_" + m)})"></div><b>${t}</b><span>${d}</span></button>`;
+    const modeRow = (m, t, d, extra) => `<button class="mode" data-m="${m}"${extra || ""}><div class="img" style="background-image:url(${imgSrc(ASSETS.img["ui_mode_" + m + "_" + heroSex(SAVE.sel)] ? "ui_mode_" + m + "_" + heroSex(SAVE.sel) : "ui_mode_" + m)})"></div><b>${t}</b><span>${d}</span></button>`;
     const dock = (k, ic, t, badge) => `<button class="sub" data-s="${k}"><span class="ic">${uiIc(ic, "")}</span><span class="dl">${t}</span>${badge || ""}</button>`;
     const altarDot = (() => { const n = altarNext(); return n && (SAVE.soul || 0) >= n.c ? '<i class="dot"></i>' : ""; })();
     $("#screens").innerHTML = `<div class="screen hub" id="menu"><div class="hero-bg kb" style="background-image:url(${imgSrc("ui_menu_bg")})"></div><div class="hubshade"></div><canvas id="tparts" class="mparts"></canvas>
@@ -722,6 +722,7 @@ const UI = {
     show(sel);
   },
   startRun(opt) {
+    UI._runChar = opt.char;
     if (opt.mode === "story" && !opt.resume && !opt.multi && !opt._newOk && !opt.daily && SAVE.resume && CHAR[SAVE.resume.char]) {
       const R = SAVE.resume;
       UI.modal(`<h2>💾 저장된 스토리가 있어요</h2><p style="text-align:center">${CHAR[R.char].name} · ${R.floor}장 ${R.stage}스테이지 · Lv.${R.lvl}</p>
@@ -2132,8 +2133,9 @@ function setArtVars() { for (const k of ["daily", "store", "festival", "bounty",
 UI.vn = function (key, then) {
   const s = STORY[key], L = s.lines, old = $("#vn"); if (old) old.remove();
   const heroId = (G && G.p && G.p.id) || SAVE.sel || "musa", heroName = CHAR[heroId] ? CHAR[heroId].name : "토벌꾼";
-  const bg = imgSrc(s.img) || imgSrc(s.imgOld) || imgSrc("st2_open") || imgSrc("sc_open");
-  { const fm = /^st2_f(\d)_/.exec(s.img || ""); if (fm && !imgSrc(s.img) && typeof needPack === "function" && ASSETS.packs && ASSETS.packs["f" + fm[1]]) needPack("f" + fm[1], (k) => k.startsWith("st2_")).then(() => { const b = document.querySelector("#vn .vnbg"); if (b && imgSrc(s.img)) b.style.backgroundImage = `url(${imgSrc(s.img)})`; }); } // 11-19 지도에서 다시 볼 때 그 층 그림 묶음을 받아 바꿔 끼움
+  const sxImg = (k) => { const v = k && k + "_" + heroSex(); return v && ASSETS.img[v] ? v : k; }; // 11-20 주인공이 나오는 장면은 고른 영웅 성별 그림
+  const bg = imgSrc(sxImg(s.img)) || imgSrc(s.imgOld) || imgSrc("st2_open") || imgSrc("sc_open");
+  { const fm = /^st2_f(\d)_/.exec(s.img || ""); if (fm && !imgSrc(sxImg(s.img)) && typeof needPack === "function" && ASSETS.packs && ASSETS.packs["f" + fm[1]]) needPack("f" + fm[1], (k) => k.startsWith("st2_")).then(() => { const b = document.querySelector("#vn .vnbg"); if (b && imgSrc(sxImg(s.img))) b.style.backgroundImage = `url(${imgSrc(sxImg(s.img))})`; }); } // 11-19 지도에서 다시 볼 때 그 층 그림 묶음을 받아 바꿔 끼움
   const chap = /^\d$/.test(key) ? "이야기 시작" : key === "open" ? "서장" : key === "end" ? "종장" : /^f(\d)/.test(key) ? `${key[1]}장` : "";
   const el = document.createElement("div"); el.id = "vn"; el.innerHTML = `<div class="vnbg" style="background-image:url(${bg})"></div><div class="vnvig"></div>
     <div class="vntitle"><small>${chap}</small><b>${esc(s.title)}</b></div>
@@ -2346,6 +2348,9 @@ const HERO_LINES = {musa: ["칼은 무겁게, 마음은 가볍게. 그게 내 �
   };
   mq.addEventListener ? mq.addEventListener("change", chk) : mq.addListener(chk); setInterval(chk, 700);
 })();
+// 11-20 영웅 성별 (이야기 주인공 그림을 고른 영웅에 맞추려고) — 카드 그림 기준. 봉냥이: 늑대인간 남 / 구미호 여
+const HERO_F = new Set(["archer", "danbi", "fox", "geommu", "gunner", "hwaryeon", "moon", "priest", "summoner", "yakcho"]);
+function heroSex(id, form) { id = id || (G && G.p && G.p.id) || UI._runChar || (SAVE && SAVE.sel) || "musa"; if (/^bong/.test(id)) { const f = form || (G && G.p && G.p.id === id && G.p.form) || ""; return /fox/.test(id + f) ? "f" : "m"; } return HERO_F.has(id) ? "f" : "m"; }
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
