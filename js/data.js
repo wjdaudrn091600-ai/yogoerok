@@ -15,7 +15,7 @@ const CHARS = [
       { name: "철벽 자세", ic: "🛡️", cd: 14, desc: "4초 동안 받는 피해 -50%, 최대 체력 20% 보호막", fx: [{ t: "buff", dur: 4, dr: 0.5, col: "#ffd27a" }, { t: "heal", shield: 0.2 }] },
       { name: "검기 폭풍", ic: "🌪️", cd: 40, ult: true, desc: "2.4초 동안 주변을 8번 베어 각 130% 피해", fx: [{ t: "repeat", n: 8, gap: 0.3, fx: { t: "nova", r: 220, d: 1.3, col: "#ffb547", follow: true } }] },
     ] },
-  { id: "archer", name: "설아", job: "궁수", unlock: { type: "mission", reqs: [{ stat: "kills", n: 300, text: "몬스터 300마리" }], text: "몬스터 300마리 처치 (누적)" }, col: "#6db6ff", hp: 185, atk: 22, spd: 265, range: "원거리",
+  { id: "archer", name: "설아", job: "궁수", unlock: { type: "mission", reqs: [{ stat: "kills", n: 300, text: "요괴 300마리" }], text: "요괴 300마리 처치 (누적)" }, col: "#6db6ff", hp: 185, atk: 22, spd: 265, range: "원거리",
     basic: { name: "각궁 사격", cd: 0.42, fx: [{ t: "proj", d: 1, spd: 900, life: 0.75, r: 8, col: "#cfe8ff", shape: "arrow" }] },
     sk: [
       { name: "세 갈래 화살", ic: "🏹", cd: 5, desc: "화살 5발을 부채꼴로 쏴 각 110% 피해", fx: [{ t: "proj", n: 5, spread: 0.5, d: 1.1, spd: 950, life: 0.7, r: 8, col: "#cfe8ff", shape: "arrow", pierce: 1 }] },
@@ -291,7 +291,7 @@ function charDef(id, form) {
   return Object.assign({}, c, f, { form, formName: f.formName });
 }
 const charArt = (id, form) => (CHAR[id].forms ? (CHAR[id].forms[form] || Object.values(CHAR[id].forms)[0]).art : id);
-const UNLOCK_TYPE = { start: "기본", mission: "미션 해금", special: "특수 미션", floor: "층 도달", gacha: "뽑기" };
+const UNLOCK_TYPE = { start: "기본", mission: "임무 해금", special: "특수 임무", floor: "층 도달", gacha: "뽑기" };
 
 // ===== 액티브 (Space) — 원정 중 랜덤으로 얻어 1개만 들기 =====
 // 사용자 요청 11-10: 기본 50 · 저급 25 · 중급 15 · 상급 7 · 특급 3 (총 100) + 보스 전용 6 (따로 특수 제작)
@@ -396,7 +396,7 @@ const BOON_KEYS = Object.keys(BOONS);
 
 // ===== 가챠 비용·확률 =====
 const GACHA = {
-  char: { name: "캐릭터 뽑기", cost: 5, cost10: 45, pity: 20, rate: 0.07, desc: "뽑기 전용 영웅 4명. 20번 안에 반드시 1명. 이미 가진 영웅은 별(★)이 올라 공격력·체력 +6% (최대 ★5)" },
+  char: { name: "영웅 뽑기", cost: 5, cost10: 45, pity: 20, rate: 0.07, desc: "뽑기 전용 영웅 4명. 20번 안에 반드시 1명. 이미 가진 영웅은 별(★)이 올라 공격력·체력 +6% (최대 ★5)" },
   art: { name: "보물 뽑기", cost: 2, cost10: 18, rates: { 1: 0.58, 2: 0.3, 3: 0.1, 4: 0.02 }, desc: "같은 보물는 조각으로 바뀌어요 · 보관함에서 조각으로 강화 (+1 당 효과 +20%, 최대 +5, 단계마다 성공 확률 낮아짐)" },
   pet: { name: "펫 뽑기", cost: 3, cost10: 27, rates: { 1: 0.55, 2: 0.3, 3: 0.12, 4: 0.03 }, desc: "같은 펫은 조각으로 바뀌어요 · 보관함에서 조각으로 강화 (+1 당 효과 +20%, 최대 +5, 단계마다 성공 확률 낮아짐)" },
   title: { name: "칭호 뽑기", cost: 1, cost10: 9, rates: { 1: 0.6, 2: 0.28, 3: 0.1, 4: 0.02 }, desc: "같은 칭호는 엽전 80개로 바뀜" },
@@ -416,10 +416,10 @@ const COIN_YEOP = 300;
 
 // ===== 미션 =====
 const MISSIONS = [
-  { id: "k50", stat: "kills", n: 50, coin: 1, name: "몬스터 50마리 처치" },
-  { id: "k150", stat: "kills", n: 150, coin: 2, name: "몬스터 150마리 처치" },
-  { id: "k500", stat: "kills", n: 500, coin: 3, name: "몬스터 500마리 처치" },
-  { id: "k1500", stat: "kills", n: 1500, coin: 5, name: "몬스터 1500마리 처치" },
+  { id: "k50", stat: "kills", n: 50, coin: 1, name: "요괴 50마리 처치" },
+  { id: "k150", stat: "kills", n: 150, coin: 2, name: "요괴 150마리 처치" },
+  { id: "k500", stat: "kills", n: 500, coin: 3, name: "요괴 500마리 처치" },
+  { id: "k1500", stat: "kills", n: 1500, coin: 5, name: "요괴 1500마리 처치" },
   { id: "b1", stat: "bosses", n: 1, coin: 1, name: "보스 첫 처치" },
   { id: "b3", stat: "bosses", n: 3, coin: 2, name: "보스 3마리 처치" },
   { id: "b10", stat: "bosses", n: 10, coin: 4, name: "보스 10마리 처치" },
@@ -434,11 +434,11 @@ const MISSIONS = [
   { id: "d5", stat: "duelWins", n: 5, coin: 3, name: "1대1 대전 5승" },
   { id: "d15", stat: "duelWins", n: 15, coin: 5, name: "1대1 대전 15승" },
   { id: "g10", stat: "pulls", n: 10, coin: 2, name: "뽑기 10번 뽑기" },
-  { id: "c3", stat: "charsOwned", n: 3, coin: 2, name: "캐릭터 3명 모으기" },
-  { id: "c8", stat: "charsOwned", n: 8, coin: 4, name: "캐릭터 8명 모으기" },
+  { id: "c3", stat: "charsOwned", n: 3, coin: 2, name: "영웅 3명 모으기" },
+  { id: "c8", stat: "charsOwned", n: 8, coin: 4, name: "영웅 8명 모으기" },
   { id: "sp1", stat: "bossHighHp", n: 1, coin: 3, name: "[특수] 체력 60% 이상 남긴 채 보스 처치" },
   { id: "sp2", stat: "bossLowHp", n: 1, coin: 3, name: "[특수] 내 체력 15% 이하에서 보스 처치" },
-  { id: "sp3", stat: "fastClear", n: 1, coin: 3, name: "[특수] 몬스터 5마리 이상 방을 10초 안에 정리" },
+  { id: "sp3", stat: "fastClear", n: 1, coin: 3, name: "[특수] 요괴 5마리 이상 방을 10초 안에 정리" },
   { id: "sp4", stat: "noHitFloor", n: 1, coin: 5, name: "[특수] 맞지 않고 스테이지 하나 끝내기" },
   { id: "sp5", stat: "storyClear", n: 1, coin: 6, name: "[특수] 스토리 5층 최종보스 처치" },
   { id: "dex1", stat: "dex_f1", n: 11, coin: 8, name: "요괴록 1층 도감 완성 (11종)" }, { id: "dex2", stat: "dex_f2", n: 11, coin: 8, name: "요괴록 2층 도감 완성 (11종)" },
@@ -818,11 +818,11 @@ const CURSES = {
   dark: { name: "어둠의 저주", ic: "🌑", desc: "시야가 좁아져요" },
   blood: { name: "피의 저주", ic: "🩸", desc: "받는 피해 +25%" },
   wither: { name: "메마름의 저주", ic: "🥀", desc: "회복 효과 절반" },
-  haste: { name: "질주의 저주", ic: "💨", desc: "몬스터가 20% 빨라져요" },
+  haste: { name: "질주의 저주", ic: "💨", desc: "요괴가 20% 빨라져요" },
   // 11-12 추가
-  swarm: { name: "무리의 저주", ic: "💀", desc: "방마다 몬스터 +40%" },
-  armor: { name: "강철의 저주", ic: "🛡️", desc: "몬스터가 받는 피해 -20%" },
-  grudge: { name: "원한의 저주", ic: "💥", desc: "쓰러진 몬스터가 잠시 뒤 터져요" },
+  swarm: { name: "무리의 저주", ic: "💀", desc: "방마다 요괴 +40%" },
+  armor: { name: "강철의 저주", ic: "🛡️", desc: "요괴가 받는 피해 -20%" },
+  grudge: { name: "원한의 저주", ic: "💥", desc: "쓰러진 요괴가 잠시 뒤 터져요" },
   seal: { name: "봉인의 저주", ic: "🔒", desc: "스킬·액티브 대기 시간 +30%" },
 };
 // 저주 확률 (사용자 요청 11-12: 너무 자주도, 너무 드물지도 않게)
@@ -878,11 +878,11 @@ const PITY_GRADE = { A: 0.7, S: 0.25, SS: 0.05 };
 
 // ===== 일일·주간·월간 미션 (사용자 요청 11-11) — 기간이 시작될 때의 기록과의 차이로 셈 =====
 const PERIOD_MISSIONS = {
-  d: [{ id: "d_kill", stat: "kills", n: 100, coin: 1, name: "몬스터 100마리" }, { id: "d_room", stat: "rooms", n: 15, coin: 1, name: "방 15개 정리" }, { id: "d_boss", stat: "bosses", n: 1, coin: 1, name: "보스 1마리" },
+  d: [{ id: "d_kill", stat: "kills", n: 100, coin: 1, name: "요괴 100마리" }, { id: "d_room", stat: "rooms", n: 15, coin: 1, name: "방 15개 정리" }, { id: "d_boss", stat: "bosses", n: 1, coin: 1, name: "보스 1마리" },
       { id: "d_skill", stat: "skillsUsed", n: 60, coin: 1, name: "스킬 60번" }, { id: "d_chest", stat: "chests", n: 3, coin: 1, name: "보물상자 3개" }],
-  w: [{ id: "w_kill", stat: "kills", n: 1000, coin: 3, name: "몬스터 1000마리" }, { id: "w_boss", stat: "bosses", n: 10, coin: 3, name: "보스 10마리" }, { id: "w_room", stat: "rooms", n: 120, coin: 3, name: "방 120개 정리" },
+  w: [{ id: "w_kill", stat: "kills", n: 1000, coin: 3, name: "요괴 1000마리" }, { id: "w_boss", stat: "bosses", n: 10, coin: 3, name: "보스 10마리" }, { id: "w_room", stat: "rooms", n: 120, coin: 3, name: "방 120개 정리" },
       { id: "w_raid", stat: "raidClear", n: 1, coin: 4, name: "보스 레이드 완료" }, { id: "w_duel", stat: "duelWins", n: 3, coin: 2, name: "1대1 3승" }],
-  m: [{ id: "m_kill", stat: "kills", n: 5000, coin: 8, name: "몬스터 5000마리" }, { id: "m_boss", stat: "bosses", n: 40, coin: 8, name: "보스 40마리" }, { id: "m_room", stat: "rooms", n: 600, coin: 8, name: "방 600개 정리" },
+  m: [{ id: "m_kill", stat: "kills", n: 5000, coin: 8, name: "요괴 5000마리" }, { id: "m_boss", stat: "bosses", n: 40, coin: 8, name: "보스 40마리" }, { id: "m_room", stat: "rooms", n: 600, coin: 8, name: "방 600개 정리" },
       { id: "m_story", stat: "storyClear", n: 1, coin: 10, name: "스토리 완료" }, { id: "m_chest", stat: "chests", n: 50, coin: 6, name: "보물상자 50개" }],
 };
 const PERIOD_NAME = { d: "일일", w: "주간", m: "월간" };

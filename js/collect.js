@@ -3,7 +3,7 @@
 // 아티팩트 55 (가챠 15 · 미션 20 · 특수 10 = 45, + 스토리 10 — 스토리 진행으로만 얻음, 효과는 모든 모드)
 // 펫 40 (가챠 10 · 미션 15 · 특수 5 · 랜덤 드롭 5 · 스토리 5)
 // how: gacha 가챠 / mission 미션 / special 특수 미션 / story 스토리 / drop 랜덤 획득.  c: 조건 { stat, n, text }
-const HOW_NAME = { gacha: "뽑기", mission: "미션", special: "특수 미션", story: "스토리", drop: "랜덤 획득", secret: "숨은 보상" };
+const HOW_NAME = { gacha: "뽑기", mission: "임무", special: "특수 임무", story: "스토리", drop: "랜덤 획득", secret: "숨은 보상" };
 const A_ = (name, rar, desc, m, how, c, en) => ({ name, rar, desc, m, how, c, en, img: null });
 const ARTIFACTS = {
   // --- 가챠 15 ---
@@ -23,9 +23,9 @@ const ARTIFACTS = {
   a_crown: A_("금관", 4, "공격력 +15%, 최대 체력 +15%, 엽전 +25%", { atk: 0.15, hp: 0.15, gold: 0.25 }, "gacha", null, "a Silla golden crown with jade ornaments"),
   a_wing: A_("삼족오 깃", 4, "한 판에 한 번 쓰러져도 체력 50%로 일어남", { revive: 1 }, "gacha", null, "a glowing golden feather of the three-legged sun crow"),
   // --- 미션 20 ---
-  a_arrowhead: A_("사냥꾼 화살촉", 1, "공격력 +5%", { atk: 0.05 }, "mission", { stat: "kills", n: 100, text: "몬스터 100마리" }, "an iron arrowhead on a leather cord"),
-  a_skullneck: A_("해골 목걸이", 2, "치명타 +5%", { crit: 0.05 }, "mission", { stat: "kills", n: 500, text: "몬스터 500마리" }, "a necklace of small carved bone skulls"),
-  a_hundred: A_("천인참 칼날", 3, "공격력 +12%", { atk: 0.12 }, "mission", { stat: "kills", n: 2000, text: "몬스터 2000마리" }, "a broken legendary sword blade glowing red"),
+  a_arrowhead: A_("사냥꾼 화살촉", 1, "공격력 +5%", { atk: 0.05 }, "mission", { stat: "kills", n: 100, text: "요괴 100마리" }, "an iron arrowhead on a leather cord"),
+  a_skullneck: A_("해골 목걸이", 2, "치명타 +5%", { crit: 0.05 }, "mission", { stat: "kills", n: 500, text: "요괴 500마리" }, "a necklace of small carved bone skulls"),
+  a_hundred: A_("천인참 칼날", 3, "공격력 +12%", { atk: 0.12 }, "mission", { stat: "kills", n: 2000, text: "요괴 2000마리" }, "a broken legendary sword blade glowing red"),
   a_horn: A_("보스의 뿔", 2, "보스에게 주는 피해 +10%", { bossDmg: 0.1 }, "mission", { stat: "bosses", n: 5, text: "보스 5마리" }, "a large curved demon horn"),
   a_warhorn: A_("왕의 뿔피리", 3, "보스 피해 +20%, 공격력 +5%", { bossDmg: 0.2, atk: 0.05 }, "mission", { stat: "bosses", n: 20, text: "보스 20마리" }, "an ornate royal war horn with gold bands"),
   a_staff: A_("나그네 지팡이", 1, "이동 속도 +8%", { spd: 0.08 }, "mission", { stat: "rooms", n: 50, text: "방 50개 정리" }, "a gnarled wooden traveler's walking staff with a gourd"),
@@ -37,9 +37,9 @@ const ARTIFACTS = {
   a_gloves: A_("결투 장갑", 1, "치명타 +6%", { crit: 0.06 }, "mission", { stat: "duelWins", n: 3, text: "1대1 대전 3승" }, "a pair of leather dueling gauntlets"),
   a_belt: A_("승자의 띠", 3, "공격력 +8%, 최대 체력 +8%", { atk: 0.08, hp: 0.08 }, "mission", { stat: "duelWins", n: 12, text: "1대1 대전 12승" }, "a champion's red silk belt with a gold buckle"),
   a_luckcharm: A_("뽑기 행운 부적", 2, "엽전 +25%, 코인 드롭 +10%", { gold: 0.25, coinLuck: 0.1 }, "mission", { stat: "pulls", n: 30, text: "뽑기 30번" }, "a lucky golden pig charm"),
-  a_box: A_("수집가 상자", 1, "최대 체력 +10%", { hp: 0.1 }, "mission", { stat: "charsOwned", n: 6, text: "캐릭터 6명" }, "a lacquered mother-of-pearl treasure box"),
-  a_banner: A_("영웅의 깃발", 3, "공격력 +7%, 받는 피해 -5%", { atk: 0.07, dr: 0.05 }, "mission", { stat: "charsOwned", n: 12, text: "캐릭터 12명" }, "a small heroic war banner with a tiger emblem"),
-  a_mark: A_("정예 사냥 표식", 2, "치명타 피해 +25%", { critdmg: 0.25 }, "mission", { stat: "elites", n: 30, text: "정예 몬스터 30마리" }, "a carved bone hunting mark token with claw scratches"),
+  a_box: A_("수집가 상자", 1, "최대 체력 +10%", { hp: 0.1 }, "mission", { stat: "charsOwned", n: 6, text: "영웅 6명" }, "a lacquered mother-of-pearl treasure box"),
+  a_banner: A_("영웅의 깃발", 3, "공격력 +7%, 받는 피해 -5%", { atk: 0.07, dr: 0.05 }, "mission", { stat: "charsOwned", n: 12, text: "영웅 12명" }, "a small heroic war banner with a tiger emblem"),
+  a_mark: A_("정예 사냥 표식", 2, "치명타 피해 +25%", { critdmg: 0.25 }, "mission", { stat: "elites", n: 30, text: "정예 요괴 30마리" }, "a carved bone hunting mark token with claw scratches"),
   a_key: A_("보물 사냥꾼 열쇠", 2, "엽전 +30%, 코인 드롭 +15%", { gold: 0.3, coinLuck: 0.15 }, "mission", { stat: "chests", n: 20, text: "보물상자 20개" }, "an ornate golden treasure key"),
   a_book: A_("스킬 수련서", 2, "스킬 대기 -7%", { cdr: 0.07 }, "mission", { stat: "skillsUsed", n: 500, text: "스킬 500번 사용" }, "a thick martial arts technique manual book"),
   a_knot: A_("동료의 매듭", 1, "초당 체력 0.2% 회복, 최대 체력 +6%", { regen: 0.002, hp: 0.06 }, "mission", { stat: "multiPlays", n: 3, text: "멀티 3번" }, "a Korean decorative maedeup friendship knot"),
@@ -51,7 +51,7 @@ const ARTIFACTS = {
   a_sunmirror: A_("태양 거울", 4, "공격력 +10%, 치명타 +5%", { atk: 0.1, crit: 0.05 }, "special", { stat: "storyClear", n: 1, text: "스토리 완료" }, "a radiant golden sun mirror"),
   a_undying: A_("불사의 깃", 4, "한 판에 한 번 쓰러져도 일어남", { revive: 1 }, "special", { stat: "deaths", n: 10, text: "10번 쓰러지기" }, "a phoenix feather wrapped in red thread"),
   a_drumstick: A_("천둥 북채", 4, "치명타 때 번개가 3명에게 튐", { critArc: 1 }, "special", { stat: "endlessBest", n: 30, text: "무한의 방 30번째 방" }, "a pair of thunder drumsticks crackling with lightning"),
-  a_corpseflower: A_("시체꽃", 3, "적이 죽을 때 주변 100% 폭발", { corpse: 1 }, "special", { stat: "kills", n: 1000, text: "몬스터 1000마리" }, "an eerie dark red corpse flower"),
+  a_corpseflower: A_("시체꽃", 3, "적이 죽을 때 주변 100% 폭발", { corpse: 1 }, "special", { stat: "kills", n: 1000, text: "요괴 1000마리" }, "an eerie dark red corpse flower"),
   a_reaperclaw: A_("사신의 손톱", 4, "체력 8% 이하 적을 25% 확률로 즉시 처치", { execute: 0.08 }, "special", { stat: "bosses", n: 30, text: "보스 30마리" }, "a long black reaper claw"),
   a_echobell: A_("메아리 종", 4, "스킬 사용 시 15% 확률로 대기 초기화", { echo: 0.15 }, "special", { stat: "skillsUsed", n: 2000, text: "스킬 2000번 사용" }, "a temple bell emitting glowing sound rings"),
   // --- 스토리 10 (스토리 진행으로만 얻음, 효과는 모든 모드) ---
@@ -90,7 +90,7 @@ const PETS = {
   p_yongma: P_("아기 용마", 4, "이동 속도 +12%, 1.6초마다 번개 사슬 4명 (70%)", { kind: "chain", t: 1.6, d: 0.7 }, { spd: 0.12 }, "gacha", null, "a cute baby dragon-horse"),
   p_whitetiger: P_("백호 새끼", 3, "1초마다 할퀴기 (공격력 90%)", { kind: "melee", t: 1.0, d: 0.9 }, null, "gacha", null, "a cute white tiger cub with blue stripes"),
   // --- 미션 15 ---
-  p_squirrel: P_("다람쥐", 1, "엽전 +15%, 가끔 엽전 물어옴", { kind: "gold", t: 7 }, { gold: 0.15 }, "mission", { stat: "kills", n: 100, text: "몬스터 100마리" }, "a cute chipmunk holding an acorn"),
+  p_squirrel: P_("다람쥐", 1, "엽전 +15%, 가끔 엽전 물어옴", { kind: "gold", t: 7 }, { gold: 0.15 }, "mission", { stat: "kills", n: 100, text: "요괴 100마리" }, "a cute chipmunk holding an acorn"),
   p_owl: P_("부엉이", 1, "1.3초마다 깃털 (공격력 45%)", { kind: "shoot", t: 1.3, d: 0.45 }, null, "mission", { stat: "rooms", n: 50, text: "방 50개" }, "a cute round horned owl"),
   p_mole: P_("두더지", 1, "엽전 +20%", { kind: "gold", t: 5 }, { gold: 0.2 }, "mission", { stat: "chests", n: 10, text: "보물상자 10개" }, "a cute mole with tiny goggles and a shovel"),
   p_firefly: P_("반딧불이", 1, "밝기 +30%, 1.5초마다 빛 (40%)", { kind: "shoot", t: 1.5, d: 0.4, home: true }, { light: 0.3 }, "mission", { stat: "endlessBest", n: 10, text: "무한의 방 10번째 방" }, "a cute big glowing firefly"),
@@ -99,10 +99,10 @@ const PETS = {
   p_raccoon: P_("너구리", 2, "코인 드롭 +20%", { kind: "gold", t: 8 }, { coinLuck: 0.2 }, "mission", { stat: "pulls", n: 20, text: "뽑기 20번" }, "a cute raccoon dog (neoguri) with a leaf on its head"),
   p_otter: P_("수달", 2, "1초마다 조약돌 (공격력 50%)", { kind: "shoot", t: 1.0, d: 0.5 }, null, "mission", { stat: "rooms", n: 150, text: "방 150개" }, "a cute river otter holding a pebble"),
   p_crane: P_("두루미", 3, "7초마다 체력 5% 회복", { kind: "heal", t: 7, v: 0.05 }, null, "mission", { stat: "bosses", n: 5, text: "보스 5마리" }, "a cute red-crowned crane chick"),
-  p_bear: P_("반달곰 새끼", 3, "2.2초마다 땅 내려치기 (130%)", { kind: "slam", t: 2.2, d: 1.3 }, null, "mission", { stat: "kills", n: 800, text: "몬스터 800마리" }, "a cute Asiatic black bear cub with a white moon mark"),
+  p_bear: P_("반달곰 새끼", 3, "2.2초마다 땅 내려치기 (130%)", { kind: "slam", t: 2.2, d: 1.3 }, null, "mission", { stat: "kills", n: 800, text: "요괴 800마리" }, "a cute Asiatic black bear cub with a white moon mark"),
   p_hawk: P_("송골매", 3, "0.8초마다 급강하 (공격력 55%)", { kind: "shoot", t: 0.8, d: 0.55 }, null, "mission", { stat: "elites", n: 20, text: "정예 20마리" }, "a cute small falcon"),
-  p_deer: P_("꽃사슴", 2, "초당 체력 0.3% 회복", { kind: "none" }, { regen: 0.003 }, "mission", { stat: "charsOwned", n: 5, text: "캐릭터 5명" }, "a cute spotted fawn with flowers"),
-  p_boar: P_("아기 멧돼지", 2, "1.1초마다 들이받기 (70%)", { kind: "melee", t: 1.1, d: 0.7 }, null, "mission", { stat: "kills", n: 300, text: "몬스터 300마리" }, "a cute striped baby wild boar"),
+  p_deer: P_("꽃사슴", 2, "초당 체력 0.3% 회복", { kind: "none" }, { regen: 0.003 }, "mission", { stat: "charsOwned", n: 5, text: "영웅 5명" }, "a cute spotted fawn with flowers"),
+  p_boar: P_("아기 멧돼지", 2, "1.1초마다 들이받기 (70%)", { kind: "melee", t: 1.1, d: 0.7 }, null, "mission", { stat: "kills", n: 300, text: "요괴 300마리" }, "a cute striped baby wild boar"),
   p_bat: P_("꼬마 박쥐", 2, "흡혈 2%, 1.2초마다 물기 (45%)", { kind: "shoot", t: 1.2, d: 0.45, home: true }, { ls: 0.02 }, "mission", { stat: "skillsUsed", n: 300, text: "스킬 300번" }, "a cute little fruit bat"),
   p_monkey: P_("원숭이", 2, "1초마다 열매 던지기 (50%)", { kind: "shoot", t: 1.0, d: 0.5 }, null, "mission", { stat: "multiPlays", n: 2, text: "멀티 2번" }, "a cute little monkey holding a peach"),
   // --- 특수 미션 5 ---
@@ -142,14 +142,14 @@ const TITLES = {
   t_storm: T_("폭풍을 부르는 자", 3, "궁극기 대기 -12%", { ultcd: 0.12 }, "gacha"),
   t_heaven: T_("하늘이 고른 자", 4, "공격력 +8%, 치명타 +5%, 치명타 피해 +15%", { atk: 0.08, crit: 0.05, critdmg: 0.15 }, "gacha"),
   // --- 미션 10 ---
-  t_first: T_("첫 사냥꾼", 1, "공격력 +3%", { atk: 0.03 }, "mission", { stat: "kills", n: 50, text: "몬스터 50마리" }),
-  t_hundred: T_("백인참", 2, "공격력 +5%", { atk: 0.05 }, "mission", { stat: "kills", n: 500, text: "몬스터 500마리" }),
+  t_first: T_("첫 사냥꾼", 1, "공격력 +3%", { atk: 0.03 }, "mission", { stat: "kills", n: 50, text: "요괴 50마리" }),
+  t_hundred: T_("백인참", 2, "공격력 +5%", { atk: 0.05 }, "mission", { stat: "kills", n: 500, text: "요괴 500마리" }),
   t_slayer: T_("보스 잡는 자", 3, "보스에게 주는 피해 +15%", { bossDmg: 0.15 }, "mission", { stat: "bosses", n: 10, text: "보스 10마리" }),
   t_explorer: T_("미궁 탐험가", 2, "이동 +5%, 엽전 +10%", { spd: 0.05, gold: 0.1 }, "mission", { stat: "rooms", n: 100, text: "방 100개" }),
   t_veteran: T_("백전노장", 3, "최대 체력 +8%", { hp: 0.08 }, "mission", { stat: "maxLevel", n: 25, text: "한 판 레벨 25" }),
   t_endless: T_("끝없는 도전자", 3, "궁극기 대기 -8%, 공격력 +4%", { ultcd: 0.08, atk: 0.04 }, "mission", { stat: "endlessBest", n: 25, text: "무한의 방 25번째 방" }),
   t_duelist: T_("결투의 달인", 3, "치명타 +6%", { crit: 0.06 }, "mission", { stat: "duelWins", n: 10, text: "1대1 10승" }),
-  t_collector: T_("수집가", 2, "코인 드롭 +15%", { coinLuck: 0.15 }, "mission", { stat: "charsOwned", n: 10, text: "캐릭터 10명" }),
+  t_collector: T_("수집가", 2, "코인 드롭 +15%", { coinLuck: 0.15 }, "mission", { stat: "charsOwned", n: 10, text: "영웅 10명" }),
   t_gambler: T_("뽑기의 신", 3, "엽전 +20%, 코인 드롭 +10%", { gold: 0.2, coinLuck: 0.1 }, "mission", { stat: "pulls", n: 100, text: "뽑기 100번" }),
   t_together: T_("함께하는 등불", 2, "초당 체력 0.3% 회복", { regen: 0.003 }, "mission", { stat: "multiPlays", n: 5, text: "멀티 5번" }),
   // --- 특수 미션 5 ---

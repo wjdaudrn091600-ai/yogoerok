@@ -204,7 +204,7 @@ function newRun(opt) {
   }
   if (opt.mode !== "duel" && !opt.multi && typeof altarMods === "function") mods.push(...altarMods()); // 11-18 혼불 제단 영구 강화
   if (opt.daily) for (const r of opt.daily.rules) if (r.m) mods.push(r.m);
-  if (opt.mode !== "duel" && !opt.multi && typeof mastMods === "function") mods.push(...mastMods(opt.char)); // 11-18 캐릭터 숙련도
+  if (opt.mode !== "duel" && !opt.multi && typeof mastMods === "function") mods.push(...mastMods(opt.char)); // 11-18 영웅 숙련도
   const startLv = opt.mode === "story" ? 1 + (opt.floor - 1) * 8 : opt.mode === "duel" ? 10 : opt.mode === "raid" ? 12 : opt.mode === "dev" || opt.mode === "practice" ? 20 : 1;
   const p = makeHero(opt.char, { form, lvl: startLv, mods, enh: (S.enh && S.enh[opt.char]) || 0, equip: S.skillEquip[opt.char], skillLv: S.skills, x: RW / 2, y: RH / 2 + 120 });
   G = { mode: opt.mode, floor: opt.floor || 1, stage: 1, p, units: [p], projs: [], zones: [], tele: [], fx: [], parts: [], texts: [], drops: [], orbs: [], timers: [],
@@ -276,7 +276,7 @@ function storySnap() {
 }
 function startStage() {
   if (G.mode === "story" && !G.opt.multi && !G.opt.daily) { SAVE.resume = storySnap(); saveGame(); }
-  needPack("f" + G.floor, floorNow); if (G.floor < 5) needPack("f" + (G.floor + 1), LATER); if (G.p) needPack(charPack(G.p.id)); needPack("bossa", LATER); // 11-18 바로 시작하는 길(시험·이어하기)에서도 캐릭터 동작 묶음 if (G.stage === 1) setTimeout(warmRun, 50);
+  needPack("f" + G.floor, floorNow); if (G.floor < 5) needPack("f" + (G.floor + 1), LATER); if (G.p) needPack(charPack(G.p.id)); needPack("bossa", LATER); // 11-18 바로 시작하는 길(시험·이어하기)에서도 영웅 동작 묶음 if (G.stage === 1) setTimeout(warmRun, 50);
   G.rooms = new Map(); G.stageHit = false;
   const n = Math.min(12, 5 + G.floor + Math.ceil(G.stage / 2));
   const start = newRoom(0, 0, "start"); G.rooms.set("0,0", start);
@@ -415,7 +415,7 @@ function startDuel() {
   const lvMul = { easy: 0.75, normal: 1, hard: 1.25 }[G.opt.diff || "normal"];
   const eq = {}; ["Q", "W", "E", "R"].forEach((s) => { if (Math.random() < 0.35) { const pool = SKILL_KEYS.filter((k) => SKILLS[k].slot === s && (!SKILLS[k].owner || SKILLS[k].owner === opp)); eq[s] = pick(pool); } });
   needPack(charPack(opp));
-  G.mirror = opp === G.p.id; // 이스터 에그: 같은 캐릭터끼리 만나면 거울 대결
+  G.mirror = opp === G.p.id; // 이스터 에그: 같은 영웅끼리 만나면 거울 대결
   const b = makeHero(opp, { team: 1, form, lvl: 10, bot: true, atkMul: lvMul, hpMul: lvMul, equip: eq, x: RW / 2, y: BT + 170 });
   G.bot = b; G.units.push(b);
   G.duel = { round: 1, wins: [0, 0], state: "ready", t: 3, react: { easy: 0.55, normal: 0.32, hard: 0.16 }[G.opt.diff || "normal"] };
@@ -523,7 +523,7 @@ function buildRoom(r) {
   const bg = IMG["room_" + th.room + "_" + r.bg];
   const wf = IMG["wall_" + th.room + "_front"];
   r.needBg = !(bg && bg.complete && bg.naturalWidth) || (wf && !wf.naturalWidth) || !!(ASSETS.packs && ASSETS.packs[th.room] && !PACK.done[th.room] && !PACK.base[th.room]); // 11-19 벽·소품도 층 묶음 → 다 받으면 다시 그림
-  if (!r.needBg) { g.filter = "saturate(0.78) brightness(0.9) contrast(1.06)"; g.drawImage(bg, 0, 0, RW, RH); g.filter = "none"; } else { g.fillStyle = th.wall[2]; g.fillRect(0, 0, RW, RH); } // 11-17 바닥은 살짝 차분하게 → 캐릭터가 또렷하게 (11-18 고침: 이 주석이 else 를 지워 바닥 그림을 받기 전엔 빈 바닥이었음)
+  if (!r.needBg) { g.filter = "saturate(0.78) brightness(0.9) contrast(1.06)"; g.drawImage(bg, 0, 0, RW, RH); g.filter = "none"; } else { g.fillStyle = th.wall[2]; g.fillRect(0, 0, RW, RH); } // 11-17 바닥은 살짝 차분하게 → 영웅가 또렷하게 (11-18 고침: 이 주석이 else 를 지워 바닥 그림을 받기 전엔 빈 바닥이었음)
   const first = !r.laid; r.laid = true;
   // 바닥 가장자리 어둡게
   const vg = g.createRadialGradient(RW / 2, RH / 2 + 40, 200, RW / 2, RH / 2 + 40, 900); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.3)");
@@ -1340,7 +1340,7 @@ function pickups(u, dt = 1 / 60) {
       if (d.vy !== undefined && d.z !== undefined && d.vy) continue;
       if (dd < 160 * ((SAVE && SAVE.settings.pickR) || 1)) { d.x += (u.x - d.x) * 0.18; d.y += (u.y - d.y) * 0.18; d.mag = true; } // 11-20 끌려오는 엽전은 기둥에 밀려나지 않게 (기둥 옆에서 30~40px 떨어져 못 줍던 버그)
       else if (u === G.p && !roomLocked() && G.roomT > 0.6) { const k = Math.min(1, 900 * 0.016 / dd); d.x += (u.x - d.x) * k; d.y += (u.y - d.y) * k; } // 11-17 방을 비우면 남은 엽전이 저절로 날아옴 (줍기 귀찮음 없애기)
-      if (dd < 42) { d.gone = true; if (d.type === "gold") { u.gold = (u.gold || 0) + d.v; if (u === G.p) { sfx("coin"); G.goldIn = (G.goldIn || 0) + d.v; } } else if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "몬스터 드롭"); }
+      if (dd < 42) { d.gone = true; if (d.type === "gold") { u.gold = (u.gold || 0) + d.v; if (u === G.p) { sfx("coin"); G.goldIn = (G.goldIn || 0) + d.v; } } else if (u.remote) NET.reward({ coin: 1 }); else gainCoin(1, "요괴 드롭"); }
     } else if (d.type === "herb" && dd < 40) { d.gone = true; healUnit(u, u.maxHp * 0.2); sfx("heal"); }
     else if (d.type === "act" && d.waitLeave) { if (dd > 75) d.waitLeave = false; }
     else if (d.type === "act" && dd < 58 && !d.cool && u.actLock && u.active && u.active.k !== d.k) {
@@ -1830,7 +1830,7 @@ function drawFog(g) {
 function render() {
   if (!G || !G.cur || !G.p || !G.cur.cache) return;
   if (!base) resize(); updateCam();
-  const hq = glOn(); if (hq) glLayers(); // 11-17 하이엔드: 캐릭터 층(a)·효과 층(b)에 그리고 GPU 에서 조명·블룸
+  const hq = glOn(); if (hq) glLayers(); // 11-17 하이엔드: 영웅 층(a)·효과 층(b)에 그리고 GPU 에서 조명·블룸
   let g = hq ? GLR.a : ctx; if (!hq) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#07060a"; g.fillRect(0, 0, cv.width, cv.height); } else ctx.clearRect(0, 0, cv.width, cv.height);
   const shk = SAVE && SAVE.settings.shake === false ? 0 : G.shake * ((SAVE && SAVE.settings.shakeAmt != null) ? SAVE.settings.shakeAmt : 1), tN = G.time * 38, kf = SAVE && SAVE.settings.shake === false ? 0 : 1, sx = (shk ? shk * (Math.sin(tN * 1.07) * 0.62 + Math.sin(tN * 2.31 + 1.3) * 0.38) : 0) + (G.kx || 0) * kf, sy = (shk ? shk * (Math.sin(tN * 1.21 + 2.1) * 0.62 + Math.sin(tN * 2.73 + 0.4) * 0.38) : 0) + (G.ky || 0) * kf; // 11-18 타격감: 매 프레임 무작위 떨림(지저분함) → 부드러운 흔들림 + 때린 방향으로 화면 밀림
   g.setTransform(view.s, 0, 0, view.s, view.ox + sx * view.s, view.oy + sy * view.s);
@@ -2154,7 +2154,7 @@ function drawItemInfo(g) {
 const ANIM_N = 12, ANIM_COLS = 4, ANIM_KINDS = new Set(["slash", "burst", "shock", "smoke", "hit", "bolt", "beam"]);
 let FXK = -1;
 function animCell(key, col) {
-  if (FXK >= 0 && key.startsWith("cvfx_")) { // 11-16 full 3D: 캐릭터·속성 효과도 Blender 12장 (<키>_anim, 4x3)
+  if (FXK >= 0 && key.startsWith("cvfx_")) { // 11-16 full 3D: 영웅·속성 효과도 Blender 12장 (<키>_anim, 4x3)
     const sh = IMG[key + "_anim"]; if (!sh || !sh.naturalWidth) return null;
     const i = Math.min(ANIM_N - 1, Math.floor(FXK * ANIM_N)), cw = sh.naturalWidth / ANIM_COLS, ch = sh.naturalHeight / 3;
     return { im: sh, sx: (i % ANIM_COLS) * cw, sy: Math.floor(i / ANIM_COLS) * ch, sw: cw, sh: ch };
@@ -2195,7 +2195,7 @@ function tinted(img, key, filter) {
 function spriteFor(u) {
   let base, H;
   if (u.kind === "hero") { base = "spr_" + u.art; H = 105; }
-  else if (u.kind === "pet") { base = u.img; H = 52; } // 캐릭터(105)의 절반 (사용자 요청 11-11)
+  else if (u.kind === "pet") { base = u.img; H = 52; } // 영웅(105)의 절반 (사용자 요청 11-11)
   else if (u.kind === "boss") { base = u.img; H = u.r * 3.2; }
   else { base = u.img; H = u.r * 2.9; }
   const M = ASSETS.meta && ASSETS.meta[base], fr = (M && M.frames) || [];
@@ -2290,7 +2290,7 @@ function drawUnit(g, u) {
   if (u.elite) { g.shadowColor = u.mshield > 0 ? "#6fa8ff" : "#ff4dff"; g.shadowBlur = u.mshield > 0 ? 34 : 22; }
   if (u.kind === "boss") { g.shadowColor = u.ph2 ? "#ff3b30" : "#8a6bff"; g.shadowBlur = 30; }
   if (u.kind === "hero" && u.team === 1) { g.shadowColor = "#ff4d4d"; g.shadowBlur = 14; }
-  else if (u === G.p && !(SAVE && SAVE.settings.low)) { g.shadowColor = "rgba(255,226,170,0.75)"; g.shadowBlur = 10; } // 11-17 내 캐릭터 테두리 빛
+  else if (u === G.p && !(SAVE && SAVE.settings.low)) { g.shadowColor = "rgba(255,226,170,0.75)"; g.shadowBlur = 10; } // 11-17 내 영웅 테두리 빛
   const whiteHit = u.hitT > 0 && u.kind !== "hero" && !(SAVE && SAVE.settings.low);
   if (u.hitT > 0 && !whiteHit) g.filter = u.kind === "hero" ? "brightness(1.6) saturate(1.3)" : "brightness(2.4)";
   else if (u.hitT > 0) {}
@@ -2752,7 +2752,7 @@ void main(){
     for (int i = 0; i < 40; i++) { if (i >= nL) break;
       vec4 l = L[i]; vec2 d = l.xy - w; float dist = length(d); if (dist > l.z) continue;
       float att = 1.0 - dist / l.z; att *= att;
-      if (i == shI.x || i == shI.y || i == shI.z || i == shI.w) { // 실시간 그림자: 빛 쪽으로 걸어가며 캐릭터·소품 실루엣에 막히는지
+      if (i == shI.x || i == shI.y || i == shI.z || i == shI.w) { // 실시간 그림자: 빛 쪽으로 걸어가며 영웅·소품 실루엣에 막히는지
         vec2 dir = d / max(dist, 1.0); float reach = min(dist - 30.0, 150.0); float occ = 0.0;
         for (int k = 1; k <= 10; k++) { float t = float(k) / 10.0 * reach; if (t <= 0.0) break; vec2 ws = w + dir * t; vec2 sp = ws * vw.x + vw.yz; vec2 su = vec2(sp.x / scr.x, 1.0 - sp.y / scr.y);
           float a = texture(tO, su).a; occ = max(occ, smoothstep(0.35, 0.8, a) * (1.0 - float(k) * 0.055)); }
