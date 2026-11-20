@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.8.6";
+const GAME_VERSION = "2.8.7";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -920,7 +920,7 @@ const UI = {
       <p class="tg"><label><input type="checkbox" id="anly" ${s.analytics === false ? "" : "checked"}> <span class="sl">익명 통계·오류 보내기<small>게임 개선용 · 아이디·닉네임은 보내지 않아요</small></span></label></p>
       </div>
       ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
-      <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button></p>
+      <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button> <button class="btn gold" id="fbbtn">의견 보내기</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
@@ -930,6 +930,7 @@ const UI = {
     if ($("#assist")) $("#assist").onchange = (e) => { s.assist = e.target.checked; saveGame(); UI.toast(s.assist ? "도움 모드 켬 — 쓰러질수록 조금씩 단단해져요" : "도움 모드 끔", 2500); };
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
+    $("#fbbtn").onclick = () => UI.feedback();
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
     $("#mus").onchange = (e) => { s.music = e.target.checked; saveGame(); if (!s.music) $("#bgm").pause(); else { curTrack = null; music("menu"); } };
     $("#vol").oninput = (e) => { s.vol = +e.target.value; $("#bgm").volume = s.vol; saveGame(); };
@@ -1324,11 +1325,11 @@ const UI = {
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 임무 보상이 있어요!</p>' : ""}
-      <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="home">처음 화면</button>${["story", "endless", "raid"].includes(r.mode) ? '<button class="btn" id="sharec">📸 기록 카드</button>' : ""}</div>`);
+      <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="fbres">의견 보내기</button><button class="btn" id="home">처음 화면</button>${["story", "endless", "raid"].includes(r.mode) ? '<button class="btn" id="sharec">📸 기록 카드</button>' : ""}</div>`);
     const opt = G.opt, multi = opt.multi || NET.client;
     if (multi) $("#again").textContent = "대기실로 (다시 함께)";
     $("#again").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; G = null; NET.roomSent = null; UI.multi(); return; } if (opt.mode === "story") { opt.floor = Math.min(opt.floor, SAVE.story.maxFloor); delete opt.resume; delete opt._newOk; } UI.startRun(opt); };
-    $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
+    if ($("#fbres")) $("#fbres").onclick = () => UI.feedback({ from: "result" }); $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
     if (typeof talkType === "function") talkType();
     if ($("#sharec")) $("#sharec").onclick = () => shareCard(r);
     document.querySelectorAll(".goal[data-go]").forEach((g) => (g.onclick = () => { if (multi) return; UI.closeModal(); UI.menu(); UI.open(g.dataset.go); }));
@@ -1463,6 +1464,7 @@ const PRIVACY = `<h3>개인정보 처리방침</h3><ol class="muted" style="line
 <li><b>맡기는 곳</b>: Google Firebase(로그인·저장, 미국 등 Google 서버). 멀티플레이는 PeerJS 연결 서버를 거쳐 기기끼리 직접 연결돼 상대에게 IP 주소가 보일 수 있어요. 글꼴은 Google Fonts 에서 받아요.</li>
 <li><b>통계·오류 보고</b>: 켜져 있어요. 오류 보고(Sentry)는 오류가 난 때의 오류 내용·게임 버전·기기와 브라우저 종류·지금 모드를, 사용 통계(PostHog)는 판 시작·끝 같은 게임 안 행동을 <b>무작위 기기 번호로만</b> 모아요. 아이디·닉네임·IP 주소는 저장하지 않아요. 설정 → 「익명 통계·오류 보내기」에서 끌 수 있어요. 보관: 오류 보고 약 30일, 사용 통계 약 1년.</li>
 <li><b>나라 밖으로 옮겨지는 정보</b>: 게임을 하는 동안 인터넷으로 수시로 보내져요. Google LLC(미국, Firebase — 로그인·저장, 계정 삭제 때까지) · Functional Software, Inc.(미국, Sentry — 오류 보고, 약 30일) · PostHog, Inc.(미국, 사용 통계, 약 1년). 원하지 않으면 통계·오류 보고를 끄거나 계정을 지우면 돼요.</li>
+<li><b>의견 보내기</b>: 직접 적어 보낸 글과 게임 버전·기기 종류·모드만 오류 보고와 같은 곳(Sentry, 미국)으로 가요. 아이디·닉네임은 보내지 않아요. 약 30일 보관.</li>
 <li><b>순위표</b>: 순위표가 열리면 무한의 방 기록과 닉네임·영웅이 다른 이용자에게 보여요.</li>
 <li><b>보관 기간</b>: 계정을 지울 때까지. 설정 → 정보 → 계정 삭제에서 언제든 바로 지울 수 있고, 지우면 서버의 저장 데이터와 로그인 정보가 함께 지워져요.</li>
 <li><b>만 14세 미만</b>: 보호자 동의 없이 가입하지 않도록 해 주세요.</li>
@@ -2225,6 +2227,27 @@ UI.saga = function (pickF) {
   document.querySelectorAll(".sgsc li[data-sk]").forEach((b) => (b.onclick = () => UI.story(b.dataset.sk, () => {})));
   if ($("#sgopen")) $("#sgopen").onclick = () => UI.story("open", () => {});
   $("#sggo").onclick = () => { if (!lock) UI.chars({ mode: "story", floor: cur }); };
+};
+// ===================== 11-21 B4 의견 보내기 (CBT 피드백 채널) =====================
+// Sentry 사용자 의견(captureFeedback)으로 보냄 — 서버 설정 없이 개발자가 오류와 함께 읽음. 아이디·닉네임은 넣지 않음(적은 글만).
+UI.feedback = function (o) {
+  o = o || {}; const wasG = G && !G.over && !G.paused; if (wasG) G.paused = true;
+  const cats = ["버그", "밸런스(어려움·쉬움)", "그림·소리", "재미·제안", "기타"];
+  UI.modal(`<h2>의견 보내기</h2><p class="muted" style="text-align:center">불편했던 곳, 좋았던 곳, 바라는 것 무엇이든 적어 주세요. 아이디·닉네임은 함께 보내지 않아요.</p>
+    <div class="fbcats">${cats.map((c, i) => `<button class="btn sm${i ? "" : " gold"}" data-fc="${c}">${c}</button>`).join("")}</div>
+    <textarea id="fbtx" maxlength="1000" placeholder="예) 2장 보스 방에서 화면이 멈췄어요 / 궁수가 너무 약해요" style="width:100%;box-sizing:border-box;height:140px;margin-top:8px;background:#0b0907;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit"></textarea>
+    <p class="muted" style="font-size:.78rem">함께 가는 정보: 게임 버전 ${GAME_VERSION} · 기기 종류 · 지금 모드${G && G.floor ? " · " + G.floor + "장" : ""}</p>
+    <div class="center"><button class="btn gold" id="fbsend">보내기</button><button class="btn" id="fbno">닫기</button></div>`);
+  let cat = cats[0];
+  document.querySelectorAll("[data-fc]").forEach((b) => (b.onclick = () => { cat = b.dataset.fc; document.querySelectorAll("[data-fc]").forEach((x) => x.classList.toggle("gold", x === b)); }));
+  const close = () => { UI.closeModal(); if (wasG && G) G.paused = false; };
+  $("#fbno").onclick = close;
+  $("#fbsend").onclick = () => {
+    const t = ($("#fbtx").value || "").trim(); if (t.length < 4) { UI.toast("조금만 더 적어 주세요"); return; }
+    const send = () => { try { Sentry.captureFeedback({ message: `[${cat}] ${t}`, source: o.from || "settings" }, { captureContext: { tags: { kind: "feedback", cat, ver: GAME_VERSION, mode: G ? G.mode : "menu", floor: G ? G.floor : 0 } } }); return true; } catch (e) { return false; } };
+    if (window.Sentry && Sentry.captureFeedback && send()) { track && track("feedback", { cat }); close(); UI.toast("고마워요! 의견이 잘 전해졌어요", 2600); return; }
+    UI.toast(`지금은 보낼 수 없어요 — ${SUPPORT.mail} 로 보내 주세요`, 4000);
+  };
 };
 // ===================== 11-20 판 들어가기 로딩 화면 =====================
 // 사용자: "그림받는중 이후 바로 게임으로 입장이 안되고 다시 눌러야함, 이미지가 별로". 전체 화면 그림 + 받는 양 막대 + 한마디, 다 받으면 바로 들어감(다시 누를 필요 없음).
