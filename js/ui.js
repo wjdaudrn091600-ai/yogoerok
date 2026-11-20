@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.0";
+const GAME_VERSION = "3.0.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1422,7 +1422,7 @@ window.addEventListener("beforeunload", () => saveGame());
   window.addEventListener("keydown", (e) => { if (G || !SAVE || UI.typing()) return; i = e.code === seq[i] ? i + 1 : e.code === seq[0] ? 1 : 0;
     if (i === seq.length) { i = 0; if (SAVE.eggs.konami) { UI.toast("🎮 이미 받은 비밀 명령어예요", 2500); return; } SAVE.eggs.konami = 1; SAVE.coins += 10; saveGame(); UI.toast("🎮 비밀 명령어! 토벌꾼의 축복 · 코인 +10", 4500); if ($("#menu")) UI.menu(); } }); })();
 window.addEventListener("error", (e) => UI.error(e.error || { message: e.message }));
-loadImages(); initEngine(); setTimeout(() => UI.langFirst(() => UI.login()), 0); setTimeout(checkUpdate, 1500); // 11-21 언어 선택은 이 파일 아래쪽에서 정의되므로 다 읽은 뒤 실행
+loadImages(); initEngine(); if (/autotest/.test(location.hash) || ls.get("ygr_lang_set")) UI.login(); else setTimeout(() => UI.langFirst(() => UI.login()), 0); setTimeout(checkUpdate, 1500); // 11-21 처음 실행만 언어 선택(이 파일 아래쪽에서 정의되므로 다 읽은 뒤), 그 밖엔 예전처럼 바로
 if (!/autotest/.test(location.hash) && ls.get("ygr_auto")) { if ($("#lerr")) $("#lerr").textContent = "☁️ 자동 로그인 중…"; autoLogin().then((ok) => { if (ok && !G) afterLogin(); else if ($("#lerr")) $("#lerr").textContent = ""; }).catch(() => { if ($("#lerr")) $("#lerr").textContent = ""; }); }
 // ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
 // 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
