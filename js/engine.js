@@ -17,7 +17,7 @@ function imgPump() {
   while (IMGQ.act < 12 && (IMGQ.hi.length || IMGQ.lo.length)) {
     const j = IMGQ.hi.shift() || IMGQ.lo.shift(); if (j.started) continue; j.started = true; IMGQ.act++;
     const im = new Image(); im.decoding = "async"; IMG[j.k] = im;
-    im.onload = im.onerror = () => { IMGQ.act--; j.done = true; for (const f of j.cb) f(); j.cb = []; imgPump(); };
+    im.onload = im.onerror = () => { IMGQ.act--; j.done = true; if (typeof warmLate === "function") warmLate(j.k); for (const f of j.cb) f(); j.cb = []; imgPump(); };
     im.src = j.url;
   }
 }
@@ -89,6 +89,9 @@ function needRunPacks(opt) { const L = runPackList(opt); L.later.forEach((n) => 
 // 그림 미리 풀어 두기 (사용자 11-14: 모바일에서 렉이 살짝씩) — 그림을 처음 그리는 순간 그 자리에서 압축을 풀어서
 // 싸움 첫 10여 초에 0.05~0.13초씩 멈칫했다(폰 성능 흉내 시험, 그 뒤로는 0번). 이번 판에 쓸 그림만 미리 백그라운드에서 푼다.
 const WARMED = new Set();
+// 11-20 2.7.10: 판 시작 뒤 뒤에서(lo) 받은 그림은 warmRun 때 아직 없어서 안 풀렸다 → 새 요괴 처음 나올 때 멈칫. 받는 대로 이번 판 목록에 맞으면 풀어 둠
+let WARM_P = null, _warmT = 0;
+function warmLate(k) { if (!WARM_P || WARMED.has(k) || !G || !G.p || !WARM_P.some((p) => k.startsWith(p))) return; if (!_warmT) _warmT = setTimeout(() => { _warmT = 0; if (WARM_P && G && G.p) warmKeys(WARM_P); }, 250); }
 let _warmCv = null;
 function warmCtx() { if (!_warmCv) { _warmCv = document.createElement("canvas"); _warmCv.width = _warmCv.height = 512; } return _warmCv.getContext("2d"); }
 function warmKeys(prefixes) {
@@ -98,7 +101,7 @@ function warmKeys(prefixes) {
     // 싸우는 중(방이 잠김)에는 쉬었다가, 조용할 때(시작 방·정리한 방·멈춤·이야기 화면) 이어서 푼다
     if (G && !G.paused && typeof roomLocked === "function" && G.cur && roomLocked()) { setTimeout(step, 400); return; }
     const batch = keys.slice(i, i + 6); i += 6;
-    Promise.all(batch.map((k) => { WARMED.add(k); const im = IMG[k]; return im && im.decode ? im.decode().catch(() => { }) : null; })).then(() => {
+    Promise.all(batch.map((k) => { WARMED.add(k); const im = IMG[k]; return im && im.decode ? im.decode().then(() => { try { warmCtx().drawImage(im, 0, 0); } catch (e) { } }).catch(() => { }) : null; })).then(() => {
       if (i < keys.length) requestAnimationFrame(step);
     });
   };
@@ -113,7 +116,7 @@ function warmRun() {
   for (const k of (th && th.enemies) || []) { const e = ENEMIES[k]; if (e && e.img) P.push(e.img); }
   const bosses = Object.keys(BOSSES).filter((k) => BOSSES[k].fl === f || (G.mode === "raid" && !BOSSES[k].mid));
   for (const k of bosses) { const d = BOSSES[k]; if (!d) continue; const im = d.img || k; P.push(im, "cvfx_bfx_" + im, "cvfx_bp_" + im, "cvfx_btel_" + im); }
-  P.push("sc_f" + f + "_", "wall", "room", "f" + f);
+  P.push("sc_f" + f + "_", "wall", "room", "f" + f); WARM_P = P;
   return warmKeys(P);
 }
 function loadImages() { } // 11-20 2.3: IMG 가 필요할 때 만듦 (위 Proxy)
