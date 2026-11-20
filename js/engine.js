@@ -257,7 +257,7 @@ function scaleMods(m, k) { const o = {}; for (const x in m) o[x] = x === "revive
 // 난이도: 층·스테이지가 오를수록 강해짐 (이전판보다 가파르게)
 function diffMul() {
   const m = diffBase(), D = (G.mode === "story" || G.mode === "endless") && DIFF[(G.opt && G.opt.diff) || "normal"];
-  if (D) { m.hp *= D.hp; m.dmg *= D.dmg; } // 11-21 보통도 곱함(보통이 쉬워 1.1/1.12)
+  if (D && !(D === DIFF.normal && (G.mode === "story" ? G.floor <= 1 : (G.endlessN || 0) < 10))) { m.hp *= D.hp; m.dmg *= D.dmg; } // 11-21 보통 1.1/1.12 — 1장(무한은 처음 10방)은 예전 그대로: 초보 원거리 봇이 1장 첫 스테이지에서 3번 다 쓰러짐(예전 값이면 1-5까지)
   const dh = typeof dailyRule === "function" && dailyRule("hp"); if (dh) { m.hp *= dh; m.dmg *= dailyRule("dmg") || 1; }
   const n = partyN(); if (n > 1) { m.hp *= 1 + PARTY_HP * (n - 1); m.dmg *= 1 + PARTY_DMG * (n - 1); m.party = n; } // 사용자 요청 11-12: 인원수만큼 강해짐
   return m;
