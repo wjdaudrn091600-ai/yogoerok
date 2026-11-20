@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.8.4";
+const GAME_VERSION = "2.8.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1152,7 +1152,7 @@ const UI = {
     const cu = G.curse ? ` · ${CURSES[G.curse].ic} ${CURSES[G.curse].name}` : "";
     const dTag = (G.mode === "story" || G.mode === "endless") && G.opt && G.opt.diff && G.opt.diff !== "normal" ? ` · ${DIFF[G.opt.diff].name}` : "";
     const Yc = G.mode === "story" ? YOKAI_EL[(G.floor - 1) % 5] : G.mode === "endless" ? YOKAI_EL[((G.eFloor || 1) - 1) % 5] : null; const yTag = Yc ? ` · ${Yc.n} 속성` : "";
-    const st = (G.mode === "practice" ? "🎯 연습장" : G.mode === "dev" ? "🛠 개발자 맵" : G.mode === "raid" ? `🐉 보스 레이드 · ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : G.mode === "story" ? `${G.floor}장 · ${theme().name} · ${G.stage}/${STAGES_PER_FLOOR} 스테이지` : G.mode === "endless" ? `♾️ 무한의 방 · ${((G.eFloor || 1) - 1) % 5 + 1}층${(G.eFloor || 1) > 5 ? ` (${Math.floor(((G.eFloor || 1) - 1) / 5) + 1}회차)` : ""} ${G.eStage || 1}/${STAGES_PER_FLOOR} 스테이지 · ${G.endlessN}번째 방` : `⚔️ ${G.duel.round}라운드 · ${G.duel.wins[0]} : ${G.duel.wins[1]}`) + dTag + yTag + cu;
+    const st = (G.mode === "practice" ? "🎯 연습장" : G.mode === "dev" ? "🛠 개발자 맵" : G.mode === "raid" ? `🐉 보스 레이드 · ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : G.mode === "story" ? `${G.floor}장 · ${theme().name} · ${G.stage}/${STAGES_PER_FLOOR} 스테이지` : G.mode === "endless" ? `♾️ 무한의 방 · ${((G.eFloor || 1) - 1) % 5 + 1}층${(G.eFloor || 1) > 5 ? ` (${Math.floor(((G.eFloor || 1) - 1) / 5) + 1}회차)` : ""} ${G.eStage || 1}/${STAGES_PER_FLOOR} 스테이지 · ${(G.endlessN || 0) + 1}번째 방` : `⚔️ ${G.duel.round}라운드 · ${G.duel.wins[0]} : ${G.duel.wins[1]}`) + dTag + yTag + cu;
     { const hs = $("#hstage"); if (hs.dataset.k !== st) { hs.dataset.k = st; hs.textContent = st; } } // 바뀔 때만 (깜빡임 방지, 11-12)
     const b = G.mode === "duel" ? G.bot : G.bossUnit && G.bossUnit.alive ? G.bossUnit : null;
     $("#hboss").hidden = !b; if (b) $("#hboss").classList.toggle("rage", !!b.ph2); if (b) { $("#hbn").textContent = b.kind === "hero" ? `${b.guestName ? b.guestName + " — " : ""}${(b.def.name || b.name || "").replace(/\(.*\)/, "")}${b.def.job ? " · " + b.def.job : ""}${b.formName ? "(" + b.formName + ")" : ""}` : b.name; $("#hbhp").style.width = (Math.max(0, b.hp) / b.maxHp) * 100 + "%"; hpLag("b" + (b.id || b.name), Math.max(0, b.hp) / b.maxHp, $("#hbhpl")); }
