@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.8";
+const GAME_VERSION = "2.7.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2353,6 +2353,16 @@ const HERO_LINES = {musa: ["칼은 무겁게, 마음은 가볍게. 그게 내 �
 // 11-20 영웅 성별 (이야기 주인공 그림을 고른 영웅에 맞추려고) — 카드 그림 기준. 봉냥이: 늑대인간 남 / 구미호 여
 const HERO_F = new Set(["archer", "danbi", "fox", "geommu", "gunner", "hwaryeon", "moon", "priest", "summoner", "yakcho"]);
 function heroSex(id, form) { id = id || (G && G.p && G.p.id) || UI._runChar || (SAVE && SAVE.sel) || "musa"; if (/^bong/.test(id)) { const f = form || (G && G.p && G.p.id === id && G.p.form) || ""; return /fox/.test(id + f) ? "f" : "m"; } return HERO_F.has(id) ? "f" : "m"; }
+// ===================== 11-20 끊김 자동 감지 → 저사양 모드 한 번 제안 없이 켜기 =====================
+// 모바일 히트작처럼: 판 안에서 20초 넘게 평균 40프레임 아래면 저사양 모드를 켜고 알려 줌(한 번만, 설정에서 끌 수 있음)
+(function () {
+  let last = performance.now(), acc = 0, n = 0, slow = 0;
+  const f = (t) => { const d = t - last; last = t;
+    if (G && G.p && !G.paused && !G.over && d < 500 && SAVE && !SAVE.settings.low && !SAVE.autoLowDone && !/autotest/.test(location.hash)) { acc += d; n++; if (acc > 4000) { if (n / (acc / 1000) < 40) slow++; else slow = Math.max(0, slow - 1); acc = 0; n = 0;
+        if (slow >= 5) { SAVE.autoLowDone = 1; SAVE.settings.low = true; saveGame(); if (typeof resize === "function") resize(); UI.toast("화면이 자주 끊겨서 저사양 모드를 켰어요 — 설정에서 끌 수 있어요", 5000); } } }
+    requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+})();
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
