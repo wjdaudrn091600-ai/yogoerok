@@ -291,7 +291,7 @@ function charDef(id, form) {
   return Object.assign({}, c, f, { form, formName: f.formName });
 }
 const charArt = (id, form) => (CHAR[id].forms ? (CHAR[id].forms[form] || Object.values(CHAR[id].forms)[0]).art : id);
-const UNLOCK_TYPE = { start: "기본", mission: "미션 해금", special: "특수 미션", floor: "층 도달", gacha: "가챠" };
+const UNLOCK_TYPE = { start: "기본", mission: "미션 해금", special: "특수 미션", floor: "층 도달", gacha: "뽑기" };
 
 // ===== 액티브 (Space) — 원정 중 랜덤으로 얻어 1개만 들기 =====
 // 사용자 요청 11-10: 기본 50 · 저급 25 · 중급 15 · 상급 7 · 특급 3 (총 100) + 보스 전용 6 (따로 특수 제작)
@@ -396,8 +396,8 @@ const BOON_KEYS = Object.keys(BOONS);
 
 // ===== 가챠 비용·확률 =====
 const GACHA = {
-  char: { name: "캐릭터 뽑기", cost: 5, cost10: 45, pity: 20, rate: 0.07, desc: "가챠 전용 영웅 4명. 20번 안에 반드시 1명. 이미 가진 영웅은 별(★)이 올라 공격력·체력 +6% (최대 ★5)" },
-  art: { name: "아티팩트 뽑기", cost: 2, cost10: 18, rates: { 1: 0.58, 2: 0.3, 3: 0.1, 4: 0.02 }, desc: "같은 아티팩트는 조각으로 바뀌어요 · 보관함에서 조각으로 강화 (+1 당 효과 +20%, 최대 +5, 단계마다 성공 확률 낮아짐)" },
+  char: { name: "캐릭터 뽑기", cost: 5, cost10: 45, pity: 20, rate: 0.07, desc: "뽑기 전용 영웅 4명. 20번 안에 반드시 1명. 이미 가진 영웅은 별(★)이 올라 공격력·체력 +6% (최대 ★5)" },
+  art: { name: "보물 뽑기", cost: 2, cost10: 18, rates: { 1: 0.58, 2: 0.3, 3: 0.1, 4: 0.02 }, desc: "같은 보물는 조각으로 바뀌어요 · 보관함에서 조각으로 강화 (+1 당 효과 +20%, 최대 +5, 단계마다 성공 확률 낮아짐)" },
   pet: { name: "펫 뽑기", cost: 3, cost10: 27, rates: { 1: 0.55, 2: 0.3, 3: 0.12, 4: 0.03 }, desc: "같은 펫은 조각으로 바뀌어요 · 보관함에서 조각으로 강화 (+1 당 효과 +20%, 최대 +5, 단계마다 성공 확률 낮아짐)" },
   title: { name: "칭호 뽑기", cost: 1, cost10: 9, rates: { 1: 0.6, 2: 0.28, 3: 0.1, 4: 0.02 }, desc: "같은 칭호는 엽전 80개로 바뀜" },
 };
@@ -433,7 +433,7 @@ const MISSIONS = [
   { id: "d1", stat: "duelWins", n: 1, coin: 1, name: "1대1 대전 첫 승리" },
   { id: "d5", stat: "duelWins", n: 5, coin: 3, name: "1대1 대전 5승" },
   { id: "d15", stat: "duelWins", n: 15, coin: 5, name: "1대1 대전 15승" },
-  { id: "g10", stat: "pulls", n: 10, coin: 2, name: "가챠 10번 뽑기" },
+  { id: "g10", stat: "pulls", n: 10, coin: 2, name: "뽑기 10번 뽑기" },
   { id: "c3", stat: "charsOwned", n: 3, coin: 2, name: "캐릭터 3명 모으기" },
   { id: "c8", stat: "charsOwned", n: 8, coin: 4, name: "캐릭터 8명 모으기" },
   { id: "sp1", stat: "bossHighHp", n: 1, coin: 3, name: "[특수] 체력 60% 이상 남긴 채 보스 처치" },
@@ -838,7 +838,7 @@ const SHOP_ITEMS = {
   armor: { name: "철갑", ic: "🥋", desc: "이번 원정 동안 최대 체력 +15%", price: 90, m: { hp: 0.15 } },
   eye: { name: "매의 깃", ic: "🪶", desc: "이번 원정 동안 치명타 +6%", price: 90, m: { crit: 0.06 } },
   wind: { name: "바람 신발", ic: "👟", desc: "이번 원정 동안 이동 속도 +10%", price: 80, m: { spd: 0.1 } },
-  coin: { name: "가챠 코인", ic: "🪙", desc: "가챠 코인 1개", price: 260 },
+  coin: { name: "뽑기 코인", ic: "🪙", desc: "뽑기 코인 1개", price: 260 },
 };
 
 // ===== 등급·사거리·조각·강화 — 사용자 요청 11-11 =====

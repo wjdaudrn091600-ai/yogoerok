@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.6.0";
+const GAME_VERSION = "2.7.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -288,7 +288,7 @@ function unlockProgress(c) {
 function checkUnlocks() {
   if (!SAVE) return;
   for (const c of CHARS) { if (SAVE.chars[c.id] || c.unlock.type === "gacha") continue; if (unlockProgress(c).ok) { SAVE.chars[c.id] = 1; UI.toast(`🔓 새 캐릭터 해금: ${c.name} (${c.job})`, 4000); } }
-  for (const [T, store, label] of [[TITLES, "titles", "🏷️ 칭호"], [ARTIFACTS, "arts", "🔮 아티팩트"], [PETS, "pets", "🐾 펫"]]) for (const k in T) { const it = T[k]; if (!it.c || SAVE[store][k]) continue; if (statVal(it.c.stat) >= it.c.n) { SAVE[store][k] = 1; UI.toast(`${label} 획득: ${it.name} (${HOW_NAME[it.how]} · ${it.c.text})`, 4200); } }
+  for (const [T, store, label] of [[TITLES, "titles", "🏷️ 칭호"], [ARTIFACTS, "arts", "🔮 보물"], [PETS, "pets", "🐾 펫"]]) for (const k in T) { const it = T[k]; if (!it.c || SAVE[store][k]) continue; if (statVal(it.c.stat) >= it.c.n) { SAVE[store][k] = 1; UI.toast(`${label} 획득: ${it.name} (${HOW_NAME[it.how]} · ${it.c.text})`, 4200); } }
 }
 const missionDone = (m) => statVal(m.stat) >= m.n;
 // 기간 미션: 날짜·주·달이 바뀌면 그때의 기록을 기준으로 다시 셈
@@ -579,7 +579,7 @@ const UI = {
     const duo = SAVE.duo || {}, duos = Object.keys(BOONS).filter((k) => BOONS[k].duo).map((k) => { const b = BOONS[k]; return `<div class="item ${duo[k] ? "" : "off"}" style="min-height:0;padding:8px"><b>${b.ic || ""} ${duo[k] ? b.name : "???"}</b><span class="muted" style="font-size:.8rem">${(b.req || []).map((q) => BOONS[q].name).join(" + ")}${duo[k] ? " → " + b.desc.replace(/^\[조합\][^→]*→\s*/, "") : ""}</span></div>`; }).join("");
     const extra = `<h3 style="margin-top:18px">일반 요괴 <span class="muted">${Object.keys(ENEMIES).filter((k) => mk[k]).length}/${Object.keys(ENEMIES).length}</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${mobs}</div>
       <h3 style="margin-top:18px">엘리트 특성 <span class="muted">엘리트 요괴 머리 위에 이름이 보여요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${affs}</div>
-      <h3 style="margin-top:18px">조합 패시브 <span class="muted">두 패시브를 모두 가지면 레벨업 때 나와요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${duos}</div>`;
+      <h3 style="margin-top:18px">조합 강화 <span class="muted">두 강화를 모두 가지면 레벨업 때 나와요</span></h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${duos}</div>`;
     UI.frame("📖 요괴록 도감", `<div class="center" style="margin:4px 0 8px"><button class="btn gold" id="sbook">📜 이야기 다시 보기</button></div><p class="muted">${got}/${all} · 잡은 요괴를 누르면 설화와 토벌 요령이 열려요 (3번: 요령 · 10번: 토벌 완료 도장)</p>${floors}${extra}`);
     if ($("#sbook")) $("#sbook").onclick = () => UI.storyBook();
     document.querySelectorAll("[data-lore]").forEach((c) => { const n = (SAVE.kb || {})[c.dataset.lore] || 0; if (n) { c.style.cursor = "pointer"; if (n >= 10) c.classList.add("ldone"); c.onclick = () => UI.loreOpen(c.dataset.lore, false); } });
@@ -597,7 +597,7 @@ const UI = {
     const GATE = { endless: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", raid: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", duel: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요",
       multi: f1 ? "" : "스토리 1층 보스를 쓰러뜨리면 열려요", gacha: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", bag: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", skills: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요" };
     const opened = Object.keys(GATE).filter((k) => !GATE[k]); SAVE.gateSeen = SAVE.gateSeen || {}; const fresh = opened.filter((k) => !SAVE.gateSeen[k]);
-    if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "멀티", gacha: "가챠", bag: "아티팩트·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
+    if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "멀티", gacha: "뽑기", bag: "보물·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
     for (const k of opened) SAVE.gateSeen[k] = 1; if (!Object.keys(SAVE.gateSeen).length) SAVE.gateSeen._ = 1;
     const modeRow = (m, t, d, extra) => `<button class="mode" data-m="${m}"${extra || ""}><div class="img" style="background-image:url(${imgSrc(ASSETS.img["ui_mode_" + m + "_" + heroSex(SAVE.sel)] ? "ui_mode_" + m + "_" + heroSex(SAVE.sel) : "ui_mode_" + m)})"></div><b>${t}</b><span>${d}</span></button>`;
     const dock = (k, ic, t, badge) => `<button class="sub" data-s="${k}"><span class="ic">${uiIc(ic, "")}</span><span class="dl">${t}</span>${badge || ""}</button>`;
@@ -674,8 +674,8 @@ const UI = {
       const f0 = forms[Math.floor(Date.now() / 3000) % forms.length];
       const def = charDef(id, f0), art = charArt(id, f0), eq = SAVE.skillEquip[id] || {};
       const skills = ["Q", "W", "E", "R"].map((s, i) => { const k = eq[s], sd = k && SKILLS[k] ? SKILLS[k] : c.sk[i];
-        return `<div class="skl"><span class="k">${abIc(k ? "gs_" + k : "sk_" + id + "_" + i, sd.ic, 30)}<small>${{ Q: "1", W: "2", E: "3", R: "4" }[s]}</small></span><div><b>${sd.name}</b> ${k ? `<span class="grade" style="background:${SK_GRADE[sd.grade].col}">${sd.grade}</span>` : '<span class="muted">기본</span>'} <span class="muted">· ${sd.cd}초</span><div class="muted">${sd.desc}</div></div></div>`; }).join("");
-      const lockInfo = own ? "" : c.unlock.type === "gacha" ? `<p>🎰 <b>가챠 전용 ${CHAR_GRADE[id]}급 영웅</b> — 캐릭터 뽑기로 조각 ${shardNeed(id)}개를 모으면 해금 (지금 ${(SAVE.shards || {})[id] || 0}개) · 아주 낮은 확률로 바로 획득</p><div class="prog"><i style="width:${Math.min(100, ((SAVE.shards || {})[id] || 0) / shardNeed(id) * 100)}%"></i></div>`
+        return `<div class="skl"><span class="k">${abIc(k ? "gs_" + k : "sk_" + id + "_" + i, sd.ic, 30)}<small>${{ Q: "1", W: "2", E: "3", R: "4" }[s]}</small></span><div><b>${sd.name}</b> ${k ? `<span class="grade" style="background:${SK_GRADE[sd.grade].col}">${sd.grade}</span>` : '<span class="muted">기본</span>'} <span class="muted">· ${sd.cd}초</span>${sd.lore ? `<div class="lore">${esc(sd.lore)}</div>` : ""}<div class="muted">${sd.desc}</div></div></div>`; }).join("");
+      const lockInfo = own ? "" : c.unlock.type === "gacha" ? `<p>🎰 <b>뽑기 전용 ${CHAR_GRADE[id]}급 영웅</b> — 캐릭터 뽑기로 조각 ${shardNeed(id)}개를 모으면 해금 (지금 ${(SAVE.shards || {})[id] || 0}개) · 아주 낮은 확률로 바로 획득</p><div class="prog"><i style="width:${Math.min(100, ((SAVE.shards || {})[id] || 0) / shardNeed(id) * 100)}%"></i></div>`
         : `<p>🔒 <b>${UNLOCK_TYPE[c.unlock.type]}</b>: ${c.unlock.text}</p><div class="prog"><i style="width:${(up.cur / up.n) * 100}%"></i></div><p class="muted">${(up.parts || [up.cur + " / " + up.n]).join(" · ")}</p>`;
       let start = "";
       const tryable = own || mode === "practice";
@@ -750,7 +750,7 @@ const UI = {
       const base = c.sk[i];
       const row = (k, sd, on, lv) => `<button class="item ${on ? "eq" : ""}" data-s="${s}" data-k="${k}" style="min-height:0;align-items:flex-start;text-align:left;width:100%"><div>${abIc(k ? "gs_" + k : "sk_" + cid + "_" + i, `<span style="font-size:1.4rem">${sd.ic}</span>`, 36)} <b>${sd.name}</b> ${k ? `<span class="grade" style="background:${SK_GRADE[sd.grade].col}">${sd.grade}</span>${sd.owner ? ' <span class="muted">고유</span>' : ""} <span class="muted">Lv.${lv}</span>` : '<span class="muted">기본</span>'}</div><div class="muted">${sd.desc} · ${sd.cd}초</div></button>`;
       return `<div class="card"><h3>${{ Q: "1번", W: "2번", E: "3번", R: "4번" }[s]} 칸 ${s === "R" ? "· 궁극기" : ""}</h3><div style="display:flex;flex-direction:column;gap:6px">${row("", base, !eq[s])}${list.map((k) => row(k, SKILLS[k], eq[s] === k, SAVE.skills[k])).join("")}</div>
-        ${list.length ? "" : '<p class="muted">가챠에서 이 칸 스킬을 뽑으면 여기에 나와요</p>'}</div>`;
+        ${list.length ? "" : '<p class="muted">뽑기에서 이 칸 스킬을 뽑으면 여기에 나와요</p>'}</div>`;
     }).join("");
     UI.frame("스킬 장착", `<div class="tabs">${tabs}</div><p class="muted">같은 스킬을 또 뽑으면 Lv.업 (피해 +10%, 최대 Lv.5)</p>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${cols}</div>`);
@@ -760,14 +760,14 @@ const UI = {
 
   // ----- 가챠 -----
   gacha(opt) {
-    if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "가챠") UI.gacha(opt); });
+    if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "뽑기") UI.gacha(opt); });
     const tab = opt.tab || "char", slot = opt.slot || "Q";
     music("gacha");
     // 보유 개수 (사용자 요청 11-13: 0/30처럼 남은 개수 보기 쉽게)
     const gcnt = (k) => { if (k === "char") { const hs = CHARS.filter((c) => c.unlock.type === "gacha"); return [hs.filter((c) => SAVE.chars[c.id]).length, hs.length]; } if (k === "skill") return [SKILL_KEYS.filter((x) => SAVE.skills[x]).length, SKILL_KEYS.length];
       const T = { art: [ARTIFACTS, "arts"], pet: [PETS, "pets"], title: [TITLES, "titles"] }[k], pool = gachaPool(T[0]); return [pool.filter((x) => SAVE[T[1]][x]).length, pool.length]; };
     const cntPill = (k) => { const [a, b] = gcnt(k); return `<div class="gcount"><b>${a}</b><span>/ ${b}</span><small>${a >= b ? "모두 모았어요!" : "남은 " + (b - a) + "개"}</small></div>`; };
-    const tabs = [["char", "🧑 캐릭터"], ["skill", "📜 스킬"], ["art", "🔮 아티팩트"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => { const [a, b] = gcnt(k); return `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} <small>${a}/${b}</small></button>`; }).join("");
+    const tabs = [["char", "🧑 캐릭터"], ["skill", "📜 스킬"], ["art", "🔮 보물"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => { const [a, b] = gcnt(k); return `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} <small>${a}/${b}</small></button>`; }).join("");
     let body = "";
     const pctRow = (rates) => Object.entries(rates).sort((a, b) => b[0] - a[0]).map(([r, p]) => `<span class="pill" style="border-color:${RARITY[r].col}"><b style="color:${RARITY[r].col}">${RARITY[r].name}</b> ${(p * 100).toFixed(1)}%</span>`).join("");
     if (tab === "char") {
@@ -793,7 +793,7 @@ const UI = {
         <div class="row"><button class="btn gold" data-p="1">1회 · ${curIc("coin")}${g.cost}</button><button class="btn gold" data-p="10">10회 · ${curIc("coin")}${g.cost10}</button></div></div>
 `;
     }
-    UI.frame("가챠", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인: 원정 성적 · 몬스터·상자·보스 · 미션 · 출석 · <a href="#" id="probl" style="color:var(--gold2)">🎲 확률 보기</a></p>`);
+    UI.frame("뽑기", `<div class="tabs">${tabs}</div>${body}<p class="muted" style="margin-top:14px">🪙 코인: 원정 성적 · 몬스터·상자·보스 · 미션 · 출석 · <a href="#" id="probl" style="color:var(--gold2)">🎲 확률 보기</a></p>`);
     if ($("#probl")) $("#probl").onclick = (e) => { e.preventDefault(); UI.info("prob", () => UI.open("gacha", opt)); };
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.gacha({ tab: b.dataset.t, slot })));
     document.querySelectorAll("[data-sl]").forEach((b) => (b.onclick = () => UI.gacha({ tab: "skill", slot: b.dataset.sl })));
@@ -822,15 +822,15 @@ const UI = {
   // ----- 보관함 -----
   bag(opt) {
     const tab = opt.tab || "art", T = { art: [ARTIFACTS, ART_KEYS, "arts"], pet: [PETS, PET_KEYS, "pets"], title: [TITLES, TITLE_KEYS, "titles"] }[tab];
-    if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "아티팩트 · 펫 · 칭호") UI.bag(opt); });
+    if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "보물 · 펫 · 칭호") UI.bag(opt); });
     const cnt = (k) => { const t = { art: [ARTIFACTS, "arts"], pet: [PETS, "pets"], title: [TITLES, "titles"] }[k]; return `${Object.keys(SAVE[t[1]]).filter((x) => t[0][x]).length}/${Object.keys(t[0]).filter((x) => t[0][x].how !== "secret" || SAVE[t[1]][x]).length}`; };
-    const tabs = [["art", "🔮 아티팩트"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} ${cnt(k)}</button>`).join("");
+    const tabs = [["art", "🔮 보물"], ["pet", "🐾 펫"], ["title", "🏷️ 칭호"]].map(([k, n]) => `<button class="tab ${k === tab ? "on" : ""}" data-t="${k}">${n} ${cnt(k)}</button>`).join("");
     const E = SAVE.equip;
     const slotHtml = (k, def, lab) => `<div class="slot" style="${k ? "border-style:solid;border-color:var(--gold)" : ""}">${k ? (def.img ? `<img src="${imgSrc(def.img)}" alt="">` : "🏷️") + `<span>${def.name}</span>` : lab}</div>`;
-    const slots = `<div class="slots">${slotHtml(E.arts[0], ARTIFACTS[E.arts[0]], "아티팩트 1")}${slotHtml(E.arts[1], ARTIFACTS[E.arts[1]], "아티팩트 2")}${slotHtml(E.pet, PETS[E.pet], "펫")}${slotHtml(E.title, TITLES[E.title], "칭호")}</div>`;
+    const slots = `<div class="slots">${slotHtml(E.arts[0], ARTIFACTS[E.arts[0]], "보물 1")}${slotHtml(E.arts[1], ARTIFACTS[E.arts[1]], "보물 2")}${slotHtml(E.pet, PETS[E.pet], "펫")}${slotHtml(E.title, TITLES[E.title], "칭호")}</div>`;
     const groups = ["gacha", "mission", "special", "drop", "story", "secret"].map((h) => { const ks = T[1].filter((k) => T[0][k].how === h && (h !== "secret" || SAVE[T[2]][k])); if (!ks.length) return "";
       return `<h3 style="margin-top:14px">${HOW_NAME[h]}${h === "story" ? " (스토리를 진행해야만 얻어요)" : ""} <span class="muted">${ks.filter((k) => SAVE[T[2]][k]).length}/${ks.length}</span></h3><div class="grid">${ks.map((k) => itemCard(tab, k, T[0][k], SAVE[T[2]][k], true)).join("")}</div>`; }).join("");
-    UI.frame("아티팩트 · 펫 · 칭호", `${slots}<p class="muted">눌러서 끼우고 빼요 · 대전에서는 적용 안 돼요</p><div class="tabs">${tabs}</div>${groups}`);
+    UI.frame("보물 · 펫 · 칭호", `${slots}<p class="muted">눌러서 끼우고 빼요 · 대전에서는 적용 안 돼요</p><div class="tabs">${tabs}</div>${groups}`);
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.bag({ tab: b.dataset.t })));
     document.querySelectorAll("[data-enh]").forEach((b) => (b.onclick = (e) => {
       e.stopPropagation(); const [kind, k] = b.dataset.enh.split(":"), store = SAVE[kind === "art" ? "arts" : "pets"], lv = store[k] || 1, el = lv - 1, c = ITEM_SHARD.cost(el), sk = kind + ":" + k;
@@ -977,7 +977,7 @@ const UI = {
         <li>근접 영웅은 기본 특성 '근접 투지'로 피해의 일부를 체력으로 흡수해요(흡혈). '피의 맹세' 같은 강화·전직으로 더 늘어요.</li></ul></section>
       <section class="ht"><h3>엽전과 코인</h3><ul>
         <li>엽전: 판 안에서만 쓰는 돈 — 보부상에게 물건을 사요.</li>
-        <li>코인: 판이 끝나도 남아요 — 뽑기(영웅·스킬·아티팩트·펫·칭호)에 써요.</li></ul></section>
+        <li>코인: 판이 끝나도 남아요 — 뽑기(영웅·스킬·보물·펫·칭호)에 써요.</li></ul></section>
     </div>`);
   },
 
@@ -996,7 +996,7 @@ const UI = {
         <p class="muted" style="margin:4px 0">체력 ${def.hp} · 공격 ${def.atk} · 이동 ${def.spd} · ${def.range}</p>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${c.sk.map((k, i) => `<span class="pill" title="${k.desc}">${i + 1} ${abIc("sk_" + c.id + "_" + i, k.ic, 22)} ${k.name}</span>`).join("")}</div></div>`;
     };
-    const myPick = `<h3 style="margin-top:16px">내 캐릭터 고르기 <span class="muted">(눌러서 바꾸기 · 아티팩트·펫·칭호·스킬 장착도 그대로 가져가요)</span></h3>
+    const myPick = `<h3 style="margin-top:16px">내 캐릭터 고르기 <span class="muted">(눌러서 바꾸기 · 보물·펫·칭호·스킬 장착도 그대로 가져가요)</span></h3>
       <div class="chars">${["SS", "S", "A", "B", "C"].map((g) => { const ids = owned.filter((id) => CHAR[id] && (CHAR_GRADE[id] || "C") === g); if (!ids.length) return "";
         // 등급별로 묶어 보기 (11-14 사용자: 멀티 캐릭터 선택도 등급별로) — 캐릭터 화면과 같은 머리줄
         return `<div class="grhead" style="grid-column:1/-1;border-color:${GRADE_INFO[g].col}"><b style="color:${GRADE_INFO[g].col}">${g}급</b> <span class="muted">${ids.length}명</span></div>` + ids.map((id) => `<button class="ch ${id === SAVE.sel ? "on" : ""}" data-mc="${id}" style="background-image:url(${imgSrc("card_" + charArt(id, CHAR[id].forms ? "wolf" : null))})"><span class="tag"><b style="color:${GRADE_INFO[g].col}">${g}</b></span><span class="nm">${CHAR[id].name}<small>${CHAR[id].job}${(SAVE.enh || {})[id] ? " +" + SAVE.enh[id] : ""}</small></span></button>`).join(""); }).join("")}</div>`;
@@ -1025,7 +1025,7 @@ const UI = {
           <li>인터넷이 필요해요. 둘 다 같은 최신 파일(또는 같은 주소)을 써야 해요.</li>
           <li>협동: 두 사람이 같은 방에서 함께 싸워요. 몬스터가 더 많아지지는 않지만 서로 도울 수 있어요. 한 명이 쓰러지면 다음 스테이지에서 체력 30%로 일어나요.</li>
           <li>경험치는 둘 다 받고, 엽전·코인은 주운 사람이 가져요. 상인은 방장만 이용해요.</li>
-          <li>1대1 대전: 친구와 레벨 10으로 맞춰 3판 2선승 (아티팩트·펫·칭호 빠짐).</li></ul></div>`;
+          <li>1대1 대전: 친구와 레벨 10으로 맞춰 3판 2선승 (보물·펫·칭호 빠짐).</li></ul></div>`;
     }
     UI.frame("👥 멀티 · 친구와 함께", body, back);
     const refresh = (st) => { if (st === "fail") { NET.leave(); } if ($("#screens .screen") && !G) UI.multi(); };
@@ -1170,10 +1170,10 @@ const UI = {
       const s = UI._tipSlot, tip = $("#tip"); let h = "";
       if (s === "B") h = `<b>${p.def.basic.name}</b><br>기본 공격 · 마우스 왼쪽 클릭 (누르고 있으면 연속, 커서 쪽으로)`;
       else if (s === "D") h = `<b>구르기</b><br>움직이는 방향으로 짧게 굴러 잠깐 무적 (${keyLabel(keyMap().dodge)}) · 대기 ${DODGE_CD}초`;
-      else if (s === "A") h = p.active ? `<b style="color:${ACT_TIER[ACTIVES[p.active.k].rar].col}">[${ACT_TIER[ACTIVES[p.active.k].rar].name}] ${ACTIVES[p.active.k].name}</b> Lv.${p.active.lv}<br>${ACTIVES[p.active.k].desc}<br><span class="muted">대기 ${ACTIVES[p.active.k].cd}초 · ${keyLabel(keyMap().act)} 키</span><br>${p.actLock ? `<span style="color:#ffd27a">🔒 잠금 중 — 다른 액티브를 밟아도 바뀌지 않아요 (${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 풀기)</span>` : `<span class="muted">🔓 ${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 잠그면 다른 액티브를 밟아도 바뀌지 않아요</span>`}` : "<b>액티브 없음</b><br>보물 방·보스·상인에게서 얻어요";
+      else if (s === "A") h = p.active ? `<b style="color:${ACT_TIER[ACTIVES[p.active.k].rar].col}">[${ACT_TIER[ACTIVES[p.active.k].rar].name}] ${ACTIVES[p.active.k].name}</b> Lv.${p.active.lv}${ACTIVES[p.active.k].lore ? `<br><i class="lore">${esc(ACTIVES[p.active.k].lore)}</i>` : ""}<br>${ACTIVES[p.active.k].desc}<br><span class="muted">대기 ${ACTIVES[p.active.k].cd}초 · ${keyLabel(keyMap().act)} 키</span><br>${p.actLock ? `<span style="color:#ffd27a">🔒 잠금 중 — 다른 액티브를 밟아도 바뀌지 않아요 (${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 풀기)</span>` : `<span class="muted">🔓 ${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 잠그면 다른 액티브를 밟아도 바뀌지 않아요</span>`}` : "<b>액티브 없음</b><br>보물 방·보스·상인에게서 얻어요";
       else { const sk = p.sk[s], real = (p.cdMax && p.cdMax[s]) || sk.cd * (1 - (p.cdr || 0)), base = sk.cd0 || sk.cd;
         const jobLine = sk.jobTag ? `<br><span style="color:#ffd98a">✨ 전직 변화 '${sk.jobTag}' · 위력 ×${(sk.pow || 1).toFixed(2)}${sk.cd0 && sk.cd0 !== sk.cd ? ` · 기본 대기 ${base}초 → ${+sk.cd.toFixed(1)}초` : ""}</span>` : "";
-        h = `<b>${sk.name}</b>${sk.grade ? ` <span class="grade" style="background:${SK_GRADE[sk.grade].col}">${sk.grade}</span>` : ""}<br>${sk.desc}${jobLine}<br><span class="muted">대기 ${+real.toFixed(1)}초${real < sk.cd - 0.05 ? ` (기본 ${+sk.cd.toFixed(1)}초)` : ""} · ${keyLabel(keyMap()["s" + ({ Q: 1, W: 2, E: 3, R: 4 }[s])])} 키</span>`; }
+        h = `<b>${sk.name}</b>${sk.grade ? ` <span class="grade" style="background:${SK_GRADE[sk.grade].col}">${sk.grade}</span>` : ""}${sk.lore ? `<br><i class="lore">${esc(sk.lore)}</i>` : ""}<br>${sk.desc}${jobLine}<br><span class="muted">대기 ${+real.toFixed(1)}초${real < sk.cd - 0.05 ? ` (기본 ${+sk.cd.toFixed(1)}초)` : ""} · ${keyLabel(keyMap()["s" + ({ Q: 1, W: 2, E: 3, R: 4 }[s])])} 키</span>`; }
       if (s !== "B" && isPlaceFx(slotFx(p, s))) h += `<br><span style="color:#ffd27a">📍 위치 지정 — 키를 누른 채 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)</span>`;
       tip.innerHTML = h; tip.hidden = false;
     }
@@ -1188,7 +1188,7 @@ const UI = {
     const canSave = G.mode === "story" && !G.opt.multi && !G.opt.daily;
     $("#modal").classList.add("pzmode"); UI.modal(pauseHtml(canSave));
     UI.bindSound();
-    document.querySelectorAll(".pzb[data-k]").forEach((t) => (t.onclick = () => { const on = t.classList.contains("on"); document.querySelectorAll(".pzb").forEach((x) => x.classList.remove("on")); const d = $("#pzdet"); if (on) { d.innerHTML = '<span class="muted">강화를 누르면 설명이 나와요</span>'; return; } t.classList.add("on"); const k = t.dataset.k, B = BOONS[k], n = +t.dataset.n; d.innerHTML = `<b style="color:${RARITY[B.rar].col}">${esc(B.name)}</b> <small>${RARITY[B.rar].name} · Lv.${n}</small><p>${esc(B.desc)}${n > 1 ? ` <span class="muted">(×${n})</span>` : ""}</p>`; }));
+    document.querySelectorAll(".pzb[data-k]").forEach((t) => (t.onclick = () => { const on = t.classList.contains("on"); document.querySelectorAll(".pzb").forEach((x) => x.classList.remove("on")); const d = $("#pzdet"); if (on) { d.innerHTML = '<span class="muted">강화를 누르면 설명이 나와요</span>'; return; } t.classList.add("on"); const k = t.dataset.k, B = BOONS[k], n = +t.dataset.n; d.innerHTML = `<b style="color:${RARITY[B.rar].col}">${esc(B.name)}</b> <small>${RARITY[B.rar].name} · Lv.${n}</small>${B.lore ? `<p class="lore">${esc(B.lore)}</p>` : ""}<p>${esc(B.desc)}${n > 1 ? ` <span class="muted">(×${n})</span>` : ""}</p>`; }));
     $("#pkeys").onclick = () => UI.keys(() => { UI._paused = false; UI.closeModal(); UI.buildHud(); UI.togglePause(); });
     $("#pr").onclick = () => UI.togglePause();
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
@@ -1265,11 +1265,11 @@ const UI = {
   },
   levelUp(opts) {
     // 고를 패시브가 남지 않으면(모두 Lv.3이거나 상한) 엽전으로 대신 (11-13)
-    if (!opts.length) { G.p.gold = (G.p.gold || 0) + 60; addText(G.p.x, G.p.y - 120, "패시브 모두 최대! 엽전 +60", "#ffe08a", 22); return; }
+    if (!opts.length) { G.p.gold = (G.p.gold || 0) + 60; addText(G.p.x, G.p.y - 120, "강화 모두 최대! 엽전 +60", "#ffe08a", 22); return; }
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
     $("#modal").classList.add("lvmode");
     const pips = (n) => `<div class="lvpips">${[0, 1, 2].map((i) => `<i class="${i < n ? "on" : i === n ? "nx" : ""}"></i>`).join("")}</div>`;
-    UI.modal(`<div class="lvhead"><small>LEVEL UP</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 패시브</em>"}</div><div class="lvline"></div><div class="lvdesc">${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
+    UI.modal(`<div class="lvhead"><small>기운이 차오른다</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 강화</em>"}</div><div class="lvline"></div><div class="lvdesc">${b.lore ? `<p class="lore">${esc(b.lore)}</p>` : ""}${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
@@ -1349,7 +1349,7 @@ function itemCard(kind, k, def, lv, equipable) {
   if (def.c) { const v = Math.min(statVal(def.c.stat), def.c.n); how += " · " + def.c.text; if (!lv) prog = `<div class="prog" style="width:100%"><i style="width:${(v / def.c.n) * 100}%"></i></div><span class="muted" style="font-size:.72rem">${v}/${def.c.n}</span>`; }
   return `<${tag} class="item ${lv ? "" : "off"} ${on ? "eq" : ""}" ${equipable && lv ? `data-eq="${k}"` : ""} style="border-color:${on ? "" : col + "66"}">
     ${(() => { const hd = hdCardKey(kind, k, def); return hd ? `<div class="hdc" style="background-image:url(${imgSrc(hd)});border-color:${col}"><i class="shine"></i></div>` : def.img ? `<img src="${imgSrc(def.img)}" alt="">` : `<span class="ico">🏷️</span>`; })()}<b style="color:${col}">${def.name}</b>
-    <span class="muted">${RARITY[def.rar].name}${lv && kind !== "title" ? " · +" + (lv - 1) : ""}</span><span class="muted" style="font-size:.8rem">${def.desc}</span>
+    <span class="muted">${RARITY[def.rar].name}${lv && kind !== "title" ? " · +" + (lv - 1) : ""}</span>${def.lore ? `<span class="lore" style="font-size:.76rem">${esc(def.lore)}</span>` : ""}<span class="muted" style="font-size:.8rem">${def.desc}</span>
     ${lv && kind !== "title" ? (() => { const sh = ((SAVE.ishards || {})[kind + ":" + k]) || 0, el = lv - 1; if (el >= ITEM_SHARD.max) return `<span class="muted" style="font-size:.75rem">조각 ${sh} · 최대 강화</span>`; const c = ITEM_SHARD.cost(el); return `<span class="muted" style="font-size:.75rem">조각 ${sh}/${c} · 성공 ${Math.round(SHARD.enhRate(el) * 100)}%</span><span class="btn sm gold" role="button" data-enh="${kind}:${k}" style="${sh >= c ? "" : "opacity:.45;pointer-events:none"}">강화</span>`; })() : ""}
     <span class="muted" style="font-size:.72rem">얻는 법: ${how}</span>${prog}${on ? '<span style="color:var(--gold)">착용 중</span>' : ""}</${tag}>`;
 }
@@ -1410,14 +1410,14 @@ function probTables() {
   const sg = ["S", "A", "B", "C", "D"];
   h += `<h3>📜 스킬 뽑기 (칸마다 따로)</h3>` + T(["Q", "W", "E", "R"].map((s) => [s === "R" ? "R (궁극기)" : s, ...sg.map((g) => { const n = SKILL_KEYS.filter((k) => SKILLS[k].slot === s && SKILLS[k].grade === g).length; return n ? `${pct(SK_GRADE[g].p)}<br><span class="muted">${n}종 · 1종당 ${pct(SK_GRADE[g].p / n)}</span>` : `${pct(SK_GRADE[g].p)}<br><span class="muted">없음 → D급으로</span>`; })]), ["칸", ...sg.map((g) => g + "급")]);
   // 아티팩트·펫·칭호
-  for (const [k, T0, nm] of [["art", ARTIFACTS, "🏺 아티팩트 뽑기"], ["pet", PETS, "🐾 펫 뽑기"], ["title", TITLES, "🏷 칭호 뽑기"]]) {
+  for (const [k, T0, nm] of [["art", ARTIFACTS, "🏺 보물 뽑기"], ["pet", PETS, "🐾 펫 뽑기"], ["title", TITLES, "🏷 칭호 뽑기"]]) {
     const pool = gachaPool(T0), R = GACHA[k].rates;
     h += `<h3>${nm} (1회 코인 ${GACHA[k].cost} · 10회 ${GACHA[k].cost10})</h3>` + T([4, 3, 2, 1].map((r) => { const n = pool.filter((x) => T0[x].rar === r).length; return [RARITY[r].name, pct(R[r] || 0), n ? `${n}종 · 1종당 ${pct((R[r] || 0) / n)}` : "없음"]; }), ["등급", "1회 확률", "종류"]);
   }
-  h += `<p class="muted">10회 뽑기: 아티팩트·펫·칭호는 10번째까지 희귀 이상이 없으면 10번째가 희귀 이상으로 바뀌어요.</p>`;
+  h += `<p class="muted">10회 뽑기: 보물·펫·칭호는 10번째까지 희귀 이상이 없으면 10번째가 희귀 이상으로 바뀌어요.</p>`;
   // 강화
   h += `<h3>⬆️ 강화 성공 확률</h3>` + T([Array.from({ length: SHARD.maxEnh }, (_, i) => pct(SHARD.enhRate(i)))], Array.from({ length: SHARD.maxEnh }, (_, i) => "+" + (i + 1)));
-  h += `<p class="muted">캐릭터 강화(최대 +${SHARD.maxEnh})·아티팩트·펫 강화(최대 +${ITEM_SHARD.max}) 모두 이 표를 따라요. 실패하면 단계는 그대로이고 쓴 조각은 사라져요.</p>`;
+  h += `<p class="muted">캐릭터 강화(최대 +${SHARD.maxEnh})·보물·펫 강화(최대 +${ITEM_SHARD.max}) 모두 이 표를 따라요. 실패하면 단계는 그대로이고 쓴 조각은 사라져요.</p>`;
   return h;
 }
 const TERMS = `<h3>이용약관 (요약)</h3><ol class="muted" style="line-height:1.8">
@@ -1638,7 +1638,7 @@ const TALK_ONCE = [
   { id: "first_event", p: 70, if: (c) => (SAVE.stats.events || 0) > 0, t: "도깨비 씨름판 봤어요? 그 외뿔 도깨비, 지면 삐져서 사흘은 안 나와요. 장승 물음은… 우리 마을 아이들도 다 아는 거니 틀리면 창피해요." },
   { id: "first_altar", p: 65, if: () => Object.keys(SAVE.altar || {}).length > 0, t: "제단에 혼불 바친 거 봤어요. 등불이 한결 밝아졌네. 그 불빛이 미궁 아래까지 닿는대요." },
   { id: "endless", p: 60, if: (c) => c.r.mode === "endless", t: "무한의 방이라… 끝이 없다던데, 정말 끝까지 가 볼 셈이에요? 갔다 와서 끝이 어땠는지 꼭 얘기해 줘요." },
-  { id: "raid", p: 60, if: (c) => c.r.mode === "raid", t: "층 보스들을 줄줄이 상대하다니 배짱 한번 좋네. 다음엔 펫이랑 아티팩트도 잘 맞춰 가요." },
+  { id: "raid", p: 60, if: (c) => c.r.mode === "raid", t: "층 보스들을 줄줄이 상대하다니 배짱 한번 좋네. 다음엔 펫이랑 보물도 잘 맞춰 가요." },
   { id: "many_kills", p: 55, if: (c) => c.r.kills >= 300, t: (c) => `한 판에 요괴 ${c.r.kills}마리라니! 주막 앞 혼불이 반딧불 떼처럼 날아다녀요.` },
 ];
 const TALK_CHAR = {
@@ -2052,7 +2052,7 @@ function isReleased(id) { // LAUNCH 가 없으면 모두 공개
   const days = (Date.now() - new Date(LAUNCH + "T00:00:00").getTime()) / 864e5; return days >= 0 && Math.floor(days / RELEASE_STEP_DAYS) * RELEASE_PER_STEP >= i - first + 1;
 }
 function releaseDay(id) { const i = RELEASE_PLAN.indexOf(id); if (!LAUNCH || i < 4) return null; const step = Math.ceil((i - 3) / RELEASE_PER_STEP); const d = new Date(new Date(LAUNCH + "T00:00:00").getTime() + step * RELEASE_STEP_DAYS * 864e5); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
-function pickupHero() { // 주마다 바뀌는 픽업 (공개된 가챠 영웅 중, 주 번호로 돌림)
+function pickupHero() { // 주마다 바뀌는 픽업 (공개된 뽑기 영웅 중, 주 번호로 돌림)
   const hs = CHARS.filter((c) => c.unlock.type === "gacha" && isReleased(c.id)); if (!hs.length) return null;
   const wk = Math.floor((Date.now() / 864e5 + 3) / 7); return hs[wk % hs.length].id;
 }
@@ -2083,10 +2083,10 @@ UI.shop = function (r) {
   if (!G || !G.p || !r || !r.stock) return;
   const p = G.p; G.paused = true; input.atkHeld = false; input.moveHeld = false;
   const info = (d) => {
-    if (d.what === "act") { const A = ACTIVES[d.k], T = ACT_TIER[A.rar]; const tl = /^ac_([a-z]+)_/.exec(d.k); return { ic: tl && ASSETS.img["obj_tal_" + tl[1]] ? "obj_tal_" + tl[1] : "obj_" + d.k, em: A.ic || "✨", n: A.name, t: `액티브 · ${T.name}`, c: T.col, ds: A.desc }; }
-    if (d.what === "boon") { const B = BOONS[d.k], R = RARITY[B.rar]; return { ic: "bn_" + d.k, em: B.ic, n: B.name, t: `강화 · ${R.name}`, c: R.col, ds: B.desc }; }
+    if (d.what === "act") { const A = ACTIVES[d.k], T = ACT_TIER[A.rar]; const tl = /^ac_([a-z]+)_/.exec(d.k); return { lore: A.lore, ic: tl && ASSETS.img["obj_tal_" + tl[1]] ? "obj_tal_" + tl[1] : "obj_" + d.k, em: A.ic || "✨", n: A.name, t: `액티브 · ${T.name}`, c: T.col, ds: A.desc }; }
+    if (d.what === "boon") { const B = BOONS[d.k], R = RARITY[B.rar]; return { lore: B.lore, ic: "bn_" + d.k, em: B.ic, n: B.name, t: `강화 · ${R.name}`, c: R.col, ds: B.desc }; }
     if (d.what === "herb") return { ic: "obj_herb", em: "🌿", n: "회복 약초", t: "소모품", c: "#7fe08a", ds: "체력 40% 회복" };
-    const I = SHOP_ITEMS[d.k]; return { ic: "obj_shop_" + d.k, em: I.ic || "📦", n: I.name, t: d.k === "coin" ? "코인" : "장비 · 이번 원정 동안", c: d.k === "coin" ? "#ffd27a" : "#9fd0ff", ds: I.desc };
+    const I = SHOP_ITEMS[d.k]; return { lore: I.lore, ic: "obj_shop_" + d.k, em: I.ic || "📦", n: I.name, t: d.k === "coin" ? "코인" : "장비 · 이번 원정 동안", c: d.k === "coin" ? "#ffd27a" : "#9fd0ff", ds: I.desc };
   };
   const rePrice = () => 40 + (r.reN || 0) * 35;
   let sel = -1;
@@ -2099,7 +2099,7 @@ UI.shop = function (r) {
   };
   const det = (gold) => { if (sel < 0 || !r.stock[sel]) return ""; const d = r.stock[sel], f = info(d), ok = !d.sold && gold >= d.price;
     return `<div class="shopdet" style="--sc:${f.c}"><button class="shopdx" id="shdx" aria-label="닫기">✕</button><div class="sdic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div>
-      <div class="sdtx"><small>${f.t}</small><h3>${esc(f.n)}</h3><p>${esc(f.ds)}</p>${more(d).map((x) => `<p class="muted">${esc(x)}</p>`).join("")}</div>
+      <div class="sdtx"><small>${f.t}</small><h3>${esc(f.n)}</h3>${f.lore ? `<p class="lore">${esc(f.lore)}</p>` : ""}<p>${esc(f.ds)}</p>${more(d).map((x) => `<p class="muted">${esc(x)}</p>`).join("")}</div>
       <button class="btn ${ok ? "gold" : ""}" id="shdb" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : gold >= d.price ? `엽전 ${d.price} · 사기` : `엽전 ${d.price} · 모자라요`}</button></div>`; };
   const close = () => { window.removeEventListener("keydown", kh); UI.closeModal(); G.paused = false; };
   const kh = (e) => { if (e.code === "Escape") { e.preventDefault(); if (sel >= 0) { sel = -1; draw(curLine); } else close(); } };
@@ -2229,7 +2229,7 @@ function pauseHtml(canSave) {
   const tiles = Object.keys(cnt).filter((k) => BOONS[k]).map((k) => { const B = BOONS[k], col = RARITY[B.rar].col;
     return `<button class="pzb" data-k="${k}" data-n="${cnt[k]}" style="--rc:${col}">${abIc("bn_" + k, B.ic, 60)}<span class="pzn">${esc(B.name)}</span>${cnt[k] > 1 ? `<b class="pzlv">${cnt[k]}</b>` : ""}</button>`; }).join("");
   const A = p.active && ACTIVES[p.active.k];
-  const act = A ? `<div class="pzact" style="--rc:${ACT_TIER[A.rar].col}">${abIc("ic_" + p.active.k, A.ic, 54)}<div><small>액티브 · ${ACT_TIER[A.rar].name} · Lv.${p.active.lv}</small><b>${esc(A.name)}</b><p>${esc(A.desc)}</p></div></div>` : `<div class="pzact none"><span class="muted">액티브 없음 — 요괴·상자·보부상에게서 얻어요</span></div>`;
+  const act = A ? `<div class="pzact" style="--rc:${ACT_TIER[A.rar].col}">${abIc("ic_" + p.active.k, A.ic, 54)}<div><small>액티브 · ${ACT_TIER[A.rar].name} · Lv.${p.active.lv}</small><b>${esc(A.name)}</b>${A.lore ? `<p class="lore">${esc(A.lore)}</p>` : ""}<p>${esc(A.desc)}</p></div></div>` : `<div class="pzact none"><span class="muted">액티브 없음 — 요괴·상자·보부상에게서 얻어요</span></div>`;
   return `<div class="pzw"><div class="pzl"><div class="pzhero" style="background-image:url(${imgSrc("card_" + art)})"></div><div class="pzid"><small>${esc(where)}</small><h2>${esc(C.name)}</h2><span>${esc(C.job || "")} · Lv.${p.lvl}</span></div>
       <dl class="pzst">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
     <div class="pzr"><h3>이번 판 강화 <small>${p.boons.length}개</small></h3><div class="pzgrid">${tiles || '<p class="muted">아직 고른 강화가 없어요</p>'}</div><div class="pzdet" id="pzdet"><span class="muted">강화를 누르면 설명이 나와요</span></div>

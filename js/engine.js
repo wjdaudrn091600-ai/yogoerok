@@ -692,7 +692,7 @@ function foesOf(team) { return G.units.filter((u) => u.alive && u.team !== team 
 // ---- 위치 지정 스킬 (사용자 요청 11-12): 설치·낙하·순간이동 스킬은 끌어서 자리 고르기 ----
 function isPlaceFx(fx) { return !!fx && fx.some((f) => (f.t === "zone" && f.at !== "self") || (f.t === "strike" && !(f.scatter >= 9999)) || f.t === "blink"); }
 // 구르기 (11-16, 모든 캐릭터 공통 회피): 움직이는 방향(없으면 커서 쪽)으로 짧게 굴러 잠깐 무적
-const DODGE_CD = 0.5; // 11-17 사용자: 대시(구르기)에 아주 짧은 쿨타임 (1.1→0.5초)
+const DODGE_CD = 0.5; // 11-17 사용자: 대시(구르기)에 아주 짧은 대기 시간 (1.1→0.5초)
 function dodge(u, at) {
   if (u.dash || (u.cd.D || 0) > 0) return false;
   let ax = at ? at.x - u.x : 0, ay = at ? at.y - u.y : 0;
