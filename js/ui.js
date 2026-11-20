@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.13";
+const GAME_VERSION = "2.7.14";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1292,7 +1292,7 @@ const UI = {
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
     UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
-      <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div><div><b>${r.coin}</b>코인</div>${newChars > 0 ? `<div><b>${newChars}</b>새 영웅</div>` : ""}</div>
+      <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div>${r.coin > 0 ? `<div><b>${r.coin}</b>판에서 주운 코인</div>` : ""}${newChars > 0 ? `<div><b>${newChars}</b>새 영웅</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴 " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
       ${typeof goalsHtml === "function" ? goalsHtml(r) : ""}
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 임무 보상이 있어요!</p>' : ""}
@@ -2225,14 +2225,14 @@ function pauseHtml(canSave) {
   const where = G.mode === "story" ? `${G.floor}장 ${G.stage}스테이지` : G.mode === "endless" ? `무한의 방 ${G.eFloor || 1}층` : G.mode === "raid" ? `보스 레이드 ${Math.min((G.raidN || 0) + 1, RAID_ORDER.length)} / ${RAID_ORDER.length}` : "";
   const pct = (v) => Math.round((v || 0) * 100) + "%";
   const ls = (p.ls || 0) + (typeof buffSum === "function" ? buffSum(p, "ls") : 0);
-  const stats = [["공격력", Math.round(atkOf(p))], ["체력", `${Math.round(p.hp)} / ${Math.round(p.maxHp)}`], ["치명타", pct(p.crit)], ["흡혈", pct(ls)], ["받는 피해", ((p.drBase || 0) >= 0 ? "-" : "+") + pct(Math.abs(p.drBase || 0))], ["스킬 대기", "-" + pct(p.cdr)], ["이동", Math.round(spdOf(p))], ...(p.revive ? [["부활", p.revive]] : [])];
+  const stats = [["공격력", Math.round(atkOf(p))], ["체력", `${Math.round(p.hp)} / ${Math.round(p.maxHp)}`], ["치명타", pct(p.crit)], ["흡혈", pct(ls)], ["받는 피해", (!p.drBase ? "" : p.drBase > 0 ? "-" : "+") + pct(Math.abs(p.drBase || 0))], ["스킬 대기", (p.cdr ? "-" : "") + pct(p.cdr || 0)], ["이동", Math.round(spdOf(p))], ...(p.revive ? [["부활", p.revive]] : [])];
   const tiles = Object.keys(cnt).filter((k) => BOONS[k]).map((k) => { const B = BOONS[k], col = RARITY[B.rar].col;
     return `<button class="pzb" data-k="${k}" data-n="${cnt[k]}" style="--rc:${col}">${abIc("bn_" + k, B.ic, 60)}<span class="pzn">${esc(B.name)}</span>${cnt[k] > 1 ? `<b class="pzlv">${cnt[k]}</b>` : ""}</button>`; }).join("");
   const A = p.active && ACTIVES[p.active.k];
   const act = A ? `<div class="pzact" style="--rc:${ACT_TIER[A.rar].col}">${abIc("ic_" + p.active.k, A.ic, 54)}<div><small>액티브 · ${ACT_TIER[A.rar].name} · Lv.${p.active.lv}</small><b>${esc(A.name)}</b>${A.lore ? `<p class="lore">${esc(A.lore)}</p>` : ""}<p>${esc(A.desc)}</p></div></div>` : `<div class="pzact none"><span class="muted">액티브 없음 — 요괴·상자·보부상에게서 얻어요</span></div>`;
   return `<div class="pzw"><div class="pzl"><div class="pzhero" style="background-image:url(${imgSrc("card_" + art)})"></div><div class="pzid"><small>${esc(where)}</small><h2>${esc(C.name)}</h2><span>${esc(C.job || "")} · Lv.${p.lvl}</span></div>
       <dl class="pzst">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
-    <div class="pzr"><h3>이번 판 강화 <small>${p.boons.length}개</small></h3><div class="pzgrid">${tiles || '<p class="muted">아직 고른 강화가 없어요</p>'}</div><div class="pzdet" id="pzdet"><span class="muted">강화를 누르면 설명이 나와요</span></div>
+    <div class="pzr"><h3>이번 판 강화 <small>${p.boons.length}개</small></h3><div class="pzgrid">${tiles || '<p class="muted" style="grid-column:1/-1;white-space:nowrap">아직 고른 강화가 없어요</p>'}</div><div class="pzdet" id="pzdet"><span class="muted">강화를 누르면 설명이 나와요</span></div>
       <h3>액티브</h3>${act}
       <div class="pzbtns"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
       <p class="muted pzhint">${canSave ? `저장하면 <b>${G.floor}장 ${G.stage}스테이지</b>부터 레벨·물건 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p>
