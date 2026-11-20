@@ -136,6 +136,7 @@ function hasBuff(u, k) { return u.buffs.some((b) => b[k]); }
 function recalc(u) {
   const m = sumMods([...u.baseMods, ...u.boons.map((k) => BOONS[k].m), ...(u.jobs || []).map((j) => j.m)]);
   for (const k in STAT_CAP) if (m[k] > STAT_CAP[k]) { (u.capped = u.capped || {})[k] = 1; m[k] = STAT_CAP[k]; }
+  for (const k in SOFT_CAP) if (m[k] > SOFT_CAP[k]) m[k] = SOFT_CAP[k] + (m[k] - SOFT_CAP[k]) * 0.5;
   u.m = m;
   const lvG = u.lvl - 1, star = (1 + 0.04 * (u.enh || 0)) * ((GRADE_INFO[CHAR_GRADE[u.id]] || GRADE_INFO.C).mul);
   const ratio = u.maxHp ? u.hp / u.maxHp : 1;
@@ -503,7 +504,8 @@ function populate(r) {
     setTimeout(() => { if (G && !G.over) UI.tip("event"); }, 600);
     r.cleared = true; r.evDone = true; G.drops.push({ type: "evt", k: typeof pickEvent === "function" ? pickEvent() : "bowl", x: RW / 2, y: RH / 2 - 10, used: false });
   } else if (r.type === "rest" && !r.cleared) {
-    r.cleared = true; G.drops.push({ type: "spring", x: RW / 2, y: RH / 2 + 20, used: false, wish: 0, price: Math.round(90 * shopPm() / 5) * 5 });
+    r.cleared = true; const wp = Math.random() < 0.4; G.drops.push({ type: "spring", x: RW / 2, y: RH / 2 + 20, used: false, wish: 0, price: wp ? Math.round(90 * shopPm() / 5) * 5 : 0 });
+    if (!wp && Math.random() < 0.5) G.drops.push({ type: "forge", x: RW / 2 + 360, y: RH / 2 + 40, used: 0, price: Math.round(100 * shopPm() / 5) * 5 }); // 11-21 떠돌이 대장간: 엽전으로 강화 하나를 다시 벼림(개수는 그대로 — 강화 인플레 없이 엽전 쓸 곳)
   } else if (r.type === "start" || r.type === "arena" || r.type === "raid") {
     r.cleared = true;
   }
@@ -1365,6 +1367,11 @@ function pickups(u, dt = 1 / 60) {
       if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
     else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; d.away = false; healUnit(u, u.maxHp); sfx("heal"); }
+    else if (d.type === "forge" && !d.used && u === G.p) {
+      if (dd > 140) d.away = true; else if (dd < 90 && d.away !== false && !d.cool && !UI.modalOpen()) { d.cool = 1.2; d.away = false;
+        if ((u.gold || 0) < d.price) { addText(d.x, d.y - 110, "엽전이 모자라요", "#ff8a8a", 18); continue; }
+        if (!u.boons.length) { addText(d.x, d.y - 110, "벼릴 강화가 아직 없어요", "#ffd0a0", 18); continue; }
+        UI.forge(d); } }
     else if (d.type === "spring" && d.used && !d.wish && u === G.p && d.price) { // 11-21 소원 엽전: 마른 우물에 엽전을 던지면 강화 하나 (판 안 엽전 쓸 곳)
       if (dd > 110) d.away = true; else if (dd < 70 && d.away && !d.cool) { d.cool = 1.2; d.away = false;
         if ((u.gold || 0) < d.price) { addText(d.x, d.y - 90, "엽전이 모자라요", "#ff8a8a", 18); continue; }
@@ -2089,6 +2096,7 @@ function drawDrop(g, d) {
   }
   else if (d.type === "evt") drawEvt(g, d);
   else if (d.type === "shopre") drawShopRe(g, d);
+  else if (d.type === "forge") drawForge(g, d);
   else if (d.type === "merchant") drawMerchant(g, d);
   else if (d.type === "spring") {
     const wl = IMG.well, M = ASSETS.meta && ASSETS.meta.well;
@@ -2130,7 +2138,7 @@ function drawGuide(g) {
 function drawItemInfo(g) {
   const p = G.p; if (!p || !p.alive) return;
   let best = null, bd = 170;
-  for (const d of G.drops) { if (!["act", "shop", "chest", "spring", "stairs"].includes(d.type) || d.sold || (d.type === "chest" && d.open) || (d.type === "spring" && d.used && (d.wish || !d.price))) continue; const dd = Math.hypot(d.x - p.x, d.y - p.y); if (dd < bd) { bd = dd; best = d; } }
+  for (const d of G.drops) { if (!["act", "shop", "chest", "spring", "stairs", "forge"].includes(d.type) || (d.type === "forge" && d.used) || d.sold || (d.type === "chest" && d.open) || (d.type === "spring" && d.used && (d.wish || !d.price))) continue; const dd = Math.hypot(d.x - p.x, d.y - p.y); if (dd < bd) { bd = dd; best = d; } }
   if (!best) return;
   const d = best; let title = "", col = "#ffe08a", lines = [];
   if (d.type === "act" || (d.type === "shop" && d.what === "act")) {
@@ -2140,6 +2148,7 @@ function drawItemInfo(g) {
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
   else if (d.type === "chest") { title = d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자"; lines = ["다가가면 열려요 · 엽전, 가끔 코인·회복 약초"]; }
+  else if (d.type === "forge") { title = "떠돌이 대장간"; lines = ["떠돌이 대장장이는 기운도 쇠처럼 다시 두드린다지", `엽전 ${d.price} — 가진 강화 하나를 녹여 새 강화로 (한 번)`]; }
   else if (d.type === "spring") { if (d.used) { title = "소원 엽전"; lines = ["마른 우물에 엽전을 던지면 소원 하나는 들어준다지", `엽전 ${d.price} — 떨어졌다 다시 다가가면 강화 하나 고르기 (한 번)`]; } else { title = "약수 우물"; col = "#9fe8ff"; lines = ["다가가면 체력을 최대치까지 회복 (보호막 없음, 한 번)"]; } }
   else if (d.type === "stairs" && d.raid) { title = "다음 보스 홍살문"; lines = [`문 안에 1초 서 있으면 ${G.raidN + 1}번째 보스가 나와요`, "그 전에 보부상에게 물건을 사 두세요"]; }
   else if (d.type === "stairs") { title = "홍살문"; lines = [hellNoHeal() ? "문 안에 1초 서 있으면 다음 스테이지로 (매우 어려움: 회복 없음)" : "문 안에 1초 서 있으면 다음 스테이지로 · 체력 25% 회복", "그 전에 다른 방을 둘러봐도 돼요"]; }
@@ -2988,6 +2997,11 @@ function stockShop(out) {
   list.forEach((it, i) => { const x = RW / 2 + ((i % 3) - 1) * 260, y = RH / 2 - 60 + Math.floor(i / 3) * 210;
     const base = it.price || (it.what === "herb" ? SHOP_ITEMS.herb.price : SHOP_ITEMS[it.k].price);
     (out || G.drops).push(Object.assign({ type: "shop", price: Math.round(base * (it.k === "coin" ? 1 : pm)), x, y }, it)); });
+}
+function drawForge(g, d) {
+  const im = IMG.obj_forge, M = ASSETS.meta && ASSETS.meta.obj_forge;
+  if (im && im.naturalWidth) { const H = 210, sc = M ? H * M.s : H / im.naturalHeight; g.save(); if (d.used) g.filter = "grayscale(0.7) brightness(0.65)"; g.drawImage(im, d.x - (M ? M.fx * sc : im.naturalWidth * sc / 2), d.y + 40 - (M ? M.fy * sc : im.naturalHeight * sc), im.naturalWidth * sc, im.naturalHeight * sc); g.restore(); }
+  g.save(); g.font = '700 18px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = d.used ? "불이 꺼진 대장간" : `떠돌이 대장간 · 엽전 ${d.price}`; g.strokeText(tx, d.x, d.y + 70); g.fillStyle = d.used ? "#8a8a9a" : (G.p && G.p.gold || 0) >= d.price ? "#ffe08a" : "#a99"; g.fillText(tx, d.x, d.y + 70); g.restore();
 }
 function drawShopRe(g, d) {
   const t = G.time, y = d.y - 30 + Math.sin(t * 3) * 3; if (G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) > 100) d.away = true; // 한 번 쓰면 떨어졌다 와야 다시

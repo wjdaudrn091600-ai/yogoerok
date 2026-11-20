@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "2.7.19";
+const GAME_VERSION = "2.8.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -594,8 +594,8 @@ const UI = {
     const cur = CHAR[SAVE.sel] && SAVE.chars[SAVE.sel] ? SAVE.sel : "musa"; SAVE.sel = cur;
     const mc = unclaimed();
     // 11-18 처음 하는 사람에게 시스템이 한꺼번에 쏟아지지 않게: 진행하면 하나씩 열림 (예전부터 하던 계정은 이미 다 열려 있음)
-    const st = SAVE.stats || {}, dev = ACCOUNT === DEV_ID, f1 = dev || (SAVE.story.maxFloor || 1) >= 2 || (st.bosses || 0) >= 1, r1 = dev || (st.rooms || 0) >= 5;
-    const GATE = { endless: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", raid: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", duel: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요",
+    const st = SAVE.stats || {}, dev = ACCOUNT === DEV_ID, f1 = dev || (SAVE.story.maxFloor || 1) >= 2 || (st.bosses || 0) >= 1, r1 = dev || (st.rooms || 0) >= 5, f2 = dev || (SAVE.story.maxFloor || 1) >= 3;
+    const GATE = { endless: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", raid: f2 ? "" : "스토리 2장 보스를 쓰러뜨리면 열려요", duel: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요",
       multi: f1 ? "" : "스토리 1장 보스를 쓰러뜨리면 열려요", gacha: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", bag: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요", skills: r1 ? "" : "스토리에서 방 5개를 정리하면 열려요" };
     const opened = Object.keys(GATE).filter((k) => !GATE[k]); SAVE.gateSeen = SAVE.gateSeen || {}; const fresh = opened.filter((k) => !SAVE.gateSeen[k]);
     if (fresh.length && Object.keys(SAVE.gateSeen).length) setTimeout(() => UI.toast("🔓 새로 열렸어요: " + fresh.map((k) => ({ endless: "무한의 방", raid: "보스 레이드", duel: "1대1 대전", multi: "함께하기", gacha: "뽑기", bag: "보물·펫", skills: "스킬 장착" })[k]).join(", "), 4000), 600);
@@ -616,7 +616,7 @@ const UI = {
           <div class="modes">
             ${modeRow("story", "스토리", `다섯 장의 이야기 · 도달 ${SAVE.story.maxFloor}장`)}
             ${modeRow("endless", "무한의 방", (SAVE.stats.endlessBest ? `끝없는 방 · 최고 ${SAVE.stats.endlessBest}번째` : "끝없이 내려가는 방"))}
-            ${modeRow("raid", "보스 레이드", SAVE.story.maxFloor < 3 ? "이야기 3장 뒤 권장" : "장 보스 다섯 연속")}
+            ${modeRow("raid", "보스 레이드", "장 보스 다섯 연속")}
             ${modeRow("duel", "1대1 대전", `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
             ${modeRow("practice", "연습장", "모든 영웅 체험 · 허수아비")}
             ${ACCOUNT === DEV_ID ? modeRow("dev", "개발자 맵", "보스·상점·스킬 확인") : ""}
@@ -1270,7 +1270,7 @@ const UI = {
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
     $("#modal").classList.add("lvmode");
     const pips = (n) => `<div class="lvpips">${[0, 1, 2].map((i) => `<i class="${i < n ? "on" : i === n ? "nx" : ""}"></i>`).join("")}</div>`;
-    UI.modal(`<div class="lvhead"><small>기운이 차오른다</small><h2>레벨 ${G.p.lvl}</h2><p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 강화</em>"}</div><div class="lvline"></div><div class="lvdesc">${b.lore ? `<p class="lore">${esc(b.lore)}</p>` : ""}${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
+    UI.modal(`<div class="lvhead">${UI._lvHead || `<small>기운이 차오른다</small><h2>레벨 ${G.p.lvl}</h2>`}<p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 강화</em>"}</div><div class="lvline"></div><div class="lvdesc">${b.lore ? `<p class="lore">${esc(b.lore)}</p>` : ""}${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
@@ -1278,6 +1278,23 @@ const UI = {
     if ($("#rrl")) $("#rrl").onclick = () => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); G.rerolls--; UI.closeModal(); UI.levelUp(rollBoons(G.boonN || 3, G.p.lvl)); };
     window.addEventListener("keydown", kh);
     document.querySelectorAll(".pk").forEach((b) => (b.onclick = () => choose(b.dataset.k)));
+  },
+  // 11-21 떠돌이 대장간: 가진 강화 하나를 녹이고(엽전) 새 강화 셋 중 하나 — 강화 개수는 그대로
+  forge(d) {
+    const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
+    const ks = [...new Set(G.p.boons)].filter((k) => BOONS[k]);
+    UI.modal(`<h2>떠돌이 대장간</h2><p class="muted" style="text-align:center">녹일 강화를 고르면 엽전 <b>${d.price}</b>을 내고, 새 강화 셋 중 하나로 다시 벼려요. (한 단계만 녹아요)</p>
+      <div class="fgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-height:52vh;overflow:auto">${ks.map((k) => { const b = BOONS[k], n = G.p.boons.filter((x) => x === k).length; return `<button class="btn fgk" data-k="${k}" style="display:flex;align-items:center;gap:8px;text-align:left;border-color:${RARITY[b.rar].col}">${abIc("bn_" + k, b.ic, 40)}<span style="word-break:keep-all"><b>${esc(b.name)} <small class="muted">Lv.${n}</small></b><br><small class="muted">${esc(b.desc || "")}</small></span></button>`; }).join("")}</div>
+      <div class="center"><button class="btn" id="fgno">그만두기</button></div>`);
+    const armT = UI.arm();
+    $("#fgno").onclick = () => { UI.closeModal(); if (!multi) G.paused = false; d.away = false; };
+    document.querySelectorAll(".fgk").forEach((b) => (b.onclick = () => {
+      if (performance.now() < armT || d.used || (G.p.gold || 0) < d.price) return; const k = b.dataset.k, i = G.p.boons.lastIndexOf(k); if (i < 0) return;
+      G.p.gold -= d.price; d.used = 1; G.p.boons.splice(i, 1); if (k === "phoenixPerk" && G.p.revive > 0) G.p.revive--; recalc(G.p); sfx("coin");
+      const opts = rollBoons(G.boonN || 3, G.p.lvl).filter((x) => x !== k); UI.closeModal(); UI._lvHead = `<small>「${esc(BOONS[k].name)}」 녹여</small><h2>다시 벼리기</h2>`;
+      UI.levelUp(opts.length ? opts : [k]); UI._lvHead = "";
+      for (let j = 0; j < 12; j++) spark(d.x + rnd(-50, 50), d.y + rnd(-90, 10), "#ffb060", 4);
+    }));
   },
   story(key, then) {
     const s = STORY[key]; if (!s) { then(); return; }
@@ -1389,7 +1406,7 @@ loadImages(); initEngine(); UI.login(); setTimeout(checkUpdate, 1500);
 if (!/autotest/.test(location.hash) && ls.get("ygr_auto")) { if ($("#lerr")) $("#lerr").textContent = "☁️ 자동 로그인 중…"; autoLogin().then((ok) => { if (ok && !G) afterLogin(); else if ($("#lerr")) $("#lerr").textContent = ""; }).catch(() => { if ($("#lerr")) $("#lerr").textContent = ""; }); }
 // ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
 // 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
-const SUPPORT = { mail: "", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
+const SUPPORT = { mail: "jmg98916@gmail.com", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
 const pct = (v) => { const p = v * 100; return (p >= 1 ? p.toFixed(2) : p >= 0.01 ? p.toFixed(3) : p.toFixed(4)).replace(/\.?0+$/, "") + "%"; };
 function probTables() {
   const T = (rows, head) => `<table class="ptab"><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;

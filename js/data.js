@@ -801,6 +801,8 @@ const ROLE_MODS = {
   mid: { name: "균형", m: { dr: 0.05, hp: 0.06 }, desc: "받는 피해 -5% · 최대 체력 +6%" },
   ranged: { name: "거리 유지", m: { atk: -0.08 }, desc: "공격력 -8% (멀리서 안전하게 싸우는 대가)" },
 };
+// 11-21 강화 인플레 막기: 넘는 만큼은 절반만 (Lv.50 공격만 고르면 강화로 공격 8.3배 → 약 6배, 아무거나 고르면 거의 그대로)
+const SOFT_CAP = { atk: 0.6, as: 0.4, hp: 0.8 };
 const STAT_CAP = { cdr: 0.40, ultcd: 0.30, echo: 0.25, crit: 0.80, critdmg: 2.0, as: 1.2, spd: 0.6, area: 0.8, dr: 0.6, ls: 0.10, regen: 0.01, thorns: 1.5, shieldRoom: 0.35, execute: 0.3 };
 const ULT_MIN = 0.45; // 궁극기 대기는 모든 감소를 합쳐도 원래의 45% 아래로 내려가지 않는다
 function jobSkillText(cid, tier, kind) {
