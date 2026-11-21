@@ -665,6 +665,7 @@ const UI = {
     if ($("#resume")) $("#resume").onclick = () => { const R = SAVE.resume; UI.startRun({ mode: "story", char: R.char, floor: R.floor, diff: R.diff, resume: R }); };
     document.documentElement.classList.toggle("bigtxt", !!(SAVE.settings && SAVE.settings.bigText)); // 11-19 글자 크게
     const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID;
+    dayOpen();
     if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.stats.storyClear || 0) >= 1) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 사용자: 별점은 처음 게임(스토리)을 완전히 끝낸 뒤 메뉴로 돌아왔을 때 한 번만 — 판 중간에 뜨면 방해 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
@@ -1112,6 +1113,7 @@ const UI = {
     if (typeof comebackGift === "function") comebackGift();
     const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString(), D = SAVE.daily || (SAVE.daily = { day: "", streak: 0 });
     if (D.day === today) return;
+    if (typeof CBT !== "undefined" && CBT.on) { UI.cbtDaily(D, today); return; } // 11-22 시험판 14일 출석
     D.streak = D.day === yest ? D.streak + 1 : 1; D.day = today;
     const big = D.streak % 7 === 0, coin = big ? 6 : 2;
     SAVE.coins += coin; saveGame();
@@ -1366,6 +1368,7 @@ const UI = {
     if ($("#fbres")) $("#fbres").onclick = () => UI.feedback({ from: "result" }); $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
     if (typeof talkType === "function") talkType();
     if ($("#sharec")) $("#sharec").onclick = () => shareCard(r);
+    if (!isClient) cbtSurvey(r);
     document.querySelectorAll(".goal[data-go]").forEach((g) => (g.onclick = () => { if (multi) return; UI.closeModal(); UI.menu(); UI.open(g.dataset.go); }));
   },
 };
@@ -2588,4 +2591,52 @@ else if (/autotest/.test(location.hash)) {
       document.title = `T${n} hp${Math.round(G.p.hp)} units${G.units.length} room:${G.cur.type} err:${$("#errbox").hidden ? 0 : 1}`;
     }, 400);
   }
+}
+
+// ===================== 11-22 CBT: 14일 출석 · 이탈 지점 측정 · 판 끝 설문 =====================
+UI.cbtDaily = function (D, today) {
+  D.day = today; D.cbt = Math.min(CBT.days, (D.cbt || 0) + 1); SAVE.stats.cbtDays = Math.max(SAVE.stats.cbtDays || 0, D.cbt);
+  const [k, n] = CBT.gifts[D.cbt - 1];
+  if (k === "coin") SAVE.coins += n; else if (k === "yeop") SAVE.gold += n; else if (k === "soul") SAVE.soul = (SAVE.soul || 0) + n; else if (k === "title") { SAVE.coins += n; SAVE.titles.t_cbt = 1; }
+  try { checkUnlocks(); } catch (e) { } saveGame(); track("cbt_attend", { d: D.cbt });
+  const icKey = (g) => (g === "coin" ? "cur_coin" : g === "yeop" ? "cur_yeop" : g === "soul" ? "ui_soul" : "ic_t_cbt");
+  const nm = { coin: "코인", yeop: "엽전", soul: "혼불" };
+  UI.modal(`<h2>시험판 출석 ${D.cbt}일째</h2><p class="muted" style="text-align:center">시험판 기간에 열나흘을 들르면 '첫 등불 길잡이' 칭호를 드려요. 하루를 걸러도 이어서 세요.</p>
+    <div class="cbtgrid">${CBT.gifts.map(([g, v], i) => `<div class="cbtc${i < D.cbt ? " got" : ""}${i === D.cbt - 1 ? " now" : ""}${g === "title" ? " big" : ""}"><span>${i + 1}일</span>${imgSrc(icKey(g)) ? `<img src="${imgSrc(icKey(g))}" alt="">` : ""}<em>${g === "title" ? "칭호" : nm[g] + " " + v}</em></div>`).join("")}</div>
+    <div class="center"><button class="btn gold" id="dok">받기</button></div>`);
+  $("#dok").onclick = () => { UI.closeModal(); UI.menu(); if (k === "title") UI.loot("첫 등불 길잡이", [["ic_t_cbt", "칭호", 1], ["cur_coin", "코인", n]]); else UI.loot("시험판 출석", [[icKey(k), nm[k], n]]); };
+};
+// 이탈 지점: 처음 연 날 · 며칠째 다시 왔는지 (PostHog 에서 '첫 판 → 1장 보스 → 2일차' 흐름으로 봄)
+function dayOpen() {
+  try { const t = new Date().toDateString(); if (!SAVE || SAVE.lastOpen === t) return;
+    if (!SAVE.firstDay) { SAVE.firstDay = Date.now(); track("first_open"); }
+    SAVE.lastOpen = t; const d = Math.floor((Date.now() - SAVE.firstDay) / 864e5);
+    track("day_open", { d, rooms: SAVE.stats.rooms || 0, story: SAVE.story.maxFloor || 1, heroes: Object.keys(SAVE.chars).length, cbtDays: SAVE.stats.cbtDays || 0 }); saveGame(); } catch (e) { }
+}
+// 판 끝 설문: 정해 둔 판(3번째·12번째)이 끝났을 때 결과 화면 안에 별점 + 고르기 두 개 + 한 줄
+function cbtSurvey(r) {
+  try { if (typeof CBT === "undefined" || !CBT.on || ["practice", "dev"].includes(r.mode) || /autotest/.test(location.hash)) return;
+    const S = (SAVE.cbtSv = SAVE.cbtSv || { runs: 0, done: {} }); S.runs++; saveGame();
+    const at = CBT.survey.find((n) => S.runs >= n && !S.done[n]); if (!at) return;
+    const btns = $("#again") && $("#again").parentNode; if (!btns) return;
+    const FUN = ["싸움 손맛", "영웅 모으기", "이야기", "함께하기", "그림·음악"], HARD = ["너무 어려움", "지루함", "조작이 불편", "끊김·느림", "뭘 할지 모르겠음", "없었음"];
+    const el = document.createElement("div"); el.className = "cbtsv";
+    el.innerHTML = `<b>시험판 한마디</b> <span class="muted">— 고르기만 해도 돼요</span>
+      <div class="svrow">재미 <span class="stars">${[1, 2, 3, 4, 5].map((i) => `<button data-st="${i}">★</button>`).join("")}</span></div>
+      <div class="svrow">가장 좋았던 것 ${FUN.map((x) => `<button class="chip" data-f="${x}">${x}</button>`).join("")}</div>
+      <div class="svrow">그만두고 싶던 순간 ${HARD.map((x) => `<button class="chip" data-h="${x}">${x}</button>`).join("")}</div>
+      <div class="svrow"><input id="svtx" maxlength="200" placeholder="한 줄 더 남기기 (안 적어도 돼요)"><button class="btn sm gold" id="svok">보내기</button><button class="btn sm" id="svno">다음에</button></div>`;
+    btns.parentNode.insertBefore(el, btns);
+    const v = { st: 0, f: "", h: "" };
+    el.querySelectorAll("[data-st]").forEach((b) => (b.onclick = () => { v.st = +b.dataset.st; el.querySelectorAll("[data-st]").forEach((x) => x.classList.toggle("on", +x.dataset.st <= v.st)); }));
+    el.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { v.f = b.dataset.f; el.querySelectorAll("[data-f]").forEach((x) => x.classList.toggle("on", x === b)); }));
+    el.querySelectorAll("[data-h]").forEach((b) => (b.onclick = () => { v.h = b.dataset.h; el.querySelectorAll("[data-h]").forEach((x) => x.classList.toggle("on", x === b)); }));
+    const fin = (sent) => { S.done[at] = sent ? 1 : -1; saveGame(); el.remove(); };
+    $("#svno").onclick = () => { track("cbt_survey_skip", { at }); fin(false); };
+    $("#svok").onclick = () => { if (!v.st && !v.f && !v.h) { UI.toast("별이나 하나라도 골라 주세요"); return; }
+      const t = ($("#svtx").value || "").trim();
+      track("cbt_survey", { at, star: v.st, fun: v.f, hard: v.h, mode: r.mode, floor: r.floor || 0, char: G && G.p && G.p.id });
+      try { if (window.Sentry && Sentry.captureFeedback) Sentry.captureFeedback({ message: `[설문 ${at}판] 별 ${v.st} · 좋았던 것 ${v.f || "-"} · 그만두고 싶던 순간 ${v.h || "-"}${t ? " · " + t : ""}`, source: "cbt_survey" }, { captureContext: { tags: { kind: "survey", ver: GAME_VERSION } } }); } catch (e) { }
+      fin(true); UI.toast("고마워요! 다음 판에 꼭 반영할게요", 2400); };
+  } catch (e) { }
 }

@@ -7,6 +7,12 @@ const NET = {
   lastSnap: 0, roomSent: null, bannerSent: null, uid: 0, cmap: new Map(), sendT: 0,
 
   available() { return typeof Peer !== "undefined"; },
+  // 11-22 연결 보강: 폰 데이터망(LTE)끼리는 직접 연결이 막힐 때가 많아, 길 찾기 서버(STUN) 여러 개 + 중계 서버(TURN, release.js NET_ICE)를 같이 준다
+  peerOpts() { const ice = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }, { urls: "stun:stun.cloudflare.com:3478" }];
+    try { if (typeof NET_ICE !== "undefined" && NET_ICE.turn && NET_ICE.turn.length) ice.push(...NET_ICE.turn); } catch (e) { }
+    return { config: { iceServers: ice, iceCandidatePoolSize: 2 } }; },
+  // 연결이 오래 걸리면 알려 준다 (말없이 멈춘 것처럼 보이지 않게)
+  slowHint(c) { const t = setTimeout(() => { if (!c.open) UI.toast(typeof NET_ICE !== "undefined" && NET_ICE.turn && NET_ICE.turn.length ? "연결이 오래 걸려요 — 조금만 기다려 주세요" : "연결이 오래 걸려요 — 둘 다 같은 와이파이에 있으면 더 잘 이어져요"); }, 12000); c.on("open", () => clearTimeout(t)); },
   idFor(code) { return "ygr1-" + code.toLowerCase(); }, // 요괴록 전용 (예전 등불미궁 방과 섞이지 않게)
   newCode() { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = ""; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return s; },
   send(m) { if (this.conn && this.conn.open) try { this.conn.send(m); } catch (e) { } },
@@ -16,7 +22,7 @@ const NET = {
   host(mode, onUpdate, fixed) {
     this.leave(); this.role = "host"; this.code = fixed || this.newCode();
     this.lobby = { mode, floor: 1, guest: null, onUpdate };
-    const peer = (this.peer = new Peer(this.idFor(this.code)));
+    const peer = (this.peer = new Peer(this.idFor(this.code), this.peerOpts()));
     peer.on("error", (e) => { if (e.type === "unavailable-id") { this.code = this.newCode(); peer.destroy(); this.host(mode, onUpdate); } else UI.toast("연결 오류: " + e.type); });
     peer.on("open", () => onUpdate && onUpdate());
     peer.on("connection", (c) => {
@@ -29,10 +35,11 @@ const NET = {
   join(code, onUpdate) {
     this.leave(); this.role = "guest"; this.code = code.toUpperCase();
     this.lobby = { onUpdate, host: null };
-    const peer = (this.peer = new Peer());
+    const peer = (this.peer = new Peer(this.peerOpts()));
     peer.on("error", (e) => { UI.toast(e.type === "peer-unavailable" ? "그 코드의 방이 없어요" : "연결 오류: " + e.type); onUpdate && onUpdate("fail"); });
     peer.on("open", () => {
       const c = (this.conn = peer.connect(this.idFor(this.code), { reliable: true }));
+      this.slowHint(c);
       c.on("open", () => { c.send({ t: "hello", ver: GAME_VERSION, name: nick(), load: this.myLoad() }); onUpdate && onUpdate(); });
       c.on("data", (m) => this.onGuest(m));
       c.on("close", () => { if (NET.client) { UI.toast("방장과 연결이 끊어졌어요"); NET.client = false; G = null; UI.menu(); } this.conn = null; });
