@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.5";
+const GAME_VERSION = "3.1.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -526,12 +526,12 @@ const UI = {
     UI.modal(`<h2>🗺️ 지도</h2><canvas id="bigmap" width="900" height="560" style="width:100%;max-width:900px;display:block;margin:0 auto;background:#0b0910;border-radius:10px"></canvas>
       <p class="muted" style="text-align:center;font-size:.8rem">얼굴 = 지금 있는 방 · 나무패 = 방 종류(보스·중간보스·상점·우물·보물·정예·괴이한 방·시련) · 붉은 문 = 홍살문 · 흐린 방은 안 가 본 방</p><div class="center"><button class="btn gold" id="mapok">닫기 (M)</button></div>`);
     const drawMap = () => { if (!$("#bigmap") || !G) return;
-    const c = $("#bigmap"), g = c.getContext("2d"), rs = [...G.rooms.values()]; g.clearRect(0, 0, c.width, c.height);
+    const c = $("#bigmap"), g = c.getContext("2d"), rs = [...G.rooms.values()].filter((r) => r.visited || Object.values(r.links || {}).some((k) => (G.rooms.get(k) || {}).visited)); g.clearRect(0, 0, c.width, c.height); // 11-21 지도는 가 본 방과 바로 옆 방만 — 보스·출구는 가까이 가야 드러남(탐험하는 느낌)
     const xs = rs.map((r) => r.x), ys = rs.map((r) => r.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const S = Math.min(120, 820 / (x1 - x0 + 1), 500 / (y1 - y0 + 1)), ox = (900 - (x1 - x0 + 1) * S) / 2, oy = (560 - (y1 - y0 + 1) * S) / 2;
     const P = (r) => [ox + (r.x - x0) * S + S / 2, oy + (r.y - y0) * S + S / 2];
     g.strokeStyle = "#5a4a3a"; g.lineWidth = 4;
-    for (const r of rs) for (const d in r.links) { const t = G.rooms.get(r.links[d]); if (!t) continue; const [a, b] = P(r), [c2, d2] = P(t); g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
+    for (const r of rs) for (const d in r.links) { const t = G.rooms.get(r.links[d]); if (!t || !rs.includes(t)) continue; const [a, b] = P(r), [c2, d2] = P(t); g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
     const COL = { boss: "#ff5a5a", shop: "#5fc8ff", rest: "#7fe08a", treasure: "#ffc84a", elite: "#c38bff", exit: "#fff2b0" };
     for (const r of rs) {
       const [x, y] = P(r), w = S * 0.62; g.globalAlpha = r.visited ? 1 : 0.4;
@@ -914,6 +914,7 @@ const UI = {
       <p class="tg"><label><input type="checkbox" id="telebold" ${s.teleBold ? "checked" : ""}> <span class="sl">공격 예고 진하게<small>붉은 공격 영역에 굵은 노란 테두리 — 작은 화면·색이 잘 안 보일 때</small></span></label></p>
       </div>
       <div class="setg"><h4>조작 · 도움</h4>
+      <p class="tg"><label><input type="checkbox" id="guide" ${s.guide ? "checked" : ""}> <span class="sl">안내 화살표<small>보스·출구가 바로 옆 방일 때와 홍살문이 열렸을 때만 길을 가리켜요</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> <span class="sl">자동 공격<small>켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="assist" ${s.assist ? "checked" : ""}> <span class="sl">도움 모드<small>쓰러질 때마다 받는 피해 -2%, 최대 -40% · 스토리·무한의 방, 지금 -${Math.round(Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) * 100)}%</small></span></label></p>
       <p class="rg"><span class="rl">엽전·코인 줍기 범위</span><input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
@@ -934,6 +935,7 @@ const UI = {
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
+    if ($("#guide")) $("#guide").onchange = (e) => { s.guide = e.target.checked; saveGame(); };
     if ($("#telebold")) $("#telebold").onchange = (e) => { s.teleBold = e.target.checked; saveGame(); };
     if ($("#assist")) $("#assist").onchange = (e) => { s.assist = e.target.checked; saveGame(); UI.toast(s.assist ? "도움 모드 켬 — 쓰러질수록 조금씩 단단해져요" : "도움 모드 끔", 2500); };
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
@@ -1393,7 +1395,7 @@ function itemCard(kind, k, def, lv, equipable) {
     <span class="muted" style="font-size:.72rem">얻는 법: ${how}</span>${prog}${on ? '<span style="color:var(--gold)">착용 중</span>' : ""}</${tag}>`;
 }
 
-document.addEventListener("click", (e) => { if (e.target && e.target.id === "mini") UI.bigMap(); });
+document.addEventListener("pointerup", (e) => { if (e.target && e.target.id === "mini" && G && !UI.modalOpen()) { e.preventDefault(); e.stopPropagation(); UI.bigMap(); } }, true); // 11-21 폰에서도 작은 지도를 누르면 큰 지도
 function drawMini() {
   const c = $("#mini"); if (!c || !G) return; const g = c.getContext("2d"); g.clearRect(0, 0, c.width, c.height);
   if (G.mode === "duel") { g.fillStyle = "#c9a0ff"; g.font = "28px Do Hyeon"; g.textAlign = "center"; g.fillText("대전장", c.width / 2, c.height / 2 + 10); return; }
@@ -2258,6 +2260,13 @@ UI.feedback = function (o) {
     if (window.Sentry && Sentry.captureFeedback && send()) { track && track("feedback", { cat }); close(); UI.toast("고마워요! 의견이 잘 전해졌어요", 2600); return; }
     UI.toast(`지금은 보낼 수 없어요 — ${SUPPORT.mail} 로 보내 주세요`, 4000);
   };
+};
+// ===================== 11-21 보물상자 획득 목록 (무엇을 얻었는지 바로 보이게) =====================
+UI.loot = function (title, items) {
+  let box = document.getElementById("lootbox"); if (!box) { box = document.createElement("div"); box.id = "lootbox"; document.body.appendChild(box); }
+  const card = document.createElement("div"); card.className = "lootc";
+  card.innerHTML = `<b>${esc(title)}</b><div class="lrow">${items.map(([k, n, v], i) => `<span class="li" style="animation-delay:${0.15 + i * 0.12}s">${imgSrc(k) ? `<img src="${imgSrc(k)}" alt="">` : ""}<em>${esc(n)}</em>${v > 1 ? `<i>×${v}</i>` : ""}</span>`).join("")}</div>`;
+  box.appendChild(card); setTimeout(() => card.classList.add("out"), 2800); setTimeout(() => card.remove(), 3300);
 };
 // ===================== 11-21 뽑기: 새 영웅 획득 연출 =====================
 UI.heroReveal = function (list, done) {

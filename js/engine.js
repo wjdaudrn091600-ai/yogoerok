@@ -1378,9 +1378,11 @@ function pickups(u, dt = 1 / 60) {
       d.open = true; sfx("chest"); if (!u.remote) SAVE.stats.chests = (SAVE.stats.chests || 0) + 1;
       const gv = Math.round(rint(12, 22) * (1 + diffMul().tier * 0.3) * (1 + (u.m.gold || 0))); // 11-19 상자 엽전 절반
       for (let i = 0; i < 5; i++) G.drops.push({ type: "gold", v: Math.ceil(gv / 5), x: d.x + rnd(-60, 60), y: d.y + rnd(20, 60) });
-      if (d.secret) { G.drops.push({ type: "coin", x: d.x - 30, y: d.y + 50 }, { type: "coin", x: d.x + 30, y: d.y + 50 }); u.gold = (u.gold || 0) + 60; addText(d.x, d.y - 60, "+엽전 60", "#ffe08a", 22); }
-      else if (Math.random() < COIN_DROP.chest * (1 + (u.m.coinLuck || 0))) G.drops.push({ type: "coin", x: d.x, y: d.y + 50 });
-      if (Math.random() < 0.5) G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 });
+      const loot = [["cur_yeop", "엽전", gv]];
+      if (d.secret) { G.drops.push({ type: "coin", x: d.x - 30, y: d.y + 50 }, { type: "coin", x: d.x + 30, y: d.y + 50 }); u.gold = (u.gold || 0) + 60; addText(d.x, d.y - 60, "+엽전 60", "#ffe08a", 22); loot[0][2] += 60; loot.push(["cur_coin", "코인", 2]); }
+      else if (Math.random() < COIN_DROP.chest * (1 + (u.m.coinLuck || 0))) { G.drops.push({ type: "coin", x: d.x, y: d.y + 50 }); loot.push(["cur_coin", "코인", 1]); }
+      if (Math.random() < 0.5) { G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 }); loot.push(["obj_shop_herb", "회복 약초", 1]); }
+      if (u === G.p && UI.loot) UI.loot(d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자", loot);
     } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
     else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; d.away = false; healUnit(u, u.maxHp); sfx("heal"); }
     else if (d.type === "forge" && !d.used && u === G.p) {
@@ -2138,12 +2140,13 @@ function drawDrop(g, d) {
 // 길잡이: 방을 정리하면 갈 곳(보스 방 > 안 가 본 방 > 계단)을 화살표로
 function drawGuide(g) {
   const p = G.p; if (!p || !p.alive || G.mode === "duel" || roomLocked() || G.client && !G.cur) return;
+  if (!(SAVE && SAVE.settings && SAVE.settings.guide)) return; // 11-21 안내 화살표는 기본 끔(설정에서 켬) — 길은 스스로 찾는 맛
   let tx = null, ty = null, label = "";
   const st = G.drops.find((d) => d.type === "stairs");
   const DP = { N: [RW / 2, BT - 10], S: [RW / 2, BB + 10], W: [BL - 10, RH / 2 + 20], E: [BR + 10, RH / 2 + 20] };
   if (st) { tx = st.x; ty = st.y; label = "홍살문"; }
   else { const L = G.cur.links || {}; const ds = Object.keys(L); const boss = ds.find((d) => { const t = G.rooms.get(L[d]); return t && (t.type === "boss" || t.type === "exit") && !t.cleared; }); const nv = ds.find((d) => { const t = G.rooms.get(L[d]); return t && !t.visited; });
-    const d = boss || nv; if (!d) return; [tx, ty] = DP[d]; label = boss ? (G.rooms.get(L[boss]).type === "boss" ? "보스" : "출구") : "안 가 본 방"; }
+    const d = boss; if (!d) return; [tx, ty] = DP[d]; label = boss ? (G.rooms.get(L[boss]).type === "boss" ? "보스" : "출구") : "안 가 본 방"; }
   const dd = Math.hypot(tx - p.x, ty - p.y); if (dd < 140) return;
   const a = Math.atan2(ty - p.y, tx - p.x), rr = 70, pul = 0.6 + Math.sin(G.time * 5) * 0.3;
   g.save(); g.translate(p.x + Math.cos(a) * rr, p.y - 20 + Math.sin(a) * rr); g.rotate(a); g.globalAlpha = pul;
@@ -2336,7 +2339,7 @@ function drawUnit(g, u) {
   if (u.flash > 0) u.flash -= 1 / 60;
   if (u.spawnT > 0) g.restore();
   // 버프 고리
-  if (u.shield > 1) { g.strokeStyle = "rgba(150,210,255,0.35)"; g.lineWidth = 2; g.beginPath(); g.arc(u.x, u.y - 40, 46, 0, 7); g.stroke(); }
+  if (u.shield > 1) drawWard(g, u);
   // 체력 막대
   if (u.kind === "mob" && u.hp < u.maxHp) bar(g, u.x - u.r, u.y - h + u.r * 0.4 - 4, u.r * 2, 5, u.hp / u.maxHp, u.elite ? "#ff6aff" : "#ff5a5a");
   if ((u.kind === "mob" || u.kind === "boss") && u.alive) { const st = (u.burn && u.burn.t > 0 ? "🔥" : "") + (u.slowT > 0 ? "❄️" : "") + (u.stunT > 0 ? "💫" : "") + (u.markT > 0 ? "🎯" : ""); if (st) { g.save(); g.font = "14px sans-serif"; g.textAlign = "center"; g.fillText(st, u.x, u.y - h + u.r * 0.4 - (u.affix ? 28 : 12)); g.restore(); } } // 11-16 상태 이상 표시
@@ -3018,6 +3021,16 @@ function drawForge(g, d) {
   const im = IMG.obj_forge, M = ASSETS.meta && ASSETS.meta.obj_forge;
   if (im && im.naturalWidth) { const H = 210, sc = M ? H * M.s : H / im.naturalHeight; g.save(); if (d.used) g.filter = "grayscale(0.7) brightness(0.65)"; g.drawImage(im, d.x - (M ? M.fx * sc : im.naturalWidth * sc / 2), d.y + 40 - (M ? M.fy * sc : im.naturalHeight * sc), im.naturalWidth * sc, im.naturalHeight * sc); g.restore(); }
   g.save(); g.font = '700 18px "Do Hyeon"'; g.textAlign = "center"; g.lineWidth = 4; g.strokeStyle = "#000"; const tx = d.used ? "불이 꺼진 대장간" : `떠돌이 대장간 · 엽전 ${d.price}`; g.strokeText(tx, d.x, d.y + 70); g.fillStyle = d.used ? "#8a8a9a" : (G.p && G.p.gold || 0) >= d.price ? "#ffe08a" : "#a99"; g.fillText(tx, d.x, d.y + 70); g.restore();
+}
+// 11-21 보호막: 가는 선 → 발밑 부적 결계(천천히 도는 고리, 밝은 글씨만 빛나게) + 몸 둘레 옅은 빛막. 보호막이 많을수록 진하게
+function drawWard(g, u) {
+  const k = Math.min(1, u.shield / Math.max(1, u.maxHp * 0.35)), t = G.time, pul = 0.75 + Math.sin(t * 3) * 0.12, im = IMG.fx_ward;
+  g.save();
+  const bub = g.createRadialGradient(u.x, u.y - 40, 10, u.x, u.y - 40, 58); bub.addColorStop(0, "rgba(160,220,255,0)"); bub.addColorStop(0.75, `rgba(150,210,255,${0.10 + 0.12 * k})`); bub.addColorStop(1, "rgba(150,210,255,0)");
+  g.fillStyle = bub; g.beginPath(); g.arc(u.x, u.y - 40, 58, 0, 7); g.fill();
+  if (im && im.naturalWidth) { g.translate(u.x, u.y + 4); g.scale(1, 0.45); g.rotate(t * 0.6); g.globalCompositeOperation = "lighter"; g.globalAlpha = (0.35 + 0.4 * k) * pul; const R = 62; g.drawImage(im, -R, -R, R * 2, R * 2); }
+  else { g.strokeStyle = `rgba(150,210,255,${0.3 + 0.3 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(u.x, u.y - 40, 46, 0, 7); g.stroke(); }
+  g.restore();
 }
 function drawShopRe(g, d) {
   const t = G.time, y = d.y - 30 + Math.sin(t * 3) * 3; if (G.p && Math.hypot(G.p.x - d.x, G.p.y - d.y) > 100) d.away = true; // 한 번 쓰면 떨어졌다 와야 다시
