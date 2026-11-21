@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.3";
+const GAME_VERSION = "3.0.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -85,7 +85,7 @@ const abIc = (key, emoji, px) => (ASSETS.img[key] ? `<img src="${ASSETS.img[key]
 const curIc = (k) => (ASSETS.img["cur_" + k] ? `<img src="${ASSETS.img["cur_" + k]}" alt="" style="width:1.35em;height:1.35em;object-fit:contain;vertical-align:-0.35em">` : { coin: "🪙", yeop: "💰", gold: "🟡" }[k]);
 
 // ---------- 계정 ----------
-const DEV_ID = "1234", DEV_PW = "1234";
+const DEV_ID = "1234", DEV_PW = "1234", DEV_OK = location.protocol === "file:" || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname); // 11-21 개발자 계정은 이 PC 안(개발자 시험 파일·로컬 서버)에서만 — 실제 주소에선 막음
 const nick = () => (SAVE && SAVE.nick) || ACCOUNT || "";
 const cleanNick = (s) => String(s || "").replace(/[<>"'&]/g, "").trim().slice(0, 12);
 function hashPw(id, pw) { let h = 2166136261; const s = "dbm2|" + id + "|" + pw; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + s.length; }
@@ -192,7 +192,7 @@ function login(id, pw, create, nk) {
   id = id.trim(); if (!id || !pw) return "아이디와 비밀번호를 넣어 주세요";
   if (id.length > 20) return "아이디는 20자까지";
   const acc = accounts();
-  if (id === DEV_ID) { if (pw !== DEV_PW) return "비밀번호가 달라요"; }
+  if (id === DEV_ID) { if (!DEV_OK) return "사용할 수 없는 아이디예요"; if (pw !== DEV_PW) return "비밀번호가 달라요"; }
   else if (create) { if (acc[id]) return "이미 있는 아이디예요"; if (pw.length < 4) return "비밀번호는 4자 이상"; acc[id] = hashPw(id, pw); ls.set("dbm2_accounts", JSON.stringify(acc)); }
   else { if (!acc[id]) return "없는 아이디예요. '새 계정 만들기'를 눌러 주세요"; if (acc[id] !== hashPw(id, pw)) return "비밀번호가 달라요"; }
   ACCOUNT = id; SAVE = loadAccount(id); if (create && cleanNick(nk)) SAVE.nick = cleanNick(nk); if (id === DEV_ID && !SAVE.nick) SAVE.nick = "개발자"; if (id === DEV_ID) { SAVE.endlessHard = 1; SAVE.endlessHell = 1; } ls.set("dbm2_last", id); saveGame();
@@ -213,7 +213,7 @@ function rememberLogin(on, id, pw) {
 async function autoLogin() {
   let a = null; try { a = JSON.parse(ls.get("ygr_auto") || "null"); } catch (e) { }
   if (!a || !a.id) return false;
-  if (a.id === DEV_ID) { if (login(a.id, a.dev || "", false)) return false; return true; }
+  if (a.id === DEV_ID) { if (!DEV_OK) { ls.set("ygr_auto", ""); return false; } if (login(a.id, a.dev || "", false)) return false; return true; }
   const acc = accounts(); if (!acc[a.id] || acc[a.id] !== a.h) { ls.set("ygr_auto", ""); return false; }
   if (a.rt) {
     try {
@@ -231,7 +231,7 @@ async function autoLogin() {
 async function loginCloud(id, pw, create, nk) {
   id = String(id || "").trim(); if (!id || !pw) return "아이디와 비밀번호를 넣어 주세요";
   if (id.length > 20) return "아이디는 20자까지";
-  if (id === DEV_ID) return login(id, pw, create, nk);
+  if (id === DEV_ID) return DEV_OK ? login(id, pw, create, nk) : "사용할 수 없는 아이디예요";
   if (pw.length < 4) return create ? "비밀번호는 4자 이상" : "비밀번호가 달라요";
   const acc = accounts(), localOk = !!acc[id] && acc[id] === hashPw(id, pw);
   const r = await CLOUD.signIn(id, pw, create, localOk);
