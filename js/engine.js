@@ -1366,7 +1366,7 @@ function pickups(u, dt = 1 / 60) {
     } else if (d.type === "herb" && dd < 40) { d.gone = true; healUnit(u, u.maxHp * 0.2); sfx("heal"); }
     else if (d.type === "act" && d.waitLeave) { if (dd > 75) d.waitLeave = false; }
     else if (d.type === "act" && dd < 58 && !d.cool && u.actLock && u.active && u.active.k !== d.k) {
-      if (!d.lockMsg || G.time - d.lockMsg > 2.5) { d.lockMsg = G.time; if (u === G.p) addText(d.x, d.y - 70, `🔒 잠금 중 — ${keyLabel(keyMap().lock)} 키로 풀어요`, "#ffd27a", 18); }
+      if (!d.lockMsg || G.time - d.lockMsg > 2.5) { d.lockMsg = G.time; if (u === G.p) addText(d.x, d.y - 70, `🔒 잠금 중 — ${IS_TOUCH ? "액티브 칸의 자물쇠를 눌러 풀어요" : keyLabel(keyMap().lock) + " 키로 풀어요"}`, "#ffd27a", 18); }
     } else if (d.type === "act" && dd < 58 && !d.cool) {
       d.gone = true;
       if (d.grp) for (const o of G.drops) if (o.grp === d.grp && o !== d) { o.gone = true; G.fx.push({ k: "puff", x: o.x, y: o.y, t: 0, max: 0.4, col: "#fff" }); }
@@ -2159,7 +2159,7 @@ function drawItemInfo(g) {
   const d = best; let title = "", col = "#ffe08a", lines = [];
   if (d.type === "act" || (d.type === "shop" && d.what === "act")) {
     const A = ACTIVES[d.k]; title = `[${ACT_TIER[A.rar].name}] ${A.name}${d.lv > 1 ? " Lv." + d.lv : ""}`; col = ACT_TIER[A.rar].col;
-    lines = [A.desc, `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`, p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : p.actLock ? `🔒 잠금 중이라 줍지 않아요 (${keyLabel(keyMap().lock)} 키로 풀기)` : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
+    lines = [A.desc, `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`, p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : p.actLock ? `🔒 잠금 중이라 줍지 않아요 (${IS_TOUCH ? "자물쇠를 눌러 풀기" : keyLabel(keyMap().lock) + " 키로 풀기"})` : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
   } else if (d.type === "shop" && d.what === "boon") { const B = BOONS[d.k]; title = B.name; col = RARITY[B.rar].col; lines = [B.desc, `강화 (${RARITY[B.rar].name}) · 이번 원정 동안 계속 적용`]; }
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }

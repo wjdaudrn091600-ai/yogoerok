@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.4";
+const GAME_VERSION = "3.0.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -496,14 +496,14 @@ const UI = {
       elem: ["⚔️ 요괴 속성 상성", "장마다 요괴의 속성이 달라요. 약점 속성(스테이지 시작 때 표시)으로 때리면 피해 <b>+10%</b>, 같은 계열이면 <b>-5%</b>예요.<br>영웅 상세 화면에서 내 영웅의 속성을 볼 수 있어요."],
       portal: ["⛩️ 홍살문", "보스를 잡으면 홍살문이 열려요. 다른 방을 더 둘러봐도 되고, 준비가 되면 <b>문 안에 1초</b> 서 있으면 다음 스테이지로 가요."],
       dex: ["📖 요괴록 도감", "토벌한 요괴는 도감에 기록돼요. 같은 요괴를 <b>10번</b> 토벌하면 그 요괴에게 피해 <b>+5%</b>, 장 도감을 다 채우면 칭호와 코인을 받아요."],
-      place: ["📍 위치 지정 스킬", "설치·낙하·순간이동 스킬은 자리를 고를 수 있어요.<br>PC: <b>키를 누른 채</b> 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)<br>폰: <b>스킬 버튼을 끌어서</b> 자리를 고르고 떼면 시전 (그냥 누르면 가까운 적에게)"],
+      place: ["📍 위치 지정 스킬", IS_TOUCH ? "설치·낙하·순간이동 스킬은 자리를 고를 수 있어요.<br><b>스킬 버튼을 끌어서</b> 자리를 고르고 떼면 시전 (그냥 누르면 가까운 적에게)" : "설치·낙하·순간이동 스킬은 자리를 고를 수 있어요.<br><b>키를 누른 채</b> 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)"],
       bounty: ["📜 오늘의 토벌령", "날마다 지정 요괴 3마리가 바뀌어요. 하나 토벌할 때마다 코인 3개, 셋 다 하면 코인 5개와 강화 조각 5개를 더 받아요."],
       altar: ["🔥 혼불 제단", "판에서 쓰러져도 <b>혼불</b>은 남아요. 처음 화면 <b>혼불 제단</b>에 바치면 모든 영웅이 영구히 강해져요.<br>판이 끝날 때 '다음 목표'에서 얼마나 남았는지 볼 수 있어요."],
       event: ["👻 괴이한 방", "떠다니는 혼불에 다가가면 설화 속 일이 벌어져요. 선택에 따라 보상도, 위험도 달라요."],
       trial: ["⏳ 시련의 방", "위쪽 시계가 0이 되기 전에 요괴를 모두 정리하면 <b>보물 상자 + 강화 하나</b>. 늦어도 벌은 없어요."],
-      pdodge: ["💨 완벽 회피", "공격이 닿기 직전에 구르면(<b>Space</b>) <b>완벽 회피</b>! 잠깐 시간이 느려지고 3초 동안 공격력이 30% 올라요."],
+      pdodge: ["💨 완벽 회피", "공격이 닿기 직전에 구르면(<b>" + (IS_TOUCH ? "구르기 버튼" : "Space") + "</b>) <b>완벽 회피</b>! 잠깐 시간이 느려지고 3초 동안 공격력이 30% 올라요."],
       combo: ["⚔️ 연격", "공격을 끊기지 않게 이어 가면 연격이 쌓여요. <b>15 이상</b>에서 끊기면 엽전을 받고, 연격이 높을수록 많이 받아요."],
-      map: ["🗺️ 큰 지도", "<b>M 키</b>(폰은 오른쪽 위 작은 지도를 누르기)로 이번 스테이지 지도를 크게 볼 수 있어요. 안 가 본 방과 홍살문 위치가 보여요."],
+      map: ["🗺️ 큰 지도", (IS_TOUCH ? "오른쪽 위 <b>작은 지도</b>를 누르면" : "<b>M 키</b>로") + " 이번 스테이지 지도를 크게 볼 수 있어요. 안 가 본 방과 홍살문 위치가 보여요."],
     }[key];
     if (!T || !SAVE || /autotest/.test(location.hash)) return;
     SAVE.tips = SAVE.tips || {}; if (SAVE.tips[key]) return; SAVE.tips[key] = 1; saveGame();
@@ -701,7 +701,7 @@ const UI = {
         ${own && typeof mastLv === "function" ? (() => { const l = mastLv(id), x = (SAVE.mast || {})[id] || 0, nx = MAST_XP[l]; return `<div class="card mastc"><b>숙련 Lv.${l}</b> ${mastBadge(id)}<div class="prog"><i style="width:${nx ? Math.min(100, ((x - MAST_XP[l - 1]) / (nx - MAST_XP[l - 1])) * 100) : 100}%"></i></div><span class="muted">${nx ? `${x}/${nx} · ` : "최고 단계 · "}이 영웅 공격력·체력 +${l - 1}% (판을 할수록 올라요)</span></div>`; })() : ""}
         ${own ? `<div class="card" style="padding:8px;margin:6px 0;display:flex;gap:10px;align-items:center"><b style="font-family:var(--display);font-size:1.2rem;color:var(--gold2)">강화 +${(SAVE.enh || {})[id] || 0}</b><span class="muted" style="flex:1">조각 ${(SAVE.shards || {})[id] || 0}${((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? " / 다음 강화 " + SHARD.enhCost((SAVE.enh || {})[id] || 0) + " · 성공 " + Math.round(SHARD.enhRate((SAVE.enh || {})[id] || 0) * 100) + "%" : " · 최대"} · 단계마다 공격·체력 +4%</span><button class="btn sm gold" id="enhbtn" ${((SAVE.shards || {})[id] || 0) >= SHARD.enhCost((SAVE.enh || {})[id] || 0) && ((SAVE.enh || {})[id] || 0) < SHARD.maxEnh ? "" : "disabled"}>강화</button></div>` : ""}
         <div class="ctabs">${[["sk", "스킬", "📜"], ["job", "전직", "⚔️"], ["info", "정보", "📖"]].map(([k, n, ic]) => `<button class="ctab ${k === UI._ctab ? "on" : ""}" data-ct="${k}"><span class="cti">${ic}</span><span>${n}</span></button>`).join("")}</div>
-        <div id="ctsk" ${UI._ctab === "sk" ? "" : "hidden"}><div class="skl"><span class="k">${abIc("sk_" + id + "_b", "🖱️", 30)}<small>좌클릭</small></span><div><b>${def.basic.name}</b> <span class="muted">기본 공격 · ${def.basic.cd}초</span></div></div>${skills}</div>
+        <div id="ctsk" ${UI._ctab === "sk" ? "" : "hidden"}><div class="skl"><span class="k">${abIc("sk_" + id + "_b", "🖱️", 30)}<small>${IS_TOUCH ? "공격" : "좌클릭"}</small></span><div><b>${def.basic.name}</b> <span class="muted">기본 공격 · ${def.basic.cd}초</span></div></div>${skills}</div>
         <div id="ctjob" ${UI._ctab === "job" ? "" : "hidden"}><p class="muted" style="font-size:.8rem;margin:4px 0">원정 중 레벨이 되면 둘 중 하나를 골라요 (그 원정 동안)</p><div class="jobtree">${JOB_LEVELS.map((lv, t) => { const o = jobOptions(id, t); return `<div class="jobrow"><div class="lv"><b>Lv.${lv}</b>${t + 1}차${t >= 3 ? (t === 3 ? " 각성" : " 초월") : ""}</div>${o.map((x) => `<div class="jb ${x.kind}"><b>${x.name}</b>${x.desc}<i>✨ ${x.skill}</i></div>`).join("")}</div>`; }).join("")}</div></div>
         <div id="ctinfo" ${UI._ctab === "info" ? "" : "hidden"}><div class="card" style="padding:8px;line-height:1.8;font-size:.88rem">
           <div>등급 <b style="color:${GRADE_INFO[CHAR_GRADE[id]].col}">${CHAR_GRADE[id]}급</b> <span class="muted">(기본 능력 ×${GRADE_INFO[CHAR_GRADE[id]].mul})</span></div>
@@ -1104,7 +1104,7 @@ const UI = {
       <div class="hp-box" id="fbox" hidden style="top:86px;min-width:260px;border-color:#7fe08a"><div class="face" id="fface" style="width:44px;height:44px"></div><div class="meta"><div class="nm" id="fnm"></div><div class="bar" style="height:10px"><s id="fsh"></s><i id="fhp" style="background:linear-gradient(#9fffb0,#3a9a4a)"></i></div></div></div>
       <div class="boonlist" id="boons"></div>
       <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><b class="lag" id="hbhpl"></b><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
-      <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="멈춤 · 소리 · 키 설정 (Esc)">${uiIc("pause", "⏸")}</button></div></div>
+      <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="${IS_TOUCH ? "멈춤 · 소리" : "멈춤 · 소리 · 키 설정 (Esc)"}">${uiIc("pause", "⏸")}</button></div></div>
       ${touch ? `<div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key${String(keyLabel(K.atk)).length > 2 ? " long" : ""}">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
@@ -1190,13 +1190,13 @@ const UI = {
     });
     if (UI._tipSlot) {
       const s = UI._tipSlot, tip = $("#tip"); let h = "";
-      if (s === "B") h = `<b>${p.def.basic.name}</b><br>기본 공격 · 마우스 왼쪽 클릭 (누르고 있으면 연속, 커서 쪽으로)`;
+      if (s === "B") h = `<b>${p.def.basic.name}</b><br>기본 공격 · ${IS_TOUCH ? "오른쪽 큰 칼 버튼 (누르고 있으면 연속, 가까운 요괴 쪽으로)" : "마우스 왼쪽 클릭 (누르고 있으면 연속, 커서 쪽으로)"}`;
       else if (s === "D") h = `<b>구르기</b><br>움직이는 방향으로 짧게 굴러 잠깐 무적 (${keyLabel(keyMap().dodge)}) · 대기 ${DODGE_CD}초`;
       else if (s === "A") h = p.active ? `<b style="color:${ACT_TIER[ACTIVES[p.active.k].rar].col}">[${ACT_TIER[ACTIVES[p.active.k].rar].name}] ${ACTIVES[p.active.k].name}</b> Lv.${p.active.lv}${ACTIVES[p.active.k].lore ? `<br><i class="lore">${esc(ACTIVES[p.active.k].lore)}</i>` : ""}<br>${ACTIVES[p.active.k].desc}<br><span class="muted">대기 ${ACTIVES[p.active.k].cd}초 · ${keyLabel(keyMap().act)} 키</span><br>${p.actLock ? `<span style="color:#ffd27a">🔒 잠금 중 — 다른 액티브를 밟아도 바뀌지 않아요 (${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 풀기)</span>` : `<span class="muted">🔓 ${keyLabel(keyMap().lock)} 키 또는 칸의 자물쇠로 잠그면 다른 액티브를 밟아도 바뀌지 않아요</span>`}` : "<b>액티브 없음</b><br>보물 방·보스·상인에게서 얻어요";
       else { const sk = p.sk[s], real = (p.cdMax && p.cdMax[s]) || sk.cd * (1 - (p.cdr || 0)), base = sk.cd0 || sk.cd;
         const jobLine = sk.jobTag ? `<br><span style="color:#ffd98a">✨ 전직 변화 '${sk.jobTag}' · 위력 ×${(sk.pow || 1).toFixed(2)}${sk.cd0 && sk.cd0 !== sk.cd ? ` · 기본 대기 ${base}초 → ${+sk.cd.toFixed(1)}초` : ""}</span>` : "";
         h = `<b>${sk.name}</b>${sk.grade ? ` <span class="grade" style="background:${SK_GRADE[sk.grade].col}">${sk.grade}</span>` : ""}${sk.lore ? `<br><i class="lore">${esc(sk.lore)}</i>` : ""}<br>${sk.desc}${jobLine}<br><span class="muted">대기 ${+real.toFixed(1)}초${real < sk.cd - 0.05 ? ` (기본 ${+sk.cd.toFixed(1)}초)` : ""} · ${keyLabel(keyMap()["s" + ({ Q: 1, W: 2, E: 3, R: 4 }[s])])} 키</span>`; }
-      if (s !== "B" && isPlaceFx(slotFx(p, s))) h += `<br><span style="color:#ffd27a">📍 위치 지정 — 키를 누른 채 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)</span>`;
+      if (s !== "B" && isPlaceFx(slotFx(p, s))) h += `<br><span style="color:#ffd27a">📍 위치 지정 — ${IS_TOUCH ? "스킬 버튼을 끌어 자리를 고르고 떼면 시전" : "키를 누른 채 마우스로 자리를 고르고 떼면 시전 (Esc·오른쪽 클릭 취소)"}</span>`;
       tip.innerHTML = h; tip.hidden = false;
     }
     drawMini();
@@ -1676,7 +1676,7 @@ const TALK_ONCE = [
   { id: "floor3", p: 95, if: (c) => c.newMax >= 3 && c.prevMax < 3, t: "얼음 장군까지 넘었어요? 그 장군, 원래는 이 마을을 지키던 분이었대요. 원한을 풀어 줬으니 이제 편히 쉬시겠지." },
   { id: "floor4", p: 95, if: (c) => c.newMax >= 4 && c.prevMax < 4, t: "불 도깨비 왕을 이겼다고! 대장간 쇠 냄새가 옷에 배었네. 넷째 장 늪은 독 안개가 짙으니 해독 약초를 꼭 챙겨요." },
   { id: "floor5", p: 95, if: (c) => c.newMax >= 5 && c.prevMax < 5, t: "…저승 궁궐까지 갔군요. 거기선 누가 불러도 대답하지 마요. 산 사람이 대답하면 이름이 명부에 적힌대요." },
-  { id: "boss_death", p: 80, if: (c) => c.died && c.bossDeath, t: (c) => `${c.killer}한테 당했어요? 큰 놈들은 때리기 전에 바닥이 붉게 물들어요. 그 순간 Space 로 굴러요. 몸이 기억할 때까지.` },
+  { id: "boss_death", p: 80, if: (c) => c.died && c.bossDeath, t: (c) => `${c.killer}한테 당했어요? 큰 놈들은 때리기 전에 바닥이 붉게 물들어요. 그 순간 ${IS_TOUCH ? "구르기 버튼으로" : "Space 로"} 굴러요. 몸이 기억할 때까지.` },
   { id: "stuck3", p: 85, if: (c) => c.died && c.stuck >= 3, t: (c) => `${c.r.floor}층에서만 벌써 ${c.stuck}번째네요. 혼불 제단에 '등불 심지'를 올려 보고, 요괴 속성의 약점(층 이름 아래 적힌 것)에 맞는 영웅으로 가 봐요.` },
   { id: "first_event", p: 70, if: (c) => (SAVE.stats.events || 0) > 0, t: "도깨비 씨름판 봤어요? 그 외뿔 도깨비, 지면 삐져서 사흘은 안 나와요. 장승 물음은… 우리 마을 아이들도 다 아는 거니 틀리면 창피해요." },
   { id: "first_altar", p: 65, if: () => Object.keys(SAVE.altar || {}).length > 0, t: "제단에 혼불 바친 거 봤어요. 등불이 한결 밝아졌네. 그 불빛이 미궁 아래까지 닿는대요." },
@@ -2152,7 +2152,7 @@ UI.shop = function (r) {
     $("#modal").classList.add("shopmode");
     UI.modal(`<div class="shopw"><div class="shophd"><img class="shopnpc" src="${imgSrc("npc_bobusang")}" alt=""><div class="shopsay"><b>보부상</b><p>${esc(line)}</p></div><div class="shopgold"><small>내 엽전</small><b>${gold}</b></div></div>
       <div class="shopgrid">${r.stock.map((d, i) => { const f = info(d), ok = !d.sold && gold >= d.price; return `<div class="shopit${d.sold ? " sold" : ""}${i === sel ? " on" : ""}" data-i="${i}" style="--sc:${f.c}"><div class="sic">${imgSrc(f.ic) ? `<img src="${imgSrc(f.ic)}" alt="">` : `<span>${f.em}</span>`}</div><div class="stx"><small>${f.t}</small><b>${esc(f.n)}</b><p>${esc(f.ds)}</p></div>${d.sold ? "" : `<button class="shlk${d.lock ? " on" : ""}" data-lk="${i}" title="찜하면 다시 진열해도 남아요">${d.lock ? "찜함" : "찜"}</button>`}<button class="btn ${ok ? "gold" : ""}" data-b="${i}" ${ok ? "" : "disabled"}>${d.sold ? "팔림" : `엽전 ${d.price}`}</button></div>`; }).join("")}</div>${det(gold)}
-      <div class="center shopft"><button class="btn" id="shre" ${gold >= rePrice() ? "" : "disabled"}>🔔 다시 진열 · 엽전 ${rePrice()}</button><button class="btn gold" id="shx">나가기 (Esc)</button></div></div>`);
+      <div class="center shopft"><button class="btn" id="shre" ${gold >= rePrice() ? "" : "disabled"}>🔔 다시 진열 · 엽전 ${rePrice()}</button><button class="btn gold" id="shx">${IS_TOUCH ? "나가기" : "나가기 (Esc)"}</button></div></div>`);
     const arm = UI.arm ? UI.arm() : 0;
     const buy = (i) => { if (performance.now() < arm) return; const d = r.stock[i]; if (!d || d.sold || (p.gold || 0) < d.price) return; shopBuy(p, d); draw(d.what === "act" ? "발밑에 내려놨소. 주워 가시오!" : pick(["좋은 물건 고르셨소!", "눈썰미가 있구려.", "그거 하나면 저 아래서도 버틸 거요."])); };
     document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); buy(+b.dataset.b); }));
@@ -2311,7 +2311,7 @@ UI.langFirst = function (done) {
 };
 // ===================== 11-20 판 들어가기 로딩 화면 =====================
 // 사용자: "그림받는중 이후 바로 게임으로 입장이 안되고 다시 눌러야함, 이미지가 별로". 전체 화면 그림 + 받는 양 막대 + 한마디, 다 받으면 바로 들어감(다시 누를 필요 없음).
-const LOAD_TIPS = ["구르기(Space) 중에는 공격을 맞지 않아요", "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 장 이름 아래를 보세요"];
+const LOAD_TIPS = [(IS_TOUCH ? "구르기 버튼으로 구르는 동안에는 공격을 맞지 않아요" : "구르기(Space) 중에는 공격을 맞지 않아요"), "붉은 영역은 곧 공격이 떨어지는 자리예요", "보부상에게 다가가면 상점이 열려요", "혼불은 혼불 제단에서 모든 영웅을 강하게 해요", "같은 강화를 겹치면 레벨이 올라요", "약수 우물은 체력을 가득 채워 줘요", "요괴마다 약한 속성이 있어요 — 장 이름 아래를 보세요"];
 UI.loading = function (opt) {
   if (UI._ld) return; UI._ld = true;
   const L = runPackList(opt), names = L.need.map((x) => x[0]).filter((n) => ASSETS.packs[n] && !PACK.done[n]);
