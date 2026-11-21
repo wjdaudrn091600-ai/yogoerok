@@ -395,6 +395,27 @@ function track(ev, props) { try { if (!_anaOn || !analyticsOk()) return; if (win
 function reportError(err) { try { if (_anaOn && window.Sentry && Sentry.captureException && analyticsOk()) Sentry.captureException(err); } catch (e) { } }
 
 // ---------- 음악 ----------
+// 11-21 배경음악을 Web Audio 로 (사용자: 게임을 켜면 듣던 노래·영상이 멈추고, 다시 틀면 게임이 멈춤)
+// <audio> 는 안드로이드에서 '오디오 포커스'를 가져가 다른 앱 소리를 끊고, 포커스를 뺏기면 멈춘 채로 남아 화면을 누를 때마다 곡을 처음부터 다시 불러 끊겼다.
+// Web Audio(효과음과 같은 길)는 포커스를 잡지 않아 다른 앱 소리와 함께 나온다. #bgm 의 play·pause·src·volume·paused 를 흉내 내 다른 코드(앱 껍데기 포함)는 그대로 둔다.
+(function bgmShim() {
+  const el = document.getElementById("bgm"); if (!el || el._shim) return; el._shim = true;
+  let src = "", vol = 1, paused = true, node = null, gain = null, token = 0; const cache = new Map();
+  const ctx = () => { startAudio(); return AC; };
+  const stop = () => { if (node) { try { node.stop(); } catch (e) { } try { node.disconnect(); } catch (e) { } node = null; } };
+  const load = (u) => { if (cache.has(u)) { const p = cache.get(u); cache.delete(u); cache.set(u, p); return p; }
+    const p = fetch(u).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => ctx().decodeAudioData(b, ok, no)));
+    p.catch(() => cache.delete(u)); cache.set(u, p); while (cache.size > 2) cache.delete(cache.keys().next().value); return p; }; // 풀어 둔 곡은 2곡까지만(폰 메모리)
+  Object.defineProperty(el, "src", { configurable: true, get: () => src, set: (u) => { if (u === src) return; stop(); src = u || ""; token++; } });
+  Object.defineProperty(el, "volume", { configurable: true, get: () => vol, set: (v) => { vol = Math.max(0, Math.min(1, +v || 0)); if (gain) gain.gain.value = vol; } });
+  Object.defineProperty(el, "paused", { configurable: true, get: () => paused });
+  el.play = () => { const c = ctx(); if (!c || !src) return Promise.resolve(); if (!paused && node) return Promise.resolve();
+    paused = false; const my = ++token, u = src;
+    return load(u).then((buf) => { if (my !== token || paused || u !== src) return; stop();
+      if (!gain) { gain = c.createGain(); gain.connect(c.destination); } gain.gain.value = vol;
+      node = c.createBufferSource(); node.buffer = buf; node.loop = true; node.connect(gain); node.start(); }).catch(() => { }); };
+  el.pause = () => { paused = true; token++; stop(); };
+})();
 let curTrack = null;
 function music(name) {
   const a = $("#bgm"); if (!a) return;
