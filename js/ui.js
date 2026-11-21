@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.3.0";
+const GAME_VERSION = "3.4.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -20,7 +20,8 @@ function installPc() {
 // 자동 업데이트 (11-14 사용자: 모바일에서 자동 업데이트가 안 되는 것 같음) — 켤 때 한 번만 확인하던 것을,
 // 화면이 다시 보일 때마다·10분마다 확인한다. 판 도중이면 알림만 띄우고 판이 끝나 처음 화면에 오면 새로 읽는다.
 let _updPending = null;
-function applyUpdate(ver) {
+function applyUpdate(ver, note) {
+  if (typeof OPS !== "undefined" && OPS.update === "batch" && !applyUpdate.go) { opsUpdateGate(ver, note); return; }
   if (G) { if (_updPending !== ver) { _updPending = ver; UI.toast(`🆕 새 버전 v${ver} — 이번 판이 끝나면 자동으로 바뀌어요`, 5000); } return; }
   const k = "dbm_reload_" + ver; let n = 0; try { n = +(sessionStorage.getItem(k) || 0); if (n >= 2) return; sessionStorage.setItem(k, n + 1); } catch (e) { }
   if (typeof saveGame === "function") saveGame(); if (typeof CLOUD !== "undefined" && CLOUD.on) CLOUD.push(true);
@@ -34,7 +35,7 @@ function checkUpdate() {
   if (UPDATE_URL && location.href.startsWith(UPDATE_URL)) {
     fetch(UPDATE_URL + "version.json?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json()).then((j) => {
       if (verNum(j.version) <= verNum(GAME_VERSION)) return;
-      applyUpdate(j.version);
+      applyUpdate(j.version, j.note);
     }).catch(() => { });
     return;
   }
@@ -147,11 +148,11 @@ const CLOUD = {
     } catch (e) { this.dirty = true; }
     return true;
   },
-  later() { if (!this.on) return; this.dirty = true; if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.push(); }, 6000); }, // 6초에 한 번까지만 올림
+  later() { if (!this.on) return; this.dirty = true; if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.push(); }, G ? 180000 : 20000); }, // 11-22 서버비: 판 도중 3분·메뉴 20초에 한 번(예전 6초). 판 끝·앱 내릴 때·로그아웃·결제는 바로 올림
   off() { clearTimeout(this.timer); this.timer = null; Object.assign(this, { uid: null, tok: null, rt: null, on: false, dirty: false }); },
   // 다른 기기에서 더 최근에 했으면 (판 밖에 있을 때) 받아 오기
   async refresh() {
-    if (!this.on || G || this.busy || !ACCOUNT) return; this.busy = true;
+    if (!this.on || G || this.busy || !ACCOUNT) return; if (Date.now() - (this._rt || 0) < 300000) return; this._rt = Date.now(); this.busy = true; // 11-22 다른 기기 확인은 5분에 한 번(읽기 줄임)
     try { const c = await this.pull(); if (c && c.save && c.t > (SAVE.t || 0) + 1000 && !G) { ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(c.save)); SAVE = loadAccount(ACCOUNT); sfxVol = SAVE.settings.sfx; UI.toast("☁️ 다른 기기에서 한 진행을 받아 왔어요", 3500); UI.menu(); } } catch (e) { }
     this.busy = false;
   },
@@ -751,6 +752,7 @@ const UI = {
     show(sel);
   },
   startRun(opt) {
+    if (typeof opsGate === "function" && opsGate()) return; // 11-22 점검·일괄 업데이트 중에는 새 판을 막음
     UI._runChar = opt.char;
     if (opt.mode === "story" && !opt.resume && !opt.multi && !opt._newOk && !opt.daily && SAVE.resume && CHAR[SAVE.resume.char]) {
       const R = SAVE.resume;
@@ -938,6 +940,7 @@ const UI = {
       <p class="tg"><label><input type="checkbox" id="bigtxt" ${s.bigText ? "checked" : ""}> <span class="sl">글자 크게<small>작은 휴대폰에서 읽기 편하게</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="telebold" ${s.teleBold ? "checked" : ""}> <span class="sl">공격 예고 진하게<small>붉은 공격 영역에 굵은 노란 테두리 — 작은 화면·색이 잘 안 보일 때</small></span></label></p>
       </div>
+      ${notifSetHtml(s)}
       <div class="setg"><h4>조작 · 도움</h4>
       <p class="tg"><label><input type="checkbox" id="guide" ${s.guide ? "checked" : ""}> <span class="sl">안내 화살표<small>보스·출구가 바로 옆 방일 때와 홍살문이 열렸을 때만 길을 가리켜요</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> <span class="sl">자동 공격<small>켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접</small></span></label></p>
@@ -961,6 +964,7 @@ const UI = {
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
     if ($("#guide")) $("#guide").onchange = (e) => { s.guide = e.target.checked; saveGame(); };
+    notifSetBind(s);
     if ($("#telebold")) $("#telebold").onchange = (e) => { s.teleBold = e.target.checked; saveGame(); };
     if ($("#assist")) $("#assist").onchange = (e) => { s.assist = e.target.checked; saveGame(); UI.toast(s.assist ? "도움 모드 켬 — 쓰러질수록 조금씩 단단해져요" : "도움 모드 끔", 2500); };
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
@@ -1371,6 +1375,7 @@ const UI = {
     if (typeof talkType === "function") talkType();
     if ($("#sharec")) $("#sharec").onclick = () => shareCard(r);
     if (!isClient) cbtSurvey(r);
+    try { if (CLOUD.on && CLOUD.dirty) { clearTimeout(CLOUD.timer); CLOUD.timer = null; CLOUD.push(); } } catch (e) { } // 판이 끝나면 바로 올림
     document.querySelectorAll(".goal[data-go]").forEach((g) => (g.onclick = () => { if (multi) return; UI.closeModal(); UI.menu(); UI.open(g.dataset.go); }));
   },
 };
@@ -2686,3 +2691,88 @@ function iapBind() {
 // 앱을 켤 때 한 번: 결제는 됐는데 지급을 못 받은 것 되찾기
 setTimeout(() => { try { if (iapOn() && iapApp() && SAVE) YogoApp.restore(); } catch (e) { } }, 6000);
 UI.cashShop = function () { UI.frame("등불 상점", iapHtml() || `<p class="muted">지금은 준비 중이에요</p>`); iapBind(); };
+
+// ===================== 11-22 운영: 일괄 업데이트 · 점검 · 앱 버전 (release.js OPS, 사이트 ops.json) =====================
+// 서버(Firestore)를 쓰지 않고 정적 파일 ops.json 만 읽는다 → 사람이 많아도 서버비 0.
+const OPS_ST = { maint: null, upd: null, warned: false };
+function opsLocal() { return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/maintest/.test(location.hash); }
+function opsBlocked() { return !!(OPS_ST.maint && OPS_ST.maint.on && !opsLocal()) || !!OPS_ST.upd; }
+// 판 시작을 막는 곳(다시 도전·모드 고르기)은 UI.startRun 앞에서 걸러진다
+function opsGate() { if (OPS_ST.maint && OPS_ST.maint.on && !opsLocal()) { opsMaintScreen(); return true; } if (OPS_ST.upd) { opsUpdateGate(OPS_ST.upd.ver, OPS_ST.upd.note); return true; } return false; }
+function opsUpdateGate(ver, note) {
+  OPS_ST.upd = { ver, note };
+  if (G) { if (!OPS_ST.warned) { OPS_ST.warned = true; UI.toast(`새 업데이트 v${ver}가 나왔어요 — 이번 판이 끝나면 업데이트해요`, 6000); } return; }
+  if (document.getElementById("opsup")) return;
+  const first = String(note || "").split("\n")[0].replace(/^업데이트 [\d.]+ — /, "");
+  const d = document.createElement("div"); d.id = "opsup"; d.className = "opsscr";
+  d.innerHTML = `<div class="opsbox"><h2>업데이트 안내</h2><p>새 판 <b>v${esc(ver)}</b>이 나왔어요. 업데이트를 받아야 계속할 수 있어요.</p>${first ? `<p class="muted">${esc(first).slice(0, 220)}</p>` : ""}<p class="muted">진행은 안전하게 저장돼요.</p><button class="btn gold" id="opsgo">지금 업데이트</button></div>`;
+  document.body.appendChild(d); $("#opsgo").onclick = () => { applyUpdate.go = true; d.querySelector("button").disabled = true; applyUpdate(ver); };
+}
+function opsMaintScreen() {
+  const m = OPS_ST.maint; if (!m || !m.on || opsLocal()) { const o = document.getElementById("opsmt"); if (o) o.remove(); return; }
+  if (G) { if (!OPS_ST.mwarn) { OPS_ST.mwarn = true; UI.toast("곧 점검이 시작돼요 — 이번 판을 마치면 접속이 잠시 닫혀요", 7000); } return; }
+  let d = document.getElementById("opsmt"); if (!d) { d = document.createElement("div"); d.id = "opsmt"; d.className = "opsscr"; document.body.appendChild(d); }
+  d.innerHTML = `<div class="opsbox"><h2>점검 중이에요</h2><p>${esc(m.msg || "더 좋은 요괴록을 위해 잠시 손보고 있어요.")}</p>${m.until ? `<p class="muted">끝나는 때: ${esc(m.until)}</p>` : ""}<p class="muted">점검이 끝나면 이 화면이 저절로 닫혀요.</p><button class="btn" id="opsre">다시 확인</button></div>`;
+  $("#opsre").onclick = () => opsPoll(true);
+}
+function opsAppCheck(minApp) {
+  try { if (!minApp || !window.YogoApp) return; const v = YogoApp.appVer ? +YogoApp.appVer() : 0; if (v >= minApp || document.getElementById("opsapp")) return;
+    const d = document.createElement("div"); d.id = "opsapp"; d.className = "opsscr";
+    d.innerHTML = `<div class="opsbox"><h2>앱 업데이트가 필요해요</h2><p>Play 스토어에서 요괴록 앱을 업데이트해 주세요. 진행은 그대로 남아 있어요.</p><a class="btn gold" href="https://play.google.com/store/apps/details?id=com.yogoerok.game">Play 스토어 열기</a></div>`;
+    document.body.appendChild(d); } catch (e) { }
+}
+function opsPoll(manual) {
+  if (!UPDATE_URL || !/^https?:/.test(location.protocol)) return;
+  fetch(UPDATE_URL + "ops.json?t=" + Date.now(), { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j) return; const was = OPS_ST.maint && OPS_ST.maint.on;
+    OPS_ST.maint = j.maint || null; opsMaintScreen();
+    if (was && !(j.maint && j.maint.on)) { UI.toast("점검이 끝났어요 — 다시 즐겨 주세요", 4000); checkUpdate(); }
+    if (manual && !(j.maint && j.maint.on)) UI.toast("지금은 점검 중이 아니에요");
+    opsAppCheck(j.minApp);
+    if (j.version && verNum(j.version) > verNum(GAME_VERSION)) checkUpdate();
+  }).catch(() => { });
+}
+setTimeout(() => opsPoll(), 1500);
+setInterval(() => opsPoll(), ((typeof OPS !== "undefined" && OPS.pollSec) || 120) * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) opsPoll(); });
+// 판이 끝나 메뉴로 오면 미뤄 둔 업데이트·점검 창
+setInterval(() => { if (!G && OPS_ST.upd && !document.getElementById("opsup")) opsUpdateGate(OPS_ST.upd.ver, OPS_ST.upd.note); if (!G && OPS_ST.maint && OPS_ST.maint.on) opsMaintScreen(); }, 3000);
+// 업데이트를 받은 뒤 처음 접속하면 새 내용 안내 (한 번)
+setTimeout(() => { try { const k = "ygr_seen_ver", was = ls.get(k); if (was && was !== GAME_VERSION && typeof OPS !== "undefined" && OPS.update === "batch") UI.toast(`v${GAME_VERSION} 업데이트 완료 — 새 내용은 처음 화면 '공지'에서 볼 수 있어요`, 5000); ls.set(k, GAME_VERSION); } catch (e) { } }, 4000);
+
+// ===================== 11-22 알림 (앱에서만, 폰 안에서 예약 — 서버비 0) =====================
+// 사용자: "알림기능 만들어주고 게임내에서 변경가능하게". 밤(21시~9시)에는 보내지 않고 다음 날 아침 9시로 미룬다.
+const NOTIF = { store: [1, "주막 창고가 가득 찼어요", "쌓인 혼불을 받으러 오세요. 더는 쌓이지 않아요."], daily: [2, "오늘의 출석 보상이 기다려요", "들르기만 해도 코인·엽전·혼불을 받아요."], back: [3, "요괴들이 다시 꿈틀거려요", "토벌꾼님, 미궁의 등불이 꺼지기 전에 돌아와 주세요."] };
+function notifCan() { return !!(window.YogoApp && YogoApp.notifyAt); }
+function notifQuiet(t) { const d = new Date(t), h = d.getHours(); if (h >= 21) { d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); } else if (h < 9) d.setHours(9, 0, 0, 0); return d.getTime(); }
+function notifPlan() {
+  if (!notifCan() || !SAVE) return; const st = SAVE.settings, now = Date.now();
+  for (const k in NOTIF) try { YogoApp.notifyCancel(NOTIF[k][0]); } catch (e) { }
+  if (!st.notif) return;
+  try {
+    if (st.nStore !== false && SAVE.storeT && (SAVE.stats.rooms || 0) >= 5) { const t = SAVE.storeT + STORE_CAP_H * 36e5; if (t > now + 60000) YogoApp.notifyAt(NOTIF.store[0], NOTIF.store[1], NOTIF.store[2], notifQuiet(t)); }
+    if (st.nDaily !== false) { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(19, 0, 0, 0); YogoApp.notifyAt(NOTIF.daily[0], NOTIF.daily[1], NOTIF.daily[2], d.getTime()); }
+    if (st.nBack !== false) { const d = new Date(now + 3 * 864e5); d.setHours(19, 30, 0, 0); YogoApp.notifyAt(NOTIF.back[0], NOTIF.back[1], NOTIF.back[2], d.getTime()); }
+  } catch (e) { }
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) notifPlan(); else if (notifCan()) for (const k in NOTIF) try { YogoApp.notifyCancel(NOTIF[k][0]); } catch (e) { } });
+function notifSetHtml(s) {
+  if (!notifCan()) return `<div class="setg"><h4>알림</h4><p class="muted">알림은 Play 스토어에서 받은 앱에서 쓸 수 있어요.</p></div>`;
+  const row = (id, on, nm, sm) => `<p class="tg"><label><input type="checkbox" id="${id}" ${on ? "checked" : ""}> <span class="sl">${nm}<small>${sm}</small></span></label></p>`;
+  return `<div class="setg"><h4>알림</h4>${row("ntall", !!s.notif, "알림 받기", "밤 9시부터 아침 9시까지는 보내지 않아요")}
+    <div id="ntsub" ${s.notif ? "" : 'style="opacity:.45;pointer-events:none"'}>${row("ntstore", s.nStore !== false, "주막 창고가 가득 찼을 때", "쉬는 동안 쌓인 혼불을 받으러 올 때")}${row("ntdaily", s.nDaily !== false, "출석 보상", "다음 날 저녁 7시")}${row("ntback", s.nBack !== false, "오랜만에", "사흘 동안 들르지 않았을 때 한 번")}</div></div>`;
+}
+function notifSetBind(s) {
+  if (!notifCan() || !$("#ntall")) return;
+  $("#ntall").onchange = (e) => { s.notif = e.target.checked; saveGame(); track("notif_set", { on: s.notif });
+    if (s.notif && YogoApp.notifyAllowed && !YogoApp.notifyAllowed()) { try { YogoApp.notifyAsk(); } catch (x) { } UI.toast("폰에서 '알림 허용'을 눌러 주세요", 3000); }
+    const sub = $("#ntsub"); if (sub) { sub.style.opacity = s.notif ? "" : ".45"; sub.style.pointerEvents = s.notif ? "" : "none"; } };
+  $("#ntstore").onchange = (e) => { s.nStore = e.target.checked; saveGame(); };
+  $("#ntdaily").onchange = (e) => { s.nDaily = e.target.checked; saveGame(); };
+  $("#ntback").onchange = (e) => { s.nBack = e.target.checked; saveGame(); };
+}
+// 처음 스토리 1장을 깬 뒤 한 번만 가볍게 물어봄(앱에서만, 싫으면 '괜찮아요')
+setInterval(() => { try { if (!notifCan() || !SAVE || G || UI.modalOpen() || SAVE.notifAsked || !((SAVE.stats.bosses || 0) >= 1)) return; SAVE.notifAsked = Date.now(); saveGame();
+  UI.modal(`<h2>알림을 받을까요?</h2><p style="text-align:center;line-height:1.8">주막 창고가 가득 차거나 출석 보상이 있을 때만 알려 드려요.<br>밤에는 보내지 않아요. 설정 → 알림에서 언제든 바꿀 수 있어요.</p><div class="center"><button class="btn gold" id="nty">받을래요</button><button class="btn" id="ntn">괜찮아요</button></div>`);
+  $("#nty").onclick = () => { SAVE.settings.notif = true; saveGame(); try { YogoApp.notifyAsk(); } catch (e) { } track("notif_set", { on: true, ask: 1 }); UI.closeModal(); };
+  $("#ntn").onclick = () => { track("notif_set", { on: false, ask: 1 }); UI.closeModal(); }; } catch (e) { } }, 5000);
