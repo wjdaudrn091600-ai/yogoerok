@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.1.0";
+const GAME_VERSION = "3.2.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -287,7 +287,7 @@ function unlockProgress(c) {
 }
 function checkUnlocks() {
   if (!SAVE) return;
-  for (const c of CHARS) { if (SAVE.chars[c.id] || c.unlock.type === "gacha") continue; if (unlockProgress(c).ok) { SAVE.chars[c.id] = 1; UI.toast(`🔓 새 영웅 해금: ${c.name} (${c.job})`, 4000); } }
+  for (const c of CHARS) { if (SAVE.chars[c.id] || c.unlock.type === "gacha" || !isReleased(c.id)) continue; if (unlockProgress(c).ok) { SAVE.chars[c.id] = 1; UI.toast(`🔓 새 영웅 해금: ${c.name} (${c.job})`, 4000); } }
   for (const [T, store, label] of [[TITLES, "titles", "🏷️ 칭호"], [ARTIFACTS, "arts", "🔮 보물"], [PETS, "pets", "🐾 펫"]]) for (const k in T) { const it = T[k]; if (!it.c || SAVE[store][k]) continue; if (statVal(it.c.stat) >= it.c.n) { SAVE[store][k] = 1; UI.toast(`${label} 획득: ${it.name} (${HOW_NAME[it.how]} · ${it.c.text})`, 4200); } }
 }
 const missionDone = (m) => statVal(m.stat) >= m.n;
@@ -654,6 +654,7 @@ const UI = {
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#noticeb").onclick = () => UI.notice();
+    if (typeof ADS !== "undefined" && (ADS.on || ADS.active())) { const hb = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const el = document.createElement("button"); el.className = "adbless"; el.innerHTML = ADS.active() ? `<b>등불 축복</b> 혼불 ×${ADS.soulMul} · ${ADS.leftMin()}분 남음` : `<b>등불 축복 받기</b> 짧은 광고를 보면 ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`; el.disabled = ADS.active(); el.onclick = () => ADS.show((ok) => { if (ok) { ADS.grant(); UI.toast(`등불 축복 — ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`, 2600); UI.menu(); } }); if (hb) hb.prepend(el); }
     if (!UI._noticeAuto && noticeAutoOk()) { UI._noticeAuto = 1; let n = 0; const tryN = () => { if (G) return; if (UI.modalOpen() || document.querySelector("#tutor, #langpick")) { if (++n < 60) setTimeout(tryN, 700); return; } UI.notice(true); }; setTimeout(tryN, 700); } // 출석 등 다른 창을 닫으면 이어서
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
   },
@@ -1550,7 +1551,8 @@ function altarEarn(r) { // endRun 에서 부름 → 혼불 계산·저장
   if (r.win || r.storyDone) parts.push(["완주", 1, 40]);
   const dRw = ((r.mode === "story" || r.mode === "endless") && G && G.opt && G.opt.diff && DIFF[G.opt.diff] ? DIFF[G.opt.diff].rw : 1) * (typeof isFestival === "function" && isFestival() ? 1.5 : 1); // 주말 축제 ×1.5 // 11-19 높은 난이도 = 혼불 더
   const tb = G && G.opt && Array.isArray(G.opt.taboo) ? G.opt.taboo.length : 0; if (tb) parts.push([`금기 ${tb}개`, 0, 0]);
-  let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw * (1 + 0.2 * tb)); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
+  const adB = typeof ADS !== "undefined" && ADS.active() ? ADS.soulMul : 1; if (adB > 1) parts.push([`등불 축복 ×${ADS.soulMul}`, 0, 0]); // 11-21 보상형 광고 버프(정식 출시 때)
+  let base = Math.round(parts.reduce((a, [, n, w]) => a + n * w, 0) * (dailyRule("soul2") ? 2 : 1) * dRw * (1 + 0.2 * tb) * adB); const bonus = Math.round(base * 0.1 * altarLv("spirit")); const total = base + bonus;
   SAVE.soul = (SAVE.soul || 0) + total; SAVE.soulTotal = (SAVE.soulTotal || 0) + total;
   return { total, bonus, parts: parts.filter(([, n]) => n > 0) };
 }
@@ -2093,10 +2095,10 @@ function seasonNo() { if (!LAUNCH) return 0; const a = new Date(LAUNCH + "T00:00
 function seasonHero() { const n = seasonNo(); return n >= 1 && n <= SEASON_CHARS.length ? SEASON_CHARS[n - 1] : null; } // 이번 달 시즌 패스 영웅
 function isReleased(id) { // LAUNCH 가 없으면 모두 공개
   if (!LAUNCH) return true; const si = SEASON_CHARS.indexOf(id); if (si >= 0) return seasonNo() > si + 1; // 시즌 영웅: 자기 시즌 다음 달부터 뽑기에
-  const i = RELEASE_PLAN.indexOf(id); if (i < 0) return true; const first = 4; if (i < first) return true;
-  const days = (Date.now() - new Date(LAUNCH + "T00:00:00").getTime()) / 864e5; return days >= 0 && Math.floor(days / RELEASE_STEP_DAYS) * RELEASE_PER_STEP >= i - first + 1;
+  if (LAUNCH_FIRST.includes(id)) return true; const i = LAUNCH_LATER.indexOf(id); if (i < 0) return true; // 11-21 첫날 10명, 나머지는 LAUNCH_LATER 순서로
+  const days = (Date.now() - new Date(LAUNCH + "T00:00:00").getTime()) / 864e5; return days >= 0 && Math.floor(days / RELEASE_STEP_DAYS) * RELEASE_PER_STEP >= i + 1;
 }
-function releaseDay(id) { const i = RELEASE_PLAN.indexOf(id); if (!LAUNCH || i < 4) return null; const step = Math.ceil((i - 3) / RELEASE_PER_STEP); const d = new Date(new Date(LAUNCH + "T00:00:00").getTime() + step * RELEASE_STEP_DAYS * 864e5); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
+function releaseDay(id) { const i = LAUNCH_LATER.indexOf(id); if (!LAUNCH || i < 0) return null; const step = Math.ceil((i + 1) / RELEASE_PER_STEP); const d = new Date(new Date(LAUNCH + "T00:00:00").getTime() + step * RELEASE_STEP_DAYS * 864e5); return `${d.getMonth() + 1}월 ${d.getDate()}일`; }
 function pickupHero() { // 주마다 바뀌는 픽업 (공개된 뽑기 영웅 중, 주 번호로 돌림)
   const hs = CHARS.filter((c) => c.unlock.type === "gacha" && isReleased(c.id)); if (!hs.length) return null;
   const wk = Math.floor((Date.now() / 864e5 + 3) / 7); return hs[wk % hs.length].id;

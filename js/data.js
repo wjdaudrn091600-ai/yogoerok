@@ -872,6 +872,9 @@ const PET_RAR_MUL = { 1: 1.0, 2: 1.2, 3: 1.45, 4: 1.8 };
 const LAUNCH = null; // 예: "2027-01-15"
 const RELEASE_STEP_DAYS = 14, RELEASE_PER_STEP = 2;
 const RELEASE_PLAN = ["thunder", "fox", "haerang", "danbi", "geommu", "mudang", "hwarang", "eosa", "sorikun", "dolsoe", "pojol", "yakcho", "namu"]; // 일반 순차 공개 순서 (앞 4명 = 첫 배너)
+// 11-21 사용자: 정식 출시 첫날은 영웅 10명 정도만 → 첫날 공개 10명(기본 6 + 첫 배너 4), 나머지(임무·장 돌파로 얻는 영웅 포함)는 2주마다 2명씩
+const LAUNCH_FIRST = ["musa", "archer", "spear", "gunner", "dosa", "priest", "thunder", "fox", "haerang", "danbi"];
+const LAUNCH_LATER = ["geommu", "monk", "mudang", "yinyang", "hwarang", "necro", "eosa", "summoner", "sorikun", "assassin", "berserker", "jipsin", "bong", "dolsoe", "pojol", "yakcho", "namu"];
 // 11-19 사용자: 출시 전엔 아무도 모르니 일부를 걸러 시즌 패스 영웅으로 — 시즌 n(출시 달부터 n번째 달)에 SEASON_CHARS[n-1] 이 시즌 패스로 먼저 나오고, 그다음 시즌부터 일반 뽑기에 섞임
 const SEASON_CHARS = ["haemosu", "hwaryeon", "cheonrang", "eulji", "moon", "reaper"];
 const PICKUP_SHARE = 0.5; // 픽업 영웅: 같은 등급이 나왔을 때 50% 확률로 그 영웅

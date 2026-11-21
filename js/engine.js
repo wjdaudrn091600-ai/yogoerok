@@ -471,6 +471,10 @@ function enterRoom(k, fromDir) {
   }
   if (!r.visited) {
     r.visited = true;
+    if ((G.mode === "story" || G.mode === "endless") && !G.rooms._explored && G.rooms.size > 3 && [...G.rooms.values()].every((x) => x.visited)) { // 11-21 탐험 보상: 스테이지의 방을 모두 가 보면 (안내 화살표를 끈 만큼 구석구석 돌 이유)
+      G.rooms._explored = true; const gv = Math.round(40 * shopPm() / 5) * 5; G.p.gold = (G.p.gold || 0) + gv; if (SAVE && !(G.opt && G.opt.multi && G.client)) { SAVE.soul = (SAVE.soul || 0) + 5; SAVE.stats.explored = (SAVE.stats.explored || 0) + 1; }
+      setTimeout(() => { try { sfx("level"); if (UI.loot) UI.loot("구석구석 탐험 완료", [["cur_yeop", "엽전", gv], ["ui_soul", "혼불", 5]]); } catch (e) { } }, 600);
+    }
     if (G.mode === "endless" && r.type !== "start") { G.endlessN++; if (r.type !== "boss") G.eRoom++; if (false) { G.curse = G.endlessN > 1 && Math.random() < 0.25 ? pick(Object.keys(CURSES)) : null; if (G.curse) setTimeout(() => { if (G) G.banner = { text: `${CURSES[G.curse].ic} 저주가 내렸어요`, sub: `${CURSES[G.curse].name} — ${CURSES[G.curse].desc} · 다음 10방 동안 · 보상 1.5배`, t: 3.5, boss: true }; }, 400); } if (G.endlessN > (SAVE.stats.endlessBest || 0)) { SAVE.stats.endlessBest = G.endlessN; if (G.endlessN % 10 === 0 && G.endlessN > (SAVE.endlessRewarded || 0)) { SAVE.endlessRewarded = G.endlessN; gainCoin(2, "무한의 방 " + G.endlessN + "번째 방 첫 도달"); } } }
   }
   if (p.m.shieldRoom && !r.cleared) p.shield = Math.max(p.shield, p.maxHp * p.m.shieldRoom);
