@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.2";
+const GAME_VERSION = "3.4.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -863,7 +863,7 @@ const UI = {
     const E = SAVE.equip;
     const slotHtml = (k, def, lab) => `<div class="slot" style="${k ? "border-style:solid;border-color:var(--gold)" : ""}">${k ? (def.img ? `<img src="${imgSrc(def.img)}" alt="">` : "🏷️") + `<span>${def.name}</span>` : lab}</div>`;
     const slots = `<div class="slots">${slotHtml(E.arts[0], ARTIFACTS[E.arts[0]], "보물 1")}${slotHtml(E.arts[1], ARTIFACTS[E.arts[1]], "보물 2")}${slotHtml(E.pet, PETS[E.pet], "펫")}${slotHtml(E.title, TITLES[E.title], "칭호")}</div>`;
-    const groups = ["gacha", "mission", "special", "drop", "story", "secret"].map((h) => { const ks = T[1].filter((k) => T[0][k].how === h && (h !== "secret" || SAVE[T[2]][k])); if (!ks.length) return "";
+    const groups = ["gacha", "mission", "special", "drop", "story", "secret", "shop"].map((h) => { const ks = T[1].filter((k) => T[0][k].how === h && (h !== "secret" || SAVE[T[2]][k])); if (!ks.length) return "";
       return `<h3 style="margin-top:14px">${HOW_NAME[h]}${h === "story" ? " (스토리를 진행해야만 얻어요)" : ""} <span class="muted">${ks.filter((k) => SAVE[T[2]][k]).length}/${ks.length}</span></h3><div class="grid">${ks.map((k) => itemCard(tab, k, T[0][k], SAVE[T[2]][k], true)).join("")}</div>`; }).join("");
     UI.frame("보물 · 펫 · 칭호", `${slots}<p class="muted">눌러서 끼우고 빼요 · 대전에서는 적용 안 돼요</p><div class="tabs">${tabs}</div>${groups}`);
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.bag({ tab: b.dataset.t })));
@@ -2094,11 +2094,11 @@ function seasonHtml(s) { if (!s || !s.xp) return ""; return `<div class="sres">�
 UI.season = function () {
   const S = seasonState(), lv = Math.min(SEASON_TIER, Math.floor(S.xp / SEASON_XP)), cur = S.xp % SEASON_XP, d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 1), left = Math.ceil((end - d) / 864e5);
   const cells = Array.from({ length: SEASON_TIER }, (_, i) => { const n = i + 1, R = seasonRw(n), got = S.claimed[n], can = n <= lv && !got;
-    return `<div class="stier ${got ? "got" : can ? "can" : n <= lv ? "" : "lock"} ${n % 5 === 0 ? "big" : ""}" ${can ? `data-n="${n}"` : ""}><b>${n}</b><div class="sic">${[R.hero ? "card_" + charArt(R.hero) : "", R.coin ? "cur_coin" : "", R.soul ? "ui_soul" : "", R.shard ? "ic_s_shard" : ""].filter((k) => k && imgSrc(k)).map((k) => `<img src="${imgSrc(k)}" alt="">`).join("")}</div><span>${R.t}</span>${got ? "<i>✔ 받음</i>" : can ? "<i>받기</i>" : ""}</div>`; }).join("");
+    return `<div class="stier ${got ? "got" : can ? "can" : n <= lv ? "" : "lock"} ${n % 5 === 0 ? "big" : ""}" ${can ? `data-n="${n}"` : ""}><b>${n}</b><div class="sic">${[R.hero ? "card_" + charArt(R.hero) : "", R.coin ? "cur_coin" : "", R.soul ? "ui_soul" : "", R.shard ? "ic_s_shard" : ""].filter((k) => k && imgSrc(k)).map((k) => `<img src="${imgSrc(k)}" alt="">`).join("")}</div><span>${R.t}${S.plus ? ` <em class="splus">상급 +코인 ${seasonPlusRw(n).coin}</em>` : ""}</span>${got ? "<i>✔ 받음</i>" : can ? "<i>받기</i>" : ""}</div>`; }).join("");
   UI.frame("🏮 토벌 시즌", `<div class="shead"><div><h2>${d.getMonth() + 1}월 토벌 시즌</h2><p class="muted">판을 할 때마다 경험이 쌓여요 (방·처치·완주·오늘의 괴담). 시즌은 ${left}일 뒤 새로 시작해요.</p></div>
     <div class="slv"><b>${lv}</b>/${SEASON_TIER}단계<div class="prog"><i style="width:${lv >= SEASON_TIER ? 100 : (cur / SEASON_XP) * 100}%"></i></div><span class="muted">${lv >= SEASON_TIER ? "완주!" : `다음 단계까지 ${SEASON_XP - cur}`}</span></div></div>
     <div class="strack">${cells}</div><p class="muted" style="text-align:center">${seasonUnclaimed() ? `<button class="btn gold" id="sall">모두 받기 (${seasonUnclaimed()})</button>` : ""}</p>`, () => UI.menu());
-  const claim = (n) => { const R = seasonRw(n); S.claimed[n] = 1; if (R.coin) SAVE.coins += R.coin; if (R.soul) { SAVE.soul = (SAVE.soul || 0) + R.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + R.soul; }
+  const claim = (n) => { const R = seasonRw(n); S.claimed[n] = 1; if (S.plus) { S.pclaimed = S.pclaimed || {}; if (!S.pclaimed[n]) { const P = seasonPlusRw(n); S.pclaimed[n] = 1; SAVE.coins += P.coin; SAVE.soul = (SAVE.soul || 0) + P.soul; } } if (R.coin) SAVE.coins += R.coin; if (R.soul) { SAVE.soul = (SAVE.soul || 0) + R.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + R.soul; }
     if (R.hero && CHAR[R.hero]) { if (SAVE.chars[R.hero]) { SAVE.shards = SAVE.shards || {}; SAVE.shards[R.hero] = (SAVE.shards[R.hero] || 0) + 20; } else SAVE.chars[R.hero] = 1; }
     if (R.shard) { const own = Object.keys(SAVE.chars), id = pick(own); SAVE.shards = SAVE.shards || {}; SAVE.shards[id] = (SAVE.shards[id] || 0) + R.shard; } };
   document.querySelectorAll(".stier[data-n]").forEach((c) => (c.onclick = () => { claim(+c.dataset.n); saveGame(); sfx("coin"); UI.toast(`🏮 ${c.dataset.n}단계 보상 · ${seasonRw(+c.dataset.n).t}`); UI.season(); }));
@@ -2143,7 +2143,7 @@ function pickupHtml() {
 // ===================== 11-19 2.0 주막 창고(쉬는 동안 쌓이는 혼불) · 주말 혼불 축제 =====================
 // 참고: 탕탕특공대 '순찰 보상'·방치형 게임 오프라인 보상 — 매일 들어올 이유. 최대 12시간이라 하루 두 번 들르면 손해 없음.
 const STORE_CAP_H = 12;
-function storeRate() { return 2 + 0.6 * Math.min(5, SAVE.story.maxFloor || 1) + 0.4 * (typeof altarLv === "function" ? altarLv("spirit") : 0); } // 11-19 쉬는 동안 받는 몫이 한 판 수입을 넘지 않게 (최대 15.5 → 7) // 시간당 혼불
+function storeRate() { return (2 + 0.6 * Math.min(5, SAVE.story.maxFloor || 1) + 0.4 * (typeof altarLv === "function" ? altarLv("spirit") : 0)) * (typeof passActive === "function" && passActive() ? 1.5 : 1); } // 11-19 쉬는 동안 받는 몫이 한 판 수입을 넘지 않게 (최대 15.5 → 7) // 시간당 혼불
 function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = now; const h = Math.min(STORE_CAP_H, (now - SAVE.storeT) / 36e5); return { h, soul: Math.floor(h * storeRate()), full: h >= STORE_CAP_H }; }
 function storeCard() {
   if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
@@ -2667,6 +2667,8 @@ window.iapGot = (sku, token, order) => {
     if (g.gold) { SAVE.gold += g.gold; got.push(["cur_yeop", "엽전", g.gold]); }
     if (g.soul) { SAVE.soul = (SAVE.soul || 0) + g.soul; got.push(["ui_soul", "혼불", g.soul]); }
     if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 축복", 1]); }
+    if (g.pass30) { SAVE.passUntil = Math.max(Date.now(), SAVE.passUntil || 0) + 30 * 864e5; got.push(["ui_store_jar", "주막 단골패 30일", 1]); }
+    if (g.seasonPlus) { const S = seasonState(); S.plus = 1; S.pclaimed = S.pclaimed || {}; let c = 0, so = 0; for (const n in S.claimed) if (!S.pclaimed[n]) { const P = seasonPlusRw(+n); S.pclaimed[n] = 1; c += P.coin; so += P.soul; } SAVE.coins += c; SAVE.soul = (SAVE.soul || 0) + so; got.push(["ui_soul", "시즌 상급 보상", 1]); if (c) got.push(["cur_coin", "코인", c]); }
     if (g.title && TITLES[g.title]) { SAVE.titles[g.title] = 1; got.push(["ic_" + g.title, TITLES[g.title].name, 1]); }
     for (const c of g.chars || []) if (CHAR[c]) { SAVE.chars[c] = SAVE.chars[c] || 1; got.push(["card_" + c, CHAR[c].name, 1]); }
     O[key] = { sku, t: Date.now() }; saveGame(); try { CLOUD.push(true); } catch (e) { }
@@ -2678,7 +2680,9 @@ window.iapGot = (sku, token, order) => {
 function iapHtml() {
   if (!iapOn()) return "";
   if (!iapApp()) return `<div class="card iapnote"><h3>등불 상점</h3><p class="muted">유료 상품은 Play 스토어에서 받은 앱에서 살 수 있어요.</p></div>`;
-  return `<h3 class="iaph">등불 상점</h3><div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${IAP.items.map((it) => { const owned = it.kind === "once" && Object.values(SAVE.iapOrders || {}).some((o) => o.sku === it.sku);
+  const bought = (sku) => Object.values(SAVE.iapOrders || {}).some((o) => o.sku === sku), fresh = !SAVE.firstDay || Date.now() - SAVE.firstDay < 7 * 864e5;
+  const list = IAP.items.filter((it) => !it.days7 || (fresh && !bought(it.sku)) );
+  return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - Date.now()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && bought(it.sku)) || (it.season && seasonState().plus);
     return `<div class="card iapc">${it.img && imgSrc(it.img) ? `<img src="${imgSrc(it.img)}" alt="">` : ""}<h3>${esc(it.name)}</h3><p class="muted">${esc(it.desc || "")}</p><button class="btn gold" data-iap="${it.sku}" ${owned ? "disabled" : ""}>${owned ? "가지고 있어요" : IAP_PRICE[it.sku] || "값 불러오는 중"}</button></div>`; }).join("")}</div>
     <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
 }
@@ -2777,3 +2781,9 @@ setInterval(() => { try { if (!notifCan() || !SAVE || G || UI.modalOpen() || SAV
   UI.modal(`<h2>알림을 받을까요?</h2><p style="text-align:center;line-height:1.8">주막 창고가 가득 차거나 출석 보상이 있을 때만 알려 드려요.<br>밤에는 보내지 않아요. 설정 → 알림에서 언제든 바꿀 수 있어요.</p><div class="center"><button class="btn gold" id="nty">받을래요</button><button class="btn" id="ntn">괜찮아요</button></div>`);
   $("#nty").onclick = () => { SAVE.settings.notif = true; saveGame(); try { YogoApp.notifyAsk(); } catch (e) { } track("notif_set", { on: true, ask: 1 }); UI.closeModal(); };
   $("#ntn").onclick = () => { track("notif_set", { on: false, ask: 1 }); UI.closeModal(); }; } catch (e) { } }, 5000);
+
+// ===================== 11-22 유료 상품 효과: 주막 단골패 · 시즌 상급 보상 =====================
+function passActive() { return !!(SAVE && SAVE.passUntil && Date.now() < SAVE.passUntil); }
+function seasonPlusRw(n) { return n % 5 === 0 ? { coin: 10, soul: 50 } : { coin: 3, soul: 15 }; }
+// 단골패: 하루 한 번 코인 5 (메뉴에 올 때)
+setInterval(() => { try { if (!SAVE || G || !passActive()) return; const t = new Date().toDateString(); if (SAVE.passDay === t) return; SAVE.passDay = t; SAVE.coins += 5; saveGame(); UI.loot("주막 단골패", [["cur_coin", "코인", 5]]); } catch (e) { } }, 4000);
