@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.1";
+const GAME_VERSION = "3.0.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -590,7 +590,7 @@ const UI = {
   },
 
   // ----- 메인 메뉴 -----
-  menu() {
+  menu() { if (!G && typeof unBitmap === "function" && WARMED.size) { for (const k of [...WARMED]) unBitmap(k); WARM_P = null; } // 11-21 메인으로 오면 지난 판에 풀어 둔 그림을 내려놓음(폰 메모리)
     if (window._rndOrig) { Math.random = window._rndOrig; window._rndOrig = null; }
     G = null; $("#hud").hidden = true; UI.closeModal(); music("menu"); if (typeof analyticsInit === "function") analyticsInit(); // 11-19 메인 화면부터 통계
     const cur = CHAR[SAVE.sel] && SAVE.chars[SAVE.sel] ? SAVE.sel : "musa"; SAVE.sel = cur;
@@ -659,7 +659,7 @@ const UI = {
   },
 
   // ----- 캐릭터 -----
-  chars(opt) {
+  chars(opt) { opt = opt || {};
     const mode = opt.mode, sel = opt.sel || SAVE.sel; UI._ctab = UI._ctab || "sk";
     const title = mode ? { story: "📖 스토리 모드 · 영웅 선택", endless: "♾️ 무한의 방 · 영웅 선택", duel: "⚔️ 1대1 대전 · 영웅 선택", raid: "🐉 보스 레이드 · 영웅 선택", dev: "🛠 개발자 맵 · 영웅 선택", practice: "🎯 연습장 · 모든 영웅 체험" }[mode] : "영웅";
     // 등급별로 묶어서 (사용자 요청 11-12): SS → S → A → B → C, 등급 안에서는 가진 캐릭터 먼저
@@ -744,7 +744,7 @@ const UI = {
   },
 
   // ----- 스킬 장착 -----
-  skills(opt) {
+  skills(opt) { opt = opt || {};
     const owned = Object.keys(SAVE.chars);
     const cid = opt.char && SAVE.chars[opt.char] ? opt.char : SAVE.sel;
     const c = CHAR[cid], eq = SAVE.skillEquip[cid] || (SAVE.skillEquip[cid] = {});
@@ -764,7 +764,7 @@ const UI = {
   },
 
   // ----- 가챠 -----
-  gacha(opt) {
+  gacha(opt) { opt = opt || {};
     if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "뽑기") UI.gacha(opt); });
     const tab = opt.tab || "char", slot = opt.slot || "Q";
     music("gacha");
@@ -828,7 +828,7 @@ const UI = {
   },
 
   // ----- 보관함 -----
-  bag(opt) {
+  bag(opt) { opt = opt || {};
     const tab = opt.tab || "art", T = { art: [ARTIFACTS, ART_KEYS, "arts"], pet: [PETS, PET_KEYS, "pets"], title: [TITLES, TITLE_KEYS, "titles"] }[tab];
     if (ASSETS.packs && !PACK.done.g) needPack("g").then(() => { if (UI._frameTitle === "보물 · 펫 · 칭호") UI.bag(opt); });
     const cnt = (k) => { const t = { art: [ARTIFACTS, "arts"], pet: [PETS, "pets"], title: [TITLES, "titles"] }[k]; return `${Object.keys(SAVE[t[1]]).filter((x) => t[0][x]).length}/${Object.keys(t[0]).filter((x) => t[0][x].how !== "secret" || SAVE[t[1]][x]).length}`; };
