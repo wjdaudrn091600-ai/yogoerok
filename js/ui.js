@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.2.0";
+const GAME_VERSION = "3.3.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -676,7 +676,8 @@ const UI = {
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#noticeb").onclick = () => UI.notice();
-    if (typeof ADS !== "undefined" && (ADS.on || ADS.active())) { const hb = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const el = document.createElement("button"); el.className = "adbless"; el.innerHTML = ADS.active() ? `<b>등불 축복</b> 혼불 ×${ADS.soulMul} · ${ADS.leftMin()}분 남음` : `<b>등불 축복 받기</b> 짧은 광고를 보면 ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`; el.disabled = ADS.active(); el.onclick = () => ADS.show((ok) => { if (ok) { ADS.grant(); UI.toast(`등불 축복 — ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`, 2600); UI.menu(); } }); if (hb) hb.prepend(el); }
+    if (typeof ADS !== "undefined" && (ADS.on || ADS.active())) { const hb = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const el = document.createElement("button"); el.className = "adbless"; el.innerHTML = ADS.active() ? `<b>등불 축복</b> 혼불 ×${ADS.soulMul} · ${ADS.leftMin()}분 남음` : `<b>등불 축복 받기</b> 짧은 광고를 보면 ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`; el.disabled = ADS.active(); el.onclick = () => (SAVE.noAds ? (f) => f(true) : ADS.show.bind(ADS))((ok) => { if (ok) { ADS.grant(); UI.toast(`등불 축복 — ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`, 2600); UI.menu(); } }); if (hb) hb.prepend(el); }
+    if (iapOn()) { const hb2 = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const sb = document.createElement("button"); sb.className = "adbless iapb"; sb.innerHTML = "<b>등불 상점</b> 코인·꾸밈·편의 상품"; sb.onclick = () => UI.cashShop(); if (hb2) hb2.prepend(sb); } // 11-22 유료 상품(정식 출시 때만)
     if (!UI._noticeAuto && noticeAutoOk()) { UI._noticeAuto = 1; let n = 0; const tryN = () => { if (G) return; if (UI.modalOpen() || document.querySelector("#tutor, #langpick")) { if (++n < 60) setTimeout(tryN, 700); return; } UI.notice(true); }; setTimeout(tryN, 700); } // 출석 등 다른 창을 닫으면 이어서
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
   },
@@ -907,11 +908,12 @@ const UI = {
   shop() {
     const day = new Date().toDateString(); if (SAVE.shop.day !== day) { SAVE.shop = { day, bought: 0 }; }
     const left = SHOP_COIN.daily - SAVE.shop.bought;
-    UI.frame("상점", `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
+    UI.frame("상점", `${iapHtml()}<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
       <div class="card"><h3>🪙 코인 1개</h3><p>엽전 ${SHOP_COIN.price}</p><p class="muted">오늘 남은 구매: ${left}개</p><button class="btn gold" data-b="1" ${left < 1 || SAVE.gold < SHOP_COIN.price ? "disabled" : ""}>사기</button></div>
       <div class="card"><h3>🪙 코인 3개 묶음</h3><p>엽전 ${SHOP_COIN.price * 3 - 100} <span class="muted">(100 할인)</span></p><p class="muted">오늘 남은 구매: ${left}개</p><button class="btn gold" data-b="3" ${left < 3 || SAVE.gold < SHOP_COIN.price * 3 - 100 ? "disabled" : ""}>사기</button></div>
       </div><p class="muted" style="margin-top:14px">🟡 금화는 원정 안 상점에서만 써요</p>`);
     document.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => { const n = +b.dataset.b, price = n === 3 ? SHOP_COIN.price * 3 - 100 : SHOP_COIN.price; if (SAVE.gold < price || SAVE.shop.bought + n > SHOP_COIN.daily) return; SAVE.gold -= price; SAVE.coins += n; SAVE.shop.bought += n; saveGame(); UI.toast(`🪙 코인 +${n}`); UI.shop(); }));
+    iapBind();
   },
 
   // ----- 설정 -----
@@ -2640,3 +2642,47 @@ function cbtSurvey(r) {
       fin(true); UI.toast("고마워요! 다음 판에 꼭 반영할게요", 2400); };
   } catch (e) { }
 }
+
+// ===================== 11-22 유료 상품 (Google Play 결제) — release.js IAP. CBT 동안 꺼짐 =====================
+// 흐름: 사기 → 앱(YogoApp.buy) → Play 결제 창 → 앱이 iapGot(상품, 토큰, 주문번호) 호출 → 게임이 먼저 지급·저장 → 그다음 소모(pack)·확인(once)
+// 같은 주문번호는 두 번 지급하지 않는다(저장 SAVE.iapOrders). 결제는 됐는데 지급 전에 꺼졌으면, 다음 실행 때 restore 가 다시 불러 지급.
+function iapApp() { return !!(window.YogoApp && YogoApp.buy); }
+function iapOn() { return typeof IAP !== "undefined" && IAP.on && IAP.items.length > 0; }
+var IAP_PRICE = {};
+window.iapPrices = (m) => { try { IAP_PRICE = typeof m === "string" ? JSON.parse(m) : m || {}; if (document.querySelector(".iapgrid")) UI.cashShop(); } catch (e) { } };
+window.iapFail = (code) => { UI.toast(code === 1 ? "결제를 취소했어요" : "결제를 마치지 못했어요 — 잠시 뒤 다시 해 주세요", 2600); track("iap_fail", { code }); };
+window.iapPending = (sku) => UI.toast("결제 확인을 기다리고 있어요 — 끝나면 바로 들어와요", 3000);
+window.iapGot = (sku, token, order) => {
+  const it = (IAP.items || []).find((x) => x.sku === sku); if (!it || !SAVE) return;
+  const O = (SAVE.iapOrders = SAVE.iapOrders || {}), key = order || token;
+  if (!O[key]) {
+    const g = it.give || {}, got = [];
+    if (g.coins) { SAVE.coins += g.coins; got.push(["cur_coin", "코인", g.coins]); }
+    if (g.gold) { SAVE.gold += g.gold; got.push(["cur_yeop", "엽전", g.gold]); }
+    if (g.soul) { SAVE.soul = (SAVE.soul || 0) + g.soul; got.push(["ui_soul", "혼불", g.soul]); }
+    if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 축복", 1]); }
+    if (g.title && TITLES[g.title]) { SAVE.titles[g.title] = 1; got.push(["ic_" + g.title, TITLES[g.title].name, 1]); }
+    for (const c of g.chars || []) if (CHAR[c]) { SAVE.chars[c] = SAVE.chars[c] || 1; got.push(["card_" + c, CHAR[c].name, 1]); }
+    O[key] = { sku, t: Date.now() }; saveGame(); try { CLOUD.push(true); } catch (e) { }
+    track("iap_buy", { sku }); UI.loot(it.name, got); try { checkUnlocks(); } catch (e) { }
+  }
+  try { if (it.kind === "pack") YogoApp.consume(token); else YogoApp.ack(token); } catch (e) { }
+  if (document.querySelector(".iapgrid")) UI.cashShop();
+};
+function iapHtml() {
+  if (!iapOn()) return "";
+  if (!iapApp()) return `<div class="card iapnote"><h3>등불 상점</h3><p class="muted">유료 상품은 Play 스토어에서 받은 앱에서 살 수 있어요.</p></div>`;
+  return `<h3 class="iaph">등불 상점</h3><div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${IAP.items.map((it) => { const owned = it.kind === "once" && Object.values(SAVE.iapOrders || {}).some((o) => o.sku === it.sku);
+    return `<div class="card iapc">${it.img && imgSrc(it.img) ? `<img src="${imgSrc(it.img)}" alt="">` : ""}<h3>${esc(it.name)}</h3><p class="muted">${esc(it.desc || "")}</p><button class="btn gold" data-iap="${it.sku}" ${owned ? "disabled" : ""}>${owned ? "가지고 있어요" : IAP_PRICE[it.sku] || "값 불러오는 중"}</button></div>`; }).join("")}</div>
+    <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
+}
+function iapBind() {
+  if (!iapOn() || !iapApp()) return;
+  if (!Object.keys(IAP_PRICE).length) try { YogoApp.prices(IAP.items.map((x) => x.sku).join(",")); } catch (e) { }
+  document.querySelectorAll("[data-iap]").forEach((b) => (b.onclick = () => { if (!IAP_PRICE[b.dataset.iap]) { UI.toast("값을 불러오는 중이에요 — 잠시 뒤에 다시 눌러 주세요"); return; } track("iap_try", { sku: b.dataset.iap }); try { YogoApp.buy(b.dataset.iap); } catch (e) { window.iapFail(-1); } }));
+  if ($("#iaprest")) $("#iaprest").onclick = (e) => { e.preventDefault(); try { YogoApp.restore(); UI.toast("산 상품을 다시 확인하고 있어요"); } catch (x) { } };
+  if ($("#iapinfo")) $("#iapinfo").onclick = (e) => { e.preventDefault(); UI.modal(`<h2>환불·청약철회 안내</h2><div style="max-width:560px;margin:0 auto;line-height:1.8"><p>산 지 7일이 지나지 않았고 쓰지 않은 상품은 청약을 철회할 수 있어요(전자상거래법).</p><p>코인·엽전처럼 받자마자 쓸 수 있는 상품은 일부를 썼다면 철회가 어려울 수 있어요.</p><p>환불은 Google Play 주문 내역에서 신청하거나 ${SUPPORT.mail} 로 알려 주세요.</p></div><div class="center"><button class="btn" id="iapx">닫기</button></div>`); $("#iapx").onclick = () => UI.closeModal(); };
+}
+// 앱을 켤 때 한 번: 결제는 됐는데 지급을 못 받은 것 되찾기
+setTimeout(() => { try { if (iapOn() && iapApp() && SAVE) YogoApp.restore(); } catch (e) { } }, 6000);
+UI.cashShop = function () { UI.frame("등불 상점", iapHtml() || `<p class="muted">지금은 준비 중이에요</p>`); iapBind(); };
