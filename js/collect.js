@@ -2630,7 +2630,9 @@ const CBT = { on: true, days: 14,
 // 정식 출시 때: ① 사용자가 고른 상품을 items 에 넣고 ② Play Console '인앱 상품'에 같은 id 로 등록 ③ on: true.
 // kind: "once" 한 번만 사는 것(광고 없이 축복 등 — 다시 깔아도 '구매 복원'으로 되찾음) / "pack" 여러 번 사는 것(코인 묶음 등)
 // give: { coins, gold(엽전), soul(혼불), noAds: true, title: "t_…", chars: ["…"] }  · img: 그림 키 · 후보 목록은 바탕화면 요괴록_출시준비\과금_후보.txt
-const IAP = { on: false, items: [] };
+const IAP = { on: false, items: [ // 11-22 사용자 선택: 광고 없이 축복만 (Play Console 인앱 상품 id 같게, 값 4,400원)
+  { sku: "no_ads_bless", kind: "once", name: "광고 없이 축복", desc: "광고를 보지 않고 바로 등불 축복(30분 동안 혼불 ×1.5)을 받아요. 한 번 사면 계속.", img: "ui_soul", give: { noAds: true } },
+] };
 // 11-22 운영(업데이트·점검). 사용자: "정식 출시 뒤엔 일괄 업데이트, 업데이트 때 공지·플레이 막기·접속 때 안내, 점검이면 점검 중이라고".
 // update: "auto" = CBT 지금처럼(판이 끝나면 저절로 새 판) / "batch" = 정식(새 판이 나오면 공지 → 새 판 시작을 막고 '업데이트' 창, 받은 뒤 새 내용 안내)
 // 점검·필요한 앱 버전은 사이트의 ops.json 으로 켜고 끔(작은 파일, 2분마다 확인 — 서버비 없음): tools/ops.py maint on "메시지" --until "14:00" / maint off / minapp 16
