@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.0";
+const GAME_VERSION = "3.4.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -392,7 +392,8 @@ function haptic(kind) { try { if (SAVE && SAVE.settings && SAVE.settings.haptic 
 function keepAwake(on) { try { if (NATIVE && NATIVE.KeepAwake) (on ? NATIVE.KeepAwake.keepAwake() : NATIVE.KeepAwake.allowSleep()).catch(() => {}); } catch (e) { } }
 try { if (NATIVE && NATIVE.StatusBar) NATIVE.StatusBar.hide().catch(() => {}); } catch (e) { }
 const _anaQ = []; // 11-19 PostHog 가 불러와지기 전 기록은 모아 뒀다가 보냄
-function track(ev, props) { try { if (!_anaOn || !analyticsOk()) return; if (window.posthog && posthog.__loaded) posthog.capture(ev, props || {}); else if (_anaQ.length < 50) _anaQ.push([ev, props || {}]); } catch (e) { } }
+function anaPick() { try { const s = typeof OPS !== "undefined" && OPS.anaSample != null ? OPS.anaSample : 1; if (s >= 1) return true; let b = ls.get("ygr_anab"); if (!b) { b = String(Math.random()); ls.set("ygr_anab", b); } return +b < s; } catch (e) { return true; } } // 11-22 서버비: 정식 출시 뒤 통계는 일부 사람만(OPS.anaSample)
+function track(ev, props) { try { if (!_anaOn || !analyticsOk() || !anaPick()) return; if (window.posthog && posthog.__loaded) posthog.capture(ev, props || {}); else if (_anaQ.length < 50) _anaQ.push([ev, props || {}]); } catch (e) { } }
 function reportError(err) { try { if (_anaOn && window.Sentry && Sentry.captureException && analyticsOk()) Sentry.captureException(err); } catch (e) { } }
 
 // ---------- 음악 ----------
