@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.0.2";
+const GAME_VERSION = "3.0.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -691,7 +691,7 @@ const UI = {
         if (mode === "endless") start += dbtn(["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]) + (!SAVE.endlessHard ? `<p class="muted" style="font-size:.78rem">🔒 어려움: 보통 이상으로 무한의 방 5층 보스(1회차)를 토벌하면 열려요 (보상 ×1.5)</p>` : !SAVE.endlessHell ? `<p class="muted" style="font-size:.78rem">🔒 매우 어려움: 어려움으로 5층 보스까지 토벌하면 열려요 (보상 ×2)</p>` : "");
         if (mode === "duel") start = `<p>상대 강함: <span id="dsel">${[["easy", "쉬움"], ["normal", "보통"], ["hard", "어려움"]].map(([k, n], i) => `<button class="btn sm ${i === 1 ? "gold" : ""}" data-d="${k}">${n}</button>`).join(" ")}</span></p>`;
         if ((mode === "story" || mode === "endless") && ((SAVE.stats.storyClear || 0) > 0 || ACCOUNT === DEV_ID)) start += `<div class="taboo"><b>금기 계약</b> <span class="muted">저주를 걸고 내려가면 하나마다 혼불 +20%</span><div class="tbl">${Object.entries(CURSES).map(([k, c]) => `<button class="tbc ${(SAVE.taboo || []).includes(k) ? "on" : ""}" data-tb="${k}" title="${esc(c.desc)}">${esc(c.name.replace("의 저주", ""))}<small>${esc(c.desc)}</small></button>`).join("")}</div><p class="muted" id="tbsum"></p></div>`;
-        start += `<button class="btn gold" id="go" style="width:100%;font-size:1.3rem">${!own ? "🎯 체험해 보기 ▶" : "이 영웅로 출발 ▶"}</button>`;
+        start += `<button class="btn gold" id="go" style="width:100%;font-size:1.3rem">${!own ? "🎯 체험해 보기 ▶" : "이 영웅으로 출발 ▶"}</button>`;
       }
       $("#cdet").innerHTML = `<div class="big anim-card">${animCard(art, true)}</div>
         <h3 style="margin-top:10px">${c.name} · ${c.job} ${(SAVE.enh || {})[id] ? `<span class="stars">+${SAVE.enh[id]}</span>` : ""}</h3>
@@ -930,7 +930,7 @@ const UI = {
       ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
       <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button> <button class="btn gold" id="fbbtn">의견 보내기</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
-      ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b>${esc(g.pw)}</b><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
+      ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b class="gpw" data-pw="${esc(g.pw)}">••••••</b> <button class="btn sm" id="gpwshow" type="button">보기</button><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
@@ -939,6 +939,7 @@ const UI = {
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
     $("#fbbtn").onclick = () => UI.feedback();
+    if ($("#gpwshow")) $("#gpwshow").onclick = () => { const e = document.querySelector(".gpw"); const hid = e.textContent.startsWith("•"); e.textContent = hid ? e.dataset.pw : "••••••"; $("#gpwshow").textContent = hid ? "가리기" : "보기"; }; // 11-21 손님 비밀번호는 기본으로 가림
     document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { if (b.dataset.lang !== I18N.lang) I18N.set(b.dataset.lang); }));
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
     $("#mus").onchange = (e) => { s.music = e.target.checked; saveGame(); if (!s.music) $("#bgm").pause(); else { curTrack = null; music("menu"); } };
@@ -1676,7 +1677,7 @@ const TALK_ONCE = [
   { id: "floor4", p: 95, if: (c) => c.newMax >= 4 && c.prevMax < 4, t: "불 도깨비 왕을 이겼다고! 대장간 쇠 냄새가 옷에 배었네. 넷째 장 늪은 독 안개가 짙으니 해독 약초를 꼭 챙겨요." },
   { id: "floor5", p: 95, if: (c) => c.newMax >= 5 && c.prevMax < 5, t: "…저승 궁궐까지 갔군요. 거기선 누가 불러도 대답하지 마요. 산 사람이 대답하면 이름이 명부에 적힌대요." },
   { id: "boss_death", p: 80, if: (c) => c.died && c.bossDeath, t: (c) => `${c.killer}한테 당했어요? 큰 놈들은 때리기 전에 바닥이 붉게 물들어요. 그 순간 Space 로 굴러요. 몸이 기억할 때까지.` },
-  { id: "stuck3", p: 85, if: (c) => c.died && c.stuck >= 3, t: (c) => `${c.r.floor}층에서만 벌써 ${c.stuck}번째네요. 혼불 제단에 '등불 심지'를 올려 보고, 요괴 속성의 약점(층 이름 아래 적힌 것)에 맞는 영웅로 가 봐요.` },
+  { id: "stuck3", p: 85, if: (c) => c.died && c.stuck >= 3, t: (c) => `${c.r.floor}층에서만 벌써 ${c.stuck}번째네요. 혼불 제단에 '등불 심지'를 올려 보고, 요괴 속성의 약점(층 이름 아래 적힌 것)에 맞는 영웅으로 가 봐요.` },
   { id: "first_event", p: 70, if: (c) => (SAVE.stats.events || 0) > 0, t: "도깨비 씨름판 봤어요? 그 외뿔 도깨비, 지면 삐져서 사흘은 안 나와요. 장승 물음은… 우리 마을 아이들도 다 아는 거니 틀리면 창피해요." },
   { id: "first_altar", p: 65, if: () => Object.keys(SAVE.altar || {}).length > 0, t: "제단에 혼불 바친 거 봤어요. 등불이 한결 밝아졌네. 그 불빛이 미궁 아래까지 닿는대요." },
   { id: "endless", p: 60, if: (c) => c.r.mode === "endless", t: "무한의 방이라… 끝이 없다던데, 정말 끝까지 가 볼 셈이에요? 갔다 와서 끝이 어땠는지 꼭 얘기해 줘요." },
