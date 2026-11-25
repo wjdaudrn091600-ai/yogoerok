@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.7";
+const GAME_VERSION = "3.4.8";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -56,6 +56,10 @@ let SAVE = null, ACCOUNT = null;
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+// 11-26 기기 시계 조작 막기: 날짜로 주는 보상(출석·무료 뽑기·광고 횟수·주막 창고·단골패)은 NOW()로 잰다.
+// 시계를 앞으로 돌렸다 되돌리면 앞으로 갔던 시각에 멈춰 있고(최대 사흘), 서버에 저장할 때 받은 서버 시각과 10분 넘게 다르면 서버 시각을 따른다.
+let _skew = 0, _clk = +(ls.get("ygr_clk") || 0) || 0, _clkW = 0;
+function NOW() { const t = Date.now() + _skew; if (_clk > t + 3 * 864e5) _clk = t + 3 * 864e5; if (!(_clk >= t)) _clk = t; if (Math.abs(_clk - _clkW) > 60000) { _clkW = _clk; ls.set("ygr_clk", String(_clk)); } return _clk; }
 const imgSrc = (k) => (ASSETS.img[k] || "");
 // 평면 이모지 → 3D 아이콘 (사용자 요청 11-11: 🐉⚔️ 같은 1차원 그림이 게임 컨셉과 안 맞음). 화면에 글자로 나오는 이모지를 자동으로 그림으로 바꿈
 const EMO = {"✔️": "emo_check", "✔": "emo_check", "⚡": "emo_burst", "✨": "emo_stars", "⏳": "sign_trial", "🕯️": "emo_lantern", "🕯": "emo_lantern", "🎴": "emo_dice", "👣": "bn_spd", "🧵": "bn_cdr", "⛵": "bn_phoenixPerk", "⭐": "emo_stars", "🌪️": "emo_gust", "🌪": "emo_gust", "☯️": "emo_orb", "☯": "emo_orb", "🎯": "emo_target", "⚔️": "emo_duel", "⚔": "emo_duel", "🐉": "emo_dragon", "🐲": "emo_dragon", "🛠": "emo_tools", "🛠️": "emo_tools", "🏷️": "emo_tag", "🏷": "emo_tag", "📖": "emo_book", "♾️": "emo_infinity", "♾": "emo_infinity", "📜": "emo_scroll", "🐾": "emo_paw", "🧑‍🤝‍🧑": "ui_ic_chars", "🧑": "ui_ic_chars", "👥": "ui_ic_multi", "🔊": "ui_ic_sound", "💰": "cur_yeop", "🪙": "cur_coin", "🟡": "cur_gold", "🔓": "emo_unlock", "🔒": "emo_lock", "🔮": "emo_orb", "🏮": "emo_lantern", "🎰": "ui_ic_gacha", "🎁": "emo_gift", "⌨️": "emo_keyboard", "⌨": "emo_keyboard", "🎮": "emo_gamepad", "👤": "ui_ic_user", "🎒": "ui_ic_bag", "⬆️": "emo_up", "📅": "emo_calendar", "🗓️": "emo_calendar", "📆": "emo_calendar", "🏆": "emo_trophy", "⚠️": "emo_warn", "🌿": "emo_herb", "🤝": "emo_coop", "❓": "ui_ic_howto", "⚙️": "ui_ic_settings", "🎲": "emo_dice", "🖱️": "emo_mouse", "💥": "emo_burst", "✅": "emo_check", "📱": "emo_phone", "🚪": "emo_door", "⏸": "ui_ic_pause", "⏸️": "ui_ic_pause", "🗡️": "emo_dagger", "🛡️": "emo_shield", "🌅": "emo_sunrise", "🌙": "emo_moon", "🪞": "emo_mirror", "💀": "emo_skull", "☠": "emo_skull", "☠️": "emo_skull", "👻": "emo_ghost", "💫": "emo_stars", "🔥": "emo_fire", "📕": "emo_redbook", "🪓": "emo_axe", "💗": "emo_heart", "🌑": "emo_eclipse", "🩸": "emo_blood", "🥀": "emo_wither", "💨": "emo_gust", "🗺️": "emo_map", "✉️": "emo_mail", "👊": "emo_fist", "👑": "emo_crown"};
@@ -135,8 +139,14 @@ const CLOUD = {
   },
   async pull() {
     const r = await fetch(this.doc(), { headers: { Authorization: "Bearer " + (await this.token()) } });
-    if (r.status === 404) return null; if (!r.ok) throw new Error("pull " + r.status);
-    const j = await r.json(), f = j.fields || {}; try { return { t: +((f.t && f.t.integerValue) || 0), save: JSON.parse(f.data.stringValue) }; } catch (e) { return null; }
+    if (r.status === 404) { this.upd = null; return null; } if (!r.ok) throw new Error("pull " + r.status);
+    const j = await r.json(), f = j.fields || {}; this.upd = j.updateTime || null; try { return { t: +((f.t && f.t.integerValue) || 0), save: JSON.parse(f.data.stringValue) }; } catch (e) { return null; }
+  },
+  // 11-26 구글 계정: link=true 면 지금 로그인된 계정(게스트)에 구글 계정을 붙이고, 아니면 그 구글 계정으로 들어간다
+  async idp(gtok, link) {
+    const body = { postBody: "id_token=" + encodeURIComponent(gtok) + "&providerId=google.com", requestUri: /^http/.test(location.origin) ? location.origin : "http://localhost", returnSecureToken: true, returnIdpCredential: true };
+    if (link) body.idToken = await this.token();
+    return this.api("signInWithIdp", body);
   },
   async push(keep) {
     if (!this.on || !ACCOUNT || !SAVE || ACCOUNT === DEV_ID) return;
@@ -147,9 +157,12 @@ const CLOUD = {
   async _push(keep) {
     this.dirty = false;
     try {
-      const body = JSON.stringify({ fields: { data: { stringValue: JSON.stringify(SAVE) }, t: { integerValue: String(SAVE.t || Date.now()) }, ver: { stringValue: GAME_VERSION } } });
-      const r = await fetch(this.doc(), { method: "PATCH", keepalive: !!keep && body.length < 60000, headers: { "Content-Type": "application/json", Authorization: "Bearer " + (await this.token()) }, body });
-      if (!r.ok) this.dirty = true;
+      // 11-26 마지막으로 본 서버 저장 뒤에 다른 기기가 올렸으면(수정 시각이 다르면) 서버가 거절 → 받아서 산 상품을 합친 뒤 다시 올린다(결제한 것이 덮여 사라지지 않게)
+      const send = async () => { const body = JSON.stringify({ fields: { data: { stringValue: JSON.stringify(SAVE) }, t: { integerValue: String(SAVE.t || Date.now()) }, ver: { stringValue: GAME_VERSION } } });
+        return fetch(this.doc() + (this.upd ? "?currentDocument.updateTime=" + encodeURIComponent(this.upd) : ""), { method: "PATCH", keepalive: !!keep && body.length < 60000, headers: { "Content-Type": "application/json", Authorization: "Bearer " + (await this.token()) }, body }); };
+      let r = await send();
+      if (!r.ok && this.upd && r.status >= 400 && r.status < 500 && r.status !== 401 && r.status !== 403) { const c = await this.pull(); if (c && c.save && mergePaid(SAVE, c.save)) { SAVE.t = Date.now(); ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(SAVE)); } r = await send(); }
+      if (r.ok) { try { const j = await r.json(); this.upd = j.updateTime || this.upd; const sv = Date.parse(j.updateTime); if (sv) { const d = sv - Date.now(); _skew = Math.abs(d) > 600000 ? d : 0; } } catch (e) { } } else this.dirty = true;
     } catch (e) { this.dirty = true; }
     return true;
   },
@@ -158,7 +171,7 @@ const CLOUD = {
   // 다른 기기에서 더 최근에 했으면 (판 밖에 있을 때) 받아 오기
   async refresh() {
     if (!this.on || G || this.busy || !ACCOUNT) return; if (Date.now() - (this._rt || 0) < 300000) return; this._rt = Date.now(); this.busy = true; // 11-22 다른 기기 확인은 5분에 한 번(읽기 줄임)
-    try { const c = await this.pull(); if (c && c.save && c.t > (SAVE.t || 0) + 1000 && !G) { ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(c.save)); SAVE = loadAccount(ACCOUNT); sfxVol = SAVE.settings.sfx; UI.toast("☁️ 다른 기기에서 한 진행을 받아 왔어요", 3500); UI.menu(); } } catch (e) { }
+    try { const c = await this.pull(); if (c && c.save && c.t > (SAVE.t || 0) + 1000 && !G) { const old = SAVE; ls.set("dbm2_save_" + ACCOUNT, JSON.stringify(c.save)); SAVE = loadAccount(ACCOUNT); if (mergePaid(SAVE, old)) saveGame(); sfxVol = SAVE.settings.sfx; UI.toast("☁️ 다른 기기에서 한 진행을 받아 왔어요", 3500); UI.menu(); } } catch (e) { }
     this.busy = false;
   },
 };
@@ -216,6 +229,7 @@ function rememberLogin(on, id, pw) {
   ls.set("ygr_auto_off", "");
   ls.set("ygr_auto", JSON.stringify({ id: String(id).trim(), h: hashPw(String(id).trim(), pw), rt: CLOUD.on ? CLOUD.rt : null, uid: CLOUD.on ? CLOUD.uid : null, dev: String(id).trim() === DEV_ID ? pw : null }));
 }
+let _loser = null;
 async function autoLogin() {
   let a = null; try { a = JSON.parse(ls.get("ygr_auto") || "null"); } catch (e) { }
   if (!a || !a.id) return false;
@@ -225,11 +239,11 @@ async function autoLogin() {
     try {
       CLOUD.rt = a.rt; CLOUD.uid = a.uid; CLOUD.tok = null; CLOUD.exp = 0; await CLOUD.token(); CLOUD.on = true;
       const c = await CLOUD.pull(); let local = null; try { local = JSON.parse(ls.get("dbm2_save_" + a.id) || "null"); } catch (e) { }
-      if (c && c.save && (!local || (c.t || 0) >= (local.t || 0))) ls.set("dbm2_save_" + a.id, JSON.stringify(c.save));
+      if (c && c.save) { if (!local || (c.t || 0) >= (local.t || 0)) { ls.set("dbm2_save_" + a.id, JSON.stringify(c.save)); _loser = local; } else _loser = c.save; }
       a.rt = CLOUD.rt; ls.set("ygr_auto", JSON.stringify(a));
     } catch (e) { CLOUD.off(); }
   }
-  ACCOUNT = a.id; SAVE = loadAccount(a.id); ls.set("dbm2_last", a.id); saveGame(); if (CLOUD.on) CLOUD.push(); sfxVol = SAVE.settings.sfx;
+  ACCOUNT = a.id; SAVE = loadAccount(a.id); mergePaid(SAVE, _loser); _loser = null; SAVE.acc = a.id; ls.set("dbm2_last", a.id); saveGame(); if (CLOUD.on) CLOUD.push(); sfxVol = SAVE.settings.sfx;
   return true;
 }
 
@@ -247,16 +261,65 @@ async function loginCloud(id, pw, create, nk) {
   let local = null; try { local = JSON.parse(ls.get("dbm2_save_" + id) || "null"); } catch (e) { }
   const fromCloud = r.cloud && r.cloud.save && (!local || (r.cloud.t || 0) >= (local.t || 0));
   if (fromCloud) ls.set("dbm2_save_" + id, JSON.stringify(r.cloud.save));
-  ACCOUNT = id; SAVE = loadAccount(id); if (create && cleanNick(nk)) SAVE.nick = cleanNick(nk); ls.set("dbm2_last", id);
+  ACCOUNT = id; SAVE = loadAccount(id); mergePaid(SAVE, fromCloud ? local : r.cloud && r.cloud.save); SAVE.acc = id; if (create && cleanNick(nk)) SAVE.nick = cleanNick(nk); ls.set("dbm2_last", id);
   saveGame(); CLOUD.push(); sfxVol = SAVE.settings.sfx;
   if (r.cloud && !fromCloud) UI.toast("☁️ 이 기기 진행이 더 최근이라 서버에 올렸어요", 3500);
+  return null;
+}
+
+// ===================== 11-26 구글 계정 로그인·연동 (사용자: "기존 가입 방식 말고 구글 계정 연동, 게스트 두 방식") =====================
+// release.js GAUTH.webClientId 가 비어 있으면 구글 버튼이 안 보이고 게스트만. 앱은 YogoApp.googleSignIn(기기 구글 계정 창), 웹은 구글 로그인 버튼.
+// 구글 계정은 Firebase 계정(같은 uid)에 '붙는' 것이라 저장 위치(saves/uid)는 그대로 — 게스트로 하던 진행에 그대로 붙는다.
+function gAuthOn() { return typeof GAUTH !== "undefined" && !!GAUTH.webClientId; }
+function googleToken() {
+  return new Promise((res) => {
+    let done = false; const fin = (tok, err) => { if (done) return; done = true; window.gAuthDone = null; res({ tok: tok || "", err: err || "" }); };
+    if (window.YogoApp && YogoApp.googleSignIn) { window.gAuthDone = (t, e) => fin(t, e); try { YogoApp.googleSignIn(GAUTH.webClientId); } catch (e) { fin("", "err"); } setTimeout(() => fin("", "timeout"), 120000); return; }
+    if (window.YogoApp) { fin("", "oldapp"); return; }
+    const show = () => {
+      try {
+        google.accounts.id.initialize({ client_id: GAUTH.webClientId, callback: (r) => { const m = document.getElementById("gsibox"); if (m) m.remove(); fin(r && r.credential, r && r.credential ? "" : "err"); } });
+        const d = document.createElement("div"); d.id = "gsibox"; d.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(8,6,4,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px";
+        d.innerHTML = '<p style="color:#f3e6cc;font-size:18px;margin:0">구글 계정을 골라 주세요</p><div id="gsibtn"></div><button class="btn" id="gsix" type="button">닫기</button>';
+        document.body.appendChild(d); google.accounts.id.renderButton(d.querySelector("#gsibtn"), { theme: "filled_black", size: "large", text: "continue_with", locale: "ko" });
+        d.querySelector("#gsix").onclick = () => { d.remove(); fin("", "cancel"); };
+      } catch (e) { fin("", "err"); }
+    };
+    if (window.google && google.accounts && google.accounts.id) show();
+    else { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.onload = show; sc.onerror = () => fin("", "net"); document.head.appendChild(sc); }
+  });
+}
+const gErr = (e) => (e === "cancel" || /Cancel/i.test(e) ? "구글 계정 고르기를 그만뒀어요" : e === "net" ? "인터넷 연결을 확인해 주세요" : e === "oldapp" ? "앱을 최신으로 업데이트하면 구글 계정을 쓸 수 있어요" : /NoCredential/i.test(e) ? "이 기기에 로그인된 구글 계정이 없어요 — 기기 설정에서 구글 계정을 먼저 넣어 주세요" : "구글 계정을 확인하지 못했어요 — 잠시 뒤 다시 해 주세요");
+// 구글 계정으로 들어가기: 그 계정에 붙은 진행이 서버에 있으면 그 진행으로, 없으면 새로 시작. 돌려주는 값: null(됨) 또는 안내 글
+async function googleEnter(tok) {
+  let j; try { j = await CLOUD.idp(tok, false); } catch (e) { return "인터넷 연결을 확인해 주세요"; }
+  if (!j || !j.idToken) return "구글 계정으로 들어가지 못했어요 (" + ((j && j.error && j.error.message) || "?") + ")";
+  CLOUD.setTok(j); CLOUD.upd = null; let c = null; try { c = await CLOUD.pull(); } catch (e) { }
+  const id = String((c && c.save && c.save.acc) || "구글" + String(j.localId).slice(0, 10)).slice(0, 20), pw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const acc = accounts(); acc[id] = hashPw(id, pw); ls.set("dbm2_accounts", JSON.stringify(acc));
+  let local = null; try { local = JSON.parse(ls.get("dbm2_save_" + id) || "null"); } catch (e) { }
+  const fromCloud = !!(c && c.save && (!local || (c.t || 0) >= (local.t || 0))); if (fromCloud) ls.set("dbm2_save_" + id, JSON.stringify(c.save));
+  ACCOUNT = id; SAVE = loadAccount(id); mergePaid(SAVE, fromCloud ? local : c && c.save); SAVE.acc = id; SAVE.google = 1;
+  ls.set("dbm2_last", id); saveGame(); CLOUD.push(); sfxVol = SAVE.settings.sfx; rememberLogin(true, id, pw); return null;
+}
+async function googleStart() { if (!gAuthOn()) return "구글 로그인은 아직 준비 중이에요"; const g = await googleToken(); if (!g.tok) return gErr(g.err); return googleEnter(g.tok); }
+// 지금 계정(게스트)에 구글 계정 붙이기. 돌려주는 값: null(됨) · 안내 글 · { used: 토큰 }(그 구글 계정에 이미 다른 진행이 있음)
+async function googleLink() {
+  if (!gAuthOn()) return "구글 로그인은 아직 준비 중이에요"; if (!CLOUD.on) return "인터넷에 연결된 뒤 다시 해 주세요";
+  const g = await googleToken(); if (!g.tok) return gErr(g.err);
+  let j; try { j = await CLOUD.idp(g.tok, true); } catch (e) { return "인터넷 연결을 확인해 주세요"; }
+  const m = (j && (j.errorMessage || (j.error && j.error.message))) || "";
+  if (/ALREADY_LINKED|EMAIL_EXISTS|ALREADY_IN_USE/.test(m)) return { used: g.tok };
+  if (!j || !j.idToken) return "연동하지 못했어요 (" + (m || "?") + ")";
+  CLOUD.setTok(j); SAVE.google = 1; SAVE.acc = ACCOUNT; saveGame(); CLOUD.push();
+  try { const a = JSON.parse(ls.get("ygr_auto") || "null"); if (a && a.id === ACCOUNT) { a.rt = CLOUD.rt; a.uid = CLOUD.uid; ls.set("ygr_auto", JSON.stringify(a)); } } catch (e) { }
   return null;
 }
 
 // ---------- 해금·미션 ----------
 // 오늘의 토벌령 (11-12): 날마다 지정 요괴 3마리 (스토리로 간 층까지의 중간보스·층보스 중에서)
 function ensureBounty() {
-  if (!SAVE) return null; const day = new Date().toISOString().slice(0, 10);
+  if (!SAVE) return null; const day = new Date(NOW()).toISOString().slice(0, 10);
   if (!SAVE.bounty || SAVE.bounty.day !== day) {
     const maxF = Math.max(2, Math.min(5, SAVE.story.maxFloor || 1)), pool = [];
     for (let f = 1; f <= maxF; f++) pool.push(FLOORS[f - 1].boss, ...MID_BY_FLOOR[f - 1]);
@@ -298,7 +361,7 @@ function checkUnlocks() {
 }
 const missionDone = (m) => statVal(m.stat) >= m.n;
 // 기간 미션: 날짜·주·달이 바뀌면 그때의 기록을 기준으로 다시 셈
-function periodKey(t) { const d = new Date(); if (t === "d") return d.toDateString(); if (t === "m") return d.getFullYear() + "-" + (d.getMonth() + 1); const j = new Date(d.getFullYear(), 0, 1); return d.getFullYear() + "w" + Math.ceil(((d - j) / 864e5 + j.getDay() + 1) / 7); }
+function periodKey(t) { const d = new Date(NOW()); if (t === "d") return d.toDateString(); if (t === "m") return d.getFullYear() + "-" + (d.getMonth() + 1); const j = new Date(d.getFullYear(), 0, 1); return d.getFullYear() + "w" + Math.ceil(((d - j) / 864e5 + j.getDay() + 1) / 7); }
 function periodState(t) { SAVE.period = SAVE.period || {}; const k = periodKey(t); let P = SAVE.period[t]; if (!P || P.key !== k) { P = SAVE.period[t] = { key: k, base: Object.assign({}, SAVE.stats), claimed: {} }; saveGame(); } return P; }
 const periodVal = (t, stat) => Math.max(0, (SAVE.stats[stat] || 0) - ((periodState(t).base || {})[stat] || 0));
 const periodUnclaimed = () => ["d", "w", "m"].reduce((a, t) => a + PERIOD_MISSIONS[t].filter((m) => periodVal(t, m.stat) >= m.n && !periodState(t).claimed[m.id]).length, 0);
@@ -355,11 +418,11 @@ function pullOne(kind, slot, atLeastRare) {
 }
 function pullCost(kind, n, slot) { const g = kind === "skill" ? null : GACHA[kind]; return kind === "skill" ? (n === 10 ? SKILL_GACHA.cost10[slot] : SKILL_GACHA.cost[slot]) : n === 10 ? g.cost10 : g.cost; }
 // 11-20 하루 한 번 무료 뽑기 (Archero·원신 등 모바일 히트작의 '매일 무료 1회' — 매일 들를 이유)
-const freeToday = () => !!SAVE && SAVE.freePull !== new Date().toDateString();
+const freeToday = () => !!SAVE && SAVE.freePull !== new Date(NOW()).toDateString();
 function doPull(kind, n, slot, useYeop, free) {
   const cost = pullCost(kind, n, slot);
   if (free === "ad") { if (n !== 1) return; } // 11-25 보상형 광고로 한 번 더 (ADS.show 가 끝난 뒤에만 부름)
-  else if (free) { if (!freeToday() || n !== 1) return; SAVE.freePull = new Date().toDateString(); }
+  else if (free) { if (!freeToday() || n !== 1) return; SAVE.freePull = new Date(NOW()).toDateString(); }
   else if (useYeop) { if (SAVE.gold < cost * COIN_YEOP) { UI.toast("엽전이 모자라요"); return; } SAVE.gold -= cost * COIN_YEOP; }
   else { if (SAVE.coins < cost) { UI.toast("코인이 모자라요 — 엽전으로도 뽑을 수 있어요"); return; } SAVE.coins -= cost; }
   const res = []; for (let i = 0; i < n; i++) res.push(pullOne(kind, slot, n === 10 && i === 9 && ["art", "pet", "title"].includes(kind) && !res.some((r) => r.rar >= 2)));
@@ -460,7 +523,7 @@ const UI = {
   modalOpen() { return !$("#modal").hidden; },
   typing() { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"); },
   music,
-  toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); },
+  toast(msg, ms = 2600) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; const tb = $("#toasts"); while (tb.children.length >= 3) tb.firstChild.remove(); tb.appendChild(t); setTimeout(() => t.remove(), ms); },
   error(err) { reportError(err); const b = $("#errbox"); b.hidden = false; const at = err && err.stack ? String(err.stack).split(String.fromCharCode(10)).slice(1, 3).map((l) => l.trim().replace(/^at /, "").replace(/\(?(https?|file):\/\/[^)]*\/([^/)]+)\)?/, "$2")).join(" ← ") : ""; b.textContent = "오류: " + (err && err.message) + (at ? "  [" + at + "]" : "") + "  · v" + GAME_VERSION; },
   modal(html) { // 11-20: 특별 모양(레벨업·상점·멈춤·괴이한 방·받기 방식)은 그 창 내용일 때만 남김 — 다른 창이 그 모양으로 열리던 것 방지
     const M = { lvmode: "lvhead", shopmode: "shopw", pzmode: "pzw", evmode: "evbox", dlmode: "dlw" }, el = $("#modal");
@@ -479,15 +542,17 @@ const UI = {
       ${hasLogo ? `<img class="tlogo" src="${imgSrc("ui_logo")}" alt="요괴록 · 조선 요괴 토벌기">` : ""}
       <form class="box" id="lf" autocomplete="off">
         ${hasLogo ? "" : `<div class="logo">요괴록<small>조선 요괴 토벌기</small></div>`}
-        ${last ? "" : `<button class="btn gold lgo" type="button" id="lguest2">바로 시작</button><p class="muted lgsub">가입 없이 바로 시작해요 · 나중에 설정에서 계정으로 바꿀 수 있어요</p><details class="lacc"><summary>계정으로 로그인 · 새 계정</summary>`}
+        ${gAuthOn() ? `<button class="btn gold lgo" type="button" id="lgoogle" style="letter-spacing:.06em">구글 계정으로 시작</button><p class="muted lgsub">다른 기기에서도 같은 구글 계정으로 이어서 해요</p>` : ""}
+        <button class="btn ${gAuthOn() ? "" : "gold "}lgo" type="button" id="lguest" style="letter-spacing:.06em">${ls.get("ygr_guest") ? "게스트로 이어서 하기" : "게스트로 바로 시작"}</button>
+        <p class="muted lgsub">가입 없이 바로 시작해요${gAuthOn() ? " · 나중에 설정에서 구글 계정에 연동할 수 있어요" : ""}</p>
+        ${DEV_OK ? `<details class="lacc"${last ? " open" : ""}><summary>개발자 시험 로그인 (이 PC 안에서만 보여요)</summary>
         <div class="field"><label for="lid">아이디</label><input id="lid" maxlength="20" value="${esc(last)}" autocomplete="username"></div>
         <div class="field"><label for="lpw">비밀번호</label><input id="lpw" type="password" maxlength="30" autocomplete="current-password"></div>
-        <div class="field"><label for="lnick">닉네임 <span class="muted">(새 계정 만들 때 · 12자까지, 나중에 설정에서 바꿀 수 있어요)</span></label><input id="lnick" maxlength="12" placeholder="게임에서 보일 이름"></div>
-        <label class="autochk"><input type="checkbox" id="lauto" ${ls.get("ygr_auto_off") ? "" : "checked"}> 자동 로그인 (다음부터 바로 시작)</label>
+        <div class="field"><label for="lnick">닉네임</label><input id="lnick" maxlength="12" placeholder="게임에서 보일 이름"></div>
+        <label class="autochk"><input type="checkbox" id="lauto" ${ls.get("ygr_auto_off") ? "" : "checked"}> 자동 로그인</label>
+        <div class="center"><button class="btn gold" type="submit">로그인</button><button class="btn" type="button" id="lnew">새 계정 만들기</button></div></details>` : ""}
         <div class="err" id="lerr"></div>
-        <div class="center"><button class="btn gold" type="submit">로그인</button><button class="btn" type="button" id="lnew">새 계정 만들기</button></div>
-        ${last ? `<div class="center" style="margin-top:6px"><button class="btn gold" type="button" id="lguest" style="min-width:220px">▶ 바로 시작 (게스트)</button></div>` : `<button type="button" id="lguest" hidden></button></details>`}
-        <p class="muted" style="text-align:center;margin:12px 0 0">☁️ 같은 아이디로 로그인하면 PC·폰 어디서든 이어서 해요 · v${GAME_VERSION}</p>
+        <p class="muted" style="text-align:center;margin:12px 0 0">v${GAME_VERSION}</p>
       </form></div>`;
     titleParts();
     let logoN = 0; const lg = $(".tlogo") || $(".logo"); lg.style.cursor = "default";
@@ -496,16 +561,19 @@ const UI = {
       window._logoEgg = true; $("#eggok").onclick = () => UI.closeModal(); } };
     let busy = false;
     const go = async (create) => { if (busy) return; busy = true; $("#lerr").textContent = "☁️ 접속 중…"; const id = $("#lid").value, pw = $("#lpw").value; const e = await loginCloud(id, pw, create, $("#lnick").value); busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; } rememberLogin($("#lauto").checked, id, pw); afterLogin(); };
-    $("#lf").onsubmit = (e) => { e.preventDefault(); go(false); };
-    $("#lnew").onclick = () => go(true);
+    $("#lf").onsubmit = (e) => { e.preventDefault(); if ($("#lid")) go(false); };
+    if ($("#lnew")) $("#lnew").onclick = () => go(true);
+    if ($("#lgoogle")) $("#lgoogle").onclick = async () => { if (busy) return; busy = true; $("#lerr").textContent = "☁️ 구글 계정 확인 중…"; const e = await googleStart(); busy = false; if (!$("#lerr")) return; $("#lerr").textContent = e || ""; if (!e) afterLogin(); };
     if ($("#lguest2")) $("#lguest2").onclick = () => $("#lguest").click(); // 11-20 처음 온 사람은 '바로 시작'이 맨 위 큰 버튼, 계정 로그인은 접어 둠
-    $("#lguest").onclick = async () => { // 11-18 가입 없이 바로 시작 — 아이디·비밀번호는 자동으로 만들고 설정 화면에서 볼 수 있음
+    $("#lguest").onclick = async () => { // 11-18 가입 없이 바로 시작 · 11-26 아이디 칸 넓힘(숫자 10자리)·겹치면 새 아이디로 다시
       if (busy) return; busy = true; $("#lerr").textContent = "☁️ 준비 중…";
       let G0 = null; try { G0 = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { }
-      const id = G0 ? G0.id : "손님" + Math.floor(100000 + Math.random() * 900000), pw = G0 ? G0.pw : Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
-      let e = await loginCloud(id, pw, !G0, "토벌꾼" + id.slice(-4)); if (e && G0) e = await loginCloud(id, pw, true, "토벌꾼" + id.slice(-4));
+      const mk = () => ({ id: "손님" + Math.floor(1e9 + Math.random() * 9e9), pw: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10) });
+      let g = G0 && G0.id && G0.pw ? G0 : mk(); const had = g === G0, nk = () => "토벌꾼" + g.id.slice(-4);
+      let e = await loginCloud(g.id, g.pw, !had, nk()); if (e && had) e = await loginCloud(g.id, g.pw, true, nk());
+      for (let i = 0; e && !had && /이미 있는/.test(e) && i < 4; i++) { g = mk(); e = await loginCloud(g.id, g.pw, true, nk()); }
       busy = false; $("#lerr").textContent = ""; if (e) { $("#lerr").textContent = e; return; }
-      ls.set("ygr_guest", JSON.stringify({ id, pw })); rememberLogin(true, id, pw); afterLogin();
+      ls.set("ygr_guest", JSON.stringify({ id: g.id, pw: g.pw })); rememberLogin(true, g.id, g.pw); afterLogin();
     };
     setTimeout(() => { const el = last ? $("#lpw") : $("#lid"); if (el) el.focus(); }, 50);
   },
@@ -675,7 +743,7 @@ const UI = {
     const isNew = (SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID;
     dayOpen();
     if (window.YogoApp && YogoApp.review && !SAVE.reviewAsked && (SAVE.stats.storyClear || 0) >= 1) setTimeout(() => { if (!G && !UI.modalOpen() && !SAVE.reviewAsked) { SAVE.reviewAsked = Date.now(); saveGame(); track("review_ask"); try { YogoApp.review(); } catch (e) { } } }, 1800); // 11-19 사용자: 별점은 처음 게임(스토리)을 완전히 끝낸 뒤 메뉴로 돌아왔을 때 한 번만 — 판 중간에 뜨면 방해 // 11-19 첫 판 전에는 안내창을 미루고 바로 놀게 (첫 세션 길이가 다음 날 잔존율을 좌우)
-    if (!isNew && SAVE.daily && SAVE.daily.day !== new Date().toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
+    if (!isNew && SAVE.daily && SAVE.daily.day !== new Date(NOW()).toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
     if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen() && (SAVE.stats.rooms || 0) >= 10) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
@@ -916,7 +984,7 @@ const UI = {
 
   // ----- 상점 -----
   shop() {
-    const day = new Date().toDateString(); if (SAVE.shop.day !== day) { SAVE.shop = { day, bought: 0 }; }
+    const day = new Date(NOW()).toDateString(); if (SAVE.shop.day !== day) { SAVE.shop = { day, bought: 0 }; }
     const left = SHOP_COIN.daily - SAVE.shop.bought;
     UI.frame("상점", `${iapHtml()}<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
       <div class="card"><h3>🪙 코인 1개</h3><p>엽전 ${SHOP_COIN.price}</p><p class="muted">오늘 남은 구매: ${left}개</p><button class="btn gold" data-b="1" ${left < 1 || SAVE.gold < SHOP_COIN.price ? "disabled" : ""}>사기</button></div>
@@ -967,7 +1035,7 @@ const UI = {
       ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
       <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button> <button class="btn gold" id="fbbtn">의견 보내기</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
-      ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } return g && g.id === ACCOUNT ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b class="gpw" data-pw="${esc(g.pw)}">••••••</b> <button class="btn sm" id="gpwshow" type="button">보기</button><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
+      ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } if (!ACCOUNT || ACCOUNT === DEV_ID) return ""; const isG = !!(g && g.id === ACCOUNT); if (SAVE.google) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>구글 계정에 연동됨</b><p class="muted" style="margin:4px 0">기기를 바꾸거나 앱을 지워도, 로그인 화면에서 구글 계정으로 시작을 누르면 이어서 해요.</p></div>`; if (gAuthOn()) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>${isG ? "게스트로 하는 중" : "구글 계정 연동"}</b><p class="muted" style="margin:4px 0">구글 계정에 연동하면 기기를 바꾸거나 앱을 지워도 진행이 남아요.</p><button class="btn gold sm" id="glink" type="button">구글 계정 연동</button></div>`; return isG ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b class="gpw" data-pw="${esc(g.pw)}">••••••</b> <button class="btn sm" id="gpwshow" type="button">보기</button><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
     $("#keysbtn").onclick = () => UI.keys(() => UI.settings());
     if ($("#dlmore")) { $("#dlmore").onclick = () => { ls.set("ygr_dl", "all"); dlAll(); UI.toast("뒤에서 남은 그림을 모두 받아요", 2500); dlPill(); }; $("#dlless").onclick = () => { ls.set("ygr_dl", "need"); dlStop(); UI.toast("필요한 그림만 받아요", 2200); dlPill(); }; dlPill(); }
@@ -978,6 +1046,10 @@ const UI = {
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
     $("#infobtn").onclick = () => UI.info("prob");
     $("#fbbtn").onclick = () => UI.feedback();
+    if ($("#glink")) $("#glink").onclick = async () => { const b = $("#glink"); b.disabled = true; const r = await googleLink(); if ($("#glink")) $("#glink").disabled = false;
+      if (r && r.used) { UI.modal('<h2>이미 쓰고 있는 구글 계정이에요</h2><p style="text-align:center;line-height:1.8">이 구글 계정에는 다른 진행이 저장돼 있어요.<br>그 진행으로 바꿔서 이어 할까요?<br><span class="muted">지금 하던 진행은 이 기기에 남고, 그 구글 계정과 합쳐지지는 않아요.</span></p><div class="center"><button class="btn gold" id="gsw">그 진행으로 바꾸기</button><button class="btn" id="gno">그만두기</button></div>');
+        $("#gno").onclick = () => UI.closeModal(); $("#gsw").onclick = async () => { UI.closeModal(); saveGame(); try { await CLOUD.push(true); } catch (e) { } const e = await googleEnter(r.used); if (e) UI.toast(e, 3500); else afterLogin(); }; return; }
+      if (r) { UI.toast(r, 3500); return; } UI.toast("구글 계정에 연동했어요 — 이제 다른 기기에서도 이어서 해요", 4000); const c = b.closest(".card"); if (c) c.innerHTML = '<b>구글 계정에 연동됨</b><p class="muted" style="margin:4px 0">로그인 화면에서 구글 계정으로 시작을 누르면 이어서 해요.</p>'; };
     if ($("#gpwshow")) $("#gpwshow").onclick = () => { const e = document.querySelector(".gpw"); const hid = e.textContent.startsWith("•"); e.textContent = hid ? e.dataset.pw : "••••••"; $("#gpwshow").textContent = hid ? "가리기" : "보기"; }; // 11-21 손님 비밀번호는 기본으로 가림
     document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { if (b.dataset.lang !== I18N.lang) I18N.set(b.dataset.lang); }));
     $("#snickok").onclick = () => { const v = cleanNick($("#snick").value); if (!v) { UI.toast("닉네임을 넣어 주세요"); return; } SAVE.nick = v; saveGame(); UI.toast("닉네임: " + v); };
@@ -1125,7 +1197,7 @@ const UI = {
   daily() {
     if ((SAVE.stats.rooms || 0) < 3 && ACCOUNT !== DEV_ID) { SAVE.daily = SAVE.daily || { day: "", streak: 0 }; return; } // 첫 판 뒤 메뉴에서 받음
     if (typeof comebackGift === "function") comebackGift();
-    const today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString(), D = SAVE.daily || (SAVE.daily = { day: "", streak: 0 });
+    const today = new Date(NOW()).toDateString(), yest = new Date(NOW() - 864e5).toDateString(), D = SAVE.daily || (SAVE.daily = { day: "", streak: 0 });
     if (D.day === today) return;
     if (typeof CBT !== "undefined" && CBT.on) { UI.cbtDaily(D, today); return; } // 11-22 시험판 14일 출석
     D.streak = D.day === yest ? D.streak + 1 : 1; D.day = today;
@@ -1145,7 +1217,7 @@ const UI = {
       <div class="boonlist" id="boons"></div>
       <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><b class="lag" id="hbhpl"></b><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
       <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="${IS_TOUCH ? "멈춤 · 소리" : "멈춤 · 소리 · 키 설정 (Esc)"}">${uiIc("pause", "⏸")}</button></div></div>
-      ${touch ? `<div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
+      ${touch ? `<div class="joyz" id="joyz"></div><div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key${String(keyLabel(K.atk)).length > 2 ? " long" : ""}">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
     $("#hp").onclick = () => UI.togglePause();
@@ -1158,7 +1230,12 @@ const UI = {
         const sc = r.width / (joy.offsetWidth || r.width); knob.style.transform = `translate(${dx / sc}px,${dy / sc}px)`; const dead = 12; input.kx = Math.abs(dx) > dead ? dx / M : 0; input.ky = Math.abs(dy) > dead ? dy / M : 0; };
       joy.onpointerdown = (e) => { id = e.pointerId; joy.setPointerCapture(id); input.touch = true; setV(e); e.preventDefault(); };
       joy.onpointermove = (e) => { if (e.pointerId === id) setV(e); };
-      joy.onpointerup = joy.onpointercancel = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ""; input.kx = input.ky = 0; };
+      joy.onpointerup = joy.onpointercancel = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ""; input.kx = input.ky = 0; joy.style.left = joy.style.bottom = ""; };
+      const jz = $("#joyz"); // 11-26 엄지가 닿은 곳으로 패드를 옮김(급할 때 고정 패드를 놓치는 문제 — 모바일 액션 게임 공통 방식). 손을 떼면 제자리
+      if (jz) { const hud = $("#hud"); joy.style.pointerEvents = "none";
+        jz.onpointerdown = (e) => { id = e.pointerId; try { jz.setPointerCapture(id); } catch (x) { } input.touch = true; const hr = hud.getBoundingClientRect(), k = hr.width / (hud.offsetWidth || hr.width) || 1, r = joy.getBoundingClientRect();
+          joy.style.left = Math.max(0, (e.clientX - hr.left - r.width / 2) / k) + "px"; joy.style.bottom = Math.max(0, (hr.bottom - e.clientY - r.height / 2) / k) + "px"; setV(e); e.preventDefault(); };
+        jz.onpointermove = joy.onpointermove; jz.onpointerup = jz.onpointercancel = joy.onpointerup; }
     }
 
     document.querySelectorAll("#hud .sk").forEach((el) => {
@@ -1331,11 +1408,12 @@ const UI = {
     const multi = G.opt && G.opt.multi; if (!multi) { G.paused = true; input.atkHeld = false; input.moveHeld = false; }
     $("#modal").classList.add("lvmode");
     const pips = (n) => `<div class="lvpips">${[0, 1, 2].map((i) => `<i class="${i < n ? "on" : i === n ? "nx" : ""}"></i>`).join("")}</div>`;
-    UI.modal(`<div class="lvhead">${UI._lvHead || `<small>기운이 차오른다</small><h2>레벨 ${G.p.lvl}</h2>`}<p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 강화</em>"}</div><div class="lvline"></div><div class="lvdesc">${b.lore ? `<p class="lore">${esc(b.lore)}</p>` : ""}${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
+    UI.modal(`<div class="lvhead">${UI._lvHead || `<small>기운이 차오른다</small><h2>레벨 ${G.p.lvl}</h2>`}<p>강화를 하나 고르세요 <span>1~${opts.length}</span></p></div><div class="lvcards">${opts.map((k, i) => { const b = BOONS[k], R = RARITY[b.rar], n = G.p.boons.filter((x) => x === k).length; return `<button class="pk lvc r${b.rar}${b.duo ? " duo" : ""}" data-k="${k}" style="--rc:${R.col};--d:${i * 0.07}s"><span class="lvtag">${b.duo ? "조합 · " : ""}${R.name}</span><div class="lvico"><span class="lvray"></span>${abIc("bn_" + k, b.ic, 96)}</div><b class="lvname">${b.name}</b><div class="lvsub">${n ? `Lv.${n} → <em>Lv.${n + 1}</em>` : "<em>새 강화</em>"}</div><div class="lvline"></div><div class="lvdesc">${b.lore ? `<p class="lore">${esc(b.lore)}</p>` : ""}${n ? boonChange(k, n) : `<p>${b.desc}</p>`}${typeof duoHint === "function" ? duoHint(k) : ""}</div>${pips(n)}<span class="kbd lvkey">${i + 1}</span></button>`; }).join("")}</div><div class="center lvre">${G.rerolls > 0 && !multi ? `<button class="btn" id="rrl">🧵 운명의 실 · 다시 뽑기 (${G.rerolls})</button>` : ""}${!(G.rerolls > 0) && !multi && !G.adRerolled && typeof ADS !== "undefined" && ADS.can("reroll") && ["story", "endless"].includes(G.mode) && !G.opt.daily && !NET.client ? `<button class="btn" id="rrad">${SAVE.noAds ? "" : "▶ 광고 보고 "}다시 뽑기</button>` : ""}<button class="btn sm lvskip" id="lvskip">넘기기 · 엽전 +${30 + G.p.lvl * 2}</button></div>`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); takeBoon(G.p, k); UI.closeModal(); if (!multi) G.paused = false; };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
     if ($("#lvskip")) $("#lvskip").onclick = () => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); const g = 30 + G.p.lvl * 2; G.p.gold = (G.p.gold || 0) + g; addText(G.p.x, G.p.y - 120, "넘김 · 엽전 +" + g, "#ffe08a", 20); UI.closeModal(); if (!multi) G.paused = false; };
+    if ($("#rrad")) $("#rrad").onclick = () => { if (performance.now() < armT) return; ADS.show("reroll", (ok) => { if (!ok || !G) return; G.adRerolled = 1; window.removeEventListener("keydown", kh); UI.closeModal(); UI.levelUp(rollBoons(G.boonN || 3, G.p.lvl)); }); };
     if ($("#rrl")) $("#rrl").onclick = () => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); G.rerolls--; UI.closeModal(); UI.levelUp(rollBoons(G.boonN || 3, G.p.lvl)); };
     window.addEventListener("keydown", kh);
     document.querySelectorAll(".pk").forEach((b) => (b.onclick = () => choose(b.dataset.k)));
@@ -1470,7 +1548,8 @@ loadImages(); initEngine(); if (/autotest/.test(location.hash) || ls.get("ygr_la
 if (!/autotest/.test(location.hash) && ls.get("ygr_auto")) { if ($("#lerr")) $("#lerr").textContent = "☁️ 자동 로그인 중…"; autoLogin().then((ok) => { if (ok && !G) afterLogin(); else if ($("#lerr")) $("#lerr").textContent = ""; }).catch(() => { if ($("#lerr")) $("#lerr").textContent = ""; }); }
 // ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
 // 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
-const SUPPORT = { mail: "wjdaudrn091600@gmail.com", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
+const SUPPORT = { mail: "wjdaudrn091600@gmail.com", company: "요괴록 개발팀", biz: { name: "", ceo: "", no: "", sale: "", addr: "", tel: "" } }; // 11-26 biz: 사업자등록·통신판매업 신고가 끝나면 채움(상호·대표자·사업자등록번호·통신판매업 신고번호·주소·전화) → 약관 아래에 표시
+function bizHtml() { const b = SUPPORT.biz || {}; if (!b.no) return ""; const row = (k, v) => (v ? "<li><b>" + k + "</b>: " + esc(v) + "</li>" : ""); return "<h3>사업자 정보</h3><ul>" + row("상호", b.name) + row("대표자", b.ceo) + row("사업자등록번호", b.no) + row("통신판매업 신고번호", b.sale) + row("주소", b.addr) + row("전화", b.tel) + row("전자우편", SUPPORT.mail) + "</ul>"; } // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
 const pct = (v) => { const p = v * 100; return (p >= 1 ? p.toFixed(2) : p >= 0.01 ? p.toFixed(3) : p.toFixed(4)).replace(/\.?0+$/, "") + "%"; };
 function probTables() {
   const T = (rows, head) => `<table class="ptab"><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
@@ -1544,7 +1623,7 @@ UI.info = function (tab, back) {
   const tabs = [["prob", "🎲 확률 공개"], ["terms", "📄 이용약관"], ["privacy", "🔒 개인정보"], ["credits", "🎨 크레딧·라이선스"], ["bug", "🐞 버그 신고"], ["account", "👤 계정"]];
   let body = "";
   if (tab === "prob") body = probTables();
-  else if (tab === "terms") body = TERMS.split("${co}").join(esc(co)).split("${mail}").join(esc(mail));
+  else if (tab === "terms") body = TERMS.split("${co}").join(esc(co)).split("${mail}").join(esc(mail)) + bizHtml();
   else if (tab === "privacy") body = PRIVACY.split("${mail}").join(esc(mail));
   else if (tab === "credits") body = CREDITS;
   else if (tab === "bug") body = `<h3>버그 신고</h3><p class="muted">아래 내용을 복사해서 문의처로 보내 주세요. 아이디·비밀번호는 들어가지 않아요.</p><textarea id="buglog" readonly style="width:100%;height:220px;background:#0b0a10;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:.78rem">${esc(["요괴록 v" + GAME_VERSION, navigator.userAgent, "화면 " + innerWidth + "x" + innerHeight + " · 고급 그래픽 " + (typeof GLR !== "undefined" && GLR.ok ? "켜짐" : "꺼짐"), "--- 최근 오류 ---", ...(ERRLOG.list.length ? ERRLOG.list : ["(없음)"])].join("\n"))}</textarea><div class="center"><button class="btn gold" id="bugcp">📋 복사</button></div><p class="muted">문의: ${esc(mail)}</p>`;
@@ -2119,7 +2198,7 @@ UI.season = function () {
   if ($("#sall")) $("#sall").onclick = () => { for (let i = 1; i <= lv; i++) if (!S.claimed[i]) claim(i); saveGame(); sfx("level"); UI.toast("🏮 시즌 보상을 모두 받았어요"); UI.season(); };
 };
 function comebackGift() { // 3일 넘게 쉬다 오면 선물 (daily() 앞에서)
-  const now = Date.now(), last = SAVE.lastSeen || 0; SAVE.lastSeen = now;
+  const now = NOW(), last = SAVE.lastSeen || 0; SAVE.lastSeen = now;
   if (last && now - last > 3 * 864e5) { const days = Math.floor((now - last) / 864e5); SAVE.coins += 10; SAVE.soul = (SAVE.soul || 0) + 50; saveGame();
     setTimeout(() => UI.toast(`🏮 ${days}일 만이네요, 토벌꾼 양반! 주막 선물 — 코인 10 · 혼불 50`, 6000), 1200); }
 }
@@ -2158,13 +2237,13 @@ function pickupHtml() {
 // 참고: 탕탕특공대 '순찰 보상'·방치형 게임 오프라인 보상 — 매일 들어올 이유. 최대 12시간이라 하루 두 번 들르면 손해 없음.
 const STORE_CAP_H = 12;
 function storeRate() { return (2 + 0.6 * Math.min(5, SAVE.story.maxFloor || 1) + 0.4 * (typeof altarLv === "function" ? altarLv("spirit") : 0)) * (typeof passActive === "function" && passActive() ? 1.5 : 1); } // 11-19 쉬는 동안 받는 몫이 한 판 수입을 넘지 않게 (최대 15.5 → 7) // 시간당 혼불
-function storeState() { const now = Date.now(); if (!SAVE.storeT) SAVE.storeT = now; const h = Math.min(STORE_CAP_H, (now - SAVE.storeT) / 36e5); return { h, soul: Math.floor(h * storeRate()), full: h >= STORE_CAP_H }; }
+function storeState() { const now = NOW(); if (!SAVE.storeT) SAVE.storeT = now; const h = Math.min(STORE_CAP_H, (now - SAVE.storeT) / 36e5); return { h, soul: Math.floor(h * storeRate()), full: h >= STORE_CAP_H }; }
 function storeCard() {
   if (!SAVE || !((SAVE.stats.rooms || 0) >= 5 || ACCOUNT === DEV_ID)) return "";
   const s = storeState(), pct = Math.round((s.h / STORE_CAP_H) * 100);
   return `<div class="storec" id="storeb" role="button" tabindex="0"><img src="${imgSrc("ui_store_jar")}" alt=""><div class="stx"><b>주막 창고</b><span>쉬는 동안에도 혼불이 쌓여요 · 시간당 ${storeRate().toFixed(1)}</span><div class="prog"><i style="width:${pct}%"></i></div></div><div class="sgo">${s.soul > 0 ? `🔥 ${s.soul}<br><small>${s.full ? "가득 참!" : "받기"}</small>` : "<small>쌓이는 중</small>"}</div></div>`;
 }
-function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아직 쌓인 혼불이 없어요 — 조금 뒤에 다시 와요"); return; } SAVE.soul = (SAVE.soul || 0) + s.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + s.soul; SAVE.storeT = Date.now(); saveGame(); sfx("coin"); track("store_claim", { soul: s.soul, h: Math.round(s.h) }); UI.toast(`🏮 주막 창고에서 혼불 ${s.soul}을 받았어요`); UI.menu(); }
+function storeClaim() { const s = storeState(); if (s.soul <= 0) { UI.toast("아직 쌓인 혼불이 없어요 — 조금 뒤에 다시 와요"); return; } SAVE.soul = (SAVE.soul || 0) + s.soul; SAVE.soulTotal = (SAVE.soulTotal || 0) + s.soul; SAVE.storeT = NOW(); saveGame(); sfx("coin"); track("store_claim", { soul: s.soul, h: Math.round(s.h) }); UI.toast(`🏮 주막 창고에서 혼불 ${s.soul}을 받았어요`); UI.menu(); }
 const isFestival = () => { const d = new Date().getDay(); return d === 0 || d === 6; }; // 토·일
 function festivalBanner() { return isFestival() ? `<div class="fest"><b>주말 혼불 축제</b> · 오늘은 판에서 얻는 혼불 <b>1.5배</b>!</div>` : ""; }
 
@@ -2501,7 +2580,7 @@ UI.wish = function () {
 // 참고: 모바일 히트작의 '일일 할 일' 판 — 매일 와서 무엇을 하면 되는지 한 줄씩, 끝낸 건 붓 체크.
 function todayCard() {
   if (!SAVE || (SAVE.stats.rooms || 0) < 3) return "";
-  const today = new Date().toDateString(), items = [];
+  const today = new Date(NOW()).toDateString(), items = [];
   items.push({ t: "출석", ok: SAVE.daily && SAVE.daily.day === today, go: "" });
   items.push({ t: "무료 뽑기", ok: typeof freeToday === "function" && !freeToday(), go: "gacha" });
   if (typeof dailyInfo === "function" && ((SAVE.stats.rooms || 0) >= 5)) { const D = dailyInfo(); items.push({ t: "오늘의 괴담", ok: !!((SAVE.daily2 || {})[D.key]), go: "daily" }); }
@@ -2681,9 +2760,9 @@ UI.cbtDaily = function (D, today) {
 };
 // 이탈 지점: 처음 연 날 · 며칠째 다시 왔는지 (PostHog 에서 '첫 판 → 1장 보스 → 2일차' 흐름으로 봄)
 function dayOpen() {
-  try { const t = new Date().toDateString(); if (!SAVE || SAVE.lastOpen === t) return;
-    if (!SAVE.firstDay) { SAVE.firstDay = Date.now(); track("first_open"); }
-    SAVE.lastOpen = t; const d = Math.floor((Date.now() - SAVE.firstDay) / 864e5);
+  try { const t = new Date(NOW()).toDateString(); if (!SAVE || SAVE.lastOpen === t) return;
+    if (!SAVE.firstDay) { SAVE.firstDay = NOW(); track("first_open"); }
+    SAVE.lastOpen = t; const d = Math.floor((NOW() - SAVE.firstDay) / 864e5);
     track("day_open", { d, rooms: SAVE.stats.rooms || 0, story: SAVE.story.maxFloor || 1, heroes: Object.keys(SAVE.chars).length, cbtDays: SAVE.stats.cbtDays || 0 }); saveGame(); } catch (e) { }
 }
 // 판 끝 설문: 정해 둔 판(3번째·12번째)이 끝났을 때 결과 화면 안에 별점 + 고르기 두 개 + 한 줄
@@ -2723,31 +2802,48 @@ var IAP_PRICE = {};
 window.iapPrices = (m) => { try { IAP_PRICE = typeof m === "string" ? JSON.parse(m) : m || {}; if (document.querySelector(".iapgrid")) UI.cashShop(); } catch (e) { } };
 window.iapFail = (code) => { UI.toast(code === 1 ? "결제를 취소했어요" : "결제를 마치지 못했어요 — 잠시 뒤 다시 해 주세요", 2600); track("iap_fail", { code }); };
 window.iapPending = (sku) => UI.toast("결제 확인을 기다리고 있어요 — 끝나면 바로 들어와요", 3000);
-window.iapGot = (sku, token, order) => {
-  const it = (IAP.items || []).find((x) => x.sku === sku); if (!it || !SAVE) return;
-  const O = (SAVE.iapOrders = SAVE.iapOrders || {}), key = order || token;
-  if (!O[key]) {
+// 11-26 상품 내용을 저장에 넣기(화면 표시는 부르는 쪽에서). when: 산 시각(다른 기기에서 산 것을 합칠 때)
+function iapGive(it, when) {
     const g = it.give || {}, got = [];
     if (g.coins) { SAVE.coins += g.coins; got.push(["cur_coin", "코인", g.coins]); }
     if (g.gold) { SAVE.gold += g.gold; got.push(["cur_yeop", "엽전", g.gold]); }
     if (g.soul) { SAVE.soul = (SAVE.soul || 0) + g.soul; got.push(["ui_soul", "혼불", g.soul]); }
     if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 보상", 1]); }
-    if (g.pass30) { SAVE.passUntil = Math.max(Date.now(), SAVE.passUntil || 0) + 30 * 864e5; got.push(["ui_store_jar", "주막 단골패 30일", 1]); }
+    if (g.pass30) { SAVE.passUntil = Math.max(when || NOW(), SAVE.passUntil || 0) + 30 * 864e5; got.push(["ui_store_jar", "주막 단골패 30일", 1]); }
     if (g.seasonPlus) { const S = seasonState(); S.plus = 1; S.pclaimed = S.pclaimed || {}; let c = 0, so = 0; for (const n in S.claimed) if (!S.pclaimed[n]) { const P = seasonPlusRw(+n); S.pclaimed[n] = 1; c += P.coin; so += P.soul; } SAVE.coins += c; SAVE.soul = (SAVE.soul || 0) + so; got.push(["ui_soul", "시즌 상급 보상", 1]); if (c) got.push(["cur_coin", "코인", c]); }
     if (g.title && TITLES[g.title]) { SAVE.titles[g.title] = 1; got.push(["ic_" + g.title, TITLES[g.title].name, 1]); }
     for (const c of g.chars || []) if (CHAR[c]) { SAVE.chars[c] = SAVE.chars[c] || 1; got.push(["card_" + c, CHAR[c].name, 1]); }
+    return got;
+}
+// 11-26 다른 저장(src)에만 있는 주문을 지금 저장(dst = SAVE)에 합친다 — 기기·서버 저장이 엇갈려도 결제한 것이 사라지지 않게. 합친 주문 수를 돌려줌
+function mergePaid(dst, src) {
+  if (!dst || !src || dst === src || dst !== SAVE || typeof IAP === "undefined") return 0;
+  const A = (dst.iapOrders = dst.iapOrders || {}), B = src.iapOrders || {}; let n = 0;
+  for (const k in B) if (!A[k] && B[k] && B[k].sku) { const it = (IAP.items || []).find((x) => x.sku === B[k].sku);
+    try { if (it && !(it.season && new Date(B[k].t || 0).getMonth() !== new Date().getMonth())) iapGive(it, B[k].t); } catch (e) { }
+    A[k] = B[k]; n++; }
+  if (src.noAds && !dst.noAds) { dst.noAds = 1; n++; }
+  return n;
+}
+window.iapGot = (sku, token, order) => {
+  const it = (IAP.items || []).find((x) => x.sku === sku); if (!it || !SAVE) return;
+  const O = (SAVE.iapOrders = SAVE.iapOrders || {}), key = order || token;
+  if (!O[key]) {
+    const got = iapGive(it);
     O[key] = { sku, t: Date.now() }; saveGame(); try { CLOUD.push(true); } catch (e) { }
     track("iap_buy", { sku }); UI.loot(it.name, got); try { checkUnlocks(); } catch (e) { }
   }
   try { if (it.kind === "pack") YogoApp.consume(token); else YogoApp.ack(token); } catch (e) { }
   if (document.querySelector(".iapgrid")) UI.cashShop();
 };
+// 11-26 시작 꾸러미는 켜자마자가 아니라 첫 보스를 잡았거나 방 30개를 지난 뒤부터 사흘 동안만 보인다(끼어드는 창 없이 상점에만)
+function starterOpen() { if (!SAVE) return false; if (!SAVE.starterT && ((SAVE.stats.bosses || 0) >= 1 || (SAVE.stats.rooms || 0) >= 30)) { SAVE.starterT = NOW(); saveGame(); } return !!SAVE.starterT && NOW() - SAVE.starterT < 72 * 36e5; }
 function iapHtml() {
   if (!iapOn()) return "";
   if (!iapApp()) return `<div class="card iapnote"><h3>등불 상점</h3><p class="muted">유료 상품은 Play 스토어에서 받은 앱에서 살 수 있어요.</p></div>`;
-  const bought = (sku) => Object.values(SAVE.iapOrders || {}).some((o) => o.sku === sku), fresh = !SAVE.firstDay || Date.now() - SAVE.firstDay < 7 * 864e5;
+  const bought = (sku) => Object.values(SAVE.iapOrders || {}).some((o) => o.sku === sku), fresh = starterOpen();
   const list = IAP.items.filter((it) => !it.days7 || (fresh && !bought(it.sku)) );
-  return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - Date.now()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && bought(it.sku)) || (it.season && seasonState().plus);
+  return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - NOW()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && bought(it.sku)) || (it.season && seasonState().plus);
     return `<div class="card iapc">${it.img && imgSrc(it.img) ? `<img src="${imgSrc(it.img)}" alt="">` : ""}<h3>${esc(it.name)}</h3><p class="muted">${esc(it.desc || "")}</p><button class="btn gold" data-iap="${it.sku}" ${owned ? "disabled" : ""}>${owned ? "가지고 있어요" : IAP_PRICE[it.sku] || "값 불러오는 중"}</button></div>`; }).join("")}</div>
     <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. 코인·꾸러미는 사면 바로 들어와 일부를 쓰면, 단골패는 기간이 시작되면 청약철회가 제한될 수 있어요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
 }
@@ -2848,7 +2944,7 @@ setInterval(() => { try { if (!notifCan() || !SAVE || G || UI.modalOpen() || SAV
   $("#ntn").onclick = () => { track("notif_set", { on: false, ask: 1 }); UI.closeModal(); }; } catch (e) { } }, 5000);
 
 // ===================== 11-22 유료 상품 효과: 주막 단골패 · 시즌 상급 보상 =====================
-function passActive() { return !!(SAVE && SAVE.passUntil && Date.now() < SAVE.passUntil); }
+function passActive() { return !!(SAVE && SAVE.passUntil && NOW() < SAVE.passUntil); }
 function seasonPlusRw(n) { return n % 5 === 0 ? { coin: 10, soul: 50 } : { coin: 3, soul: 15 }; }
 // 단골패: 하루 한 번 코인 5 (메뉴에 올 때)
-setInterval(() => { try { if (!SAVE || G || !passActive()) return; const t = new Date().toDateString(); if (SAVE.passDay === t) return; SAVE.passDay = t; SAVE.coins += 5; saveGame(); UI.loot("주막 단골패", [["cur_coin", "코인", 5]]); } catch (e) { } }, 4000);
+setInterval(() => { try { if (!SAVE || G || !passActive()) return; const t = new Date(NOW()).toDateString(); if (SAVE.passDay === t) return; SAVE.passDay = t; SAVE.coins += 5; saveGame(); UI.loot("주막 단골패", [["cur_coin", "코인", 5]]); } catch (e) { } }, 4000);

@@ -79,7 +79,7 @@ const CHARS = [
       { name: "뇌우 부적", ic: "⚡", cd: 9, desc: "번개가 적 6명에게 튀며 각 170% 피해", fx: [{ t: "chain", n: 6, d: 1.7, range: 420, col: "#9fe8ff" }] },
       { name: "오행진", ic: "☯️", cd: 42, ult: true, desc: "커서에 6초 동안 큰 진 (초당 220% 피해, 크게 느려짐)", fx: [{ t: "zone", r: 260, dur: 6, dps: 2.2, slow: 0.6, col: "#5fd4c4", at: "cursor", rune: true }] },
     ] },
-  { id: "yinyang", name: "백야", job: "음양사", unlock: { type: "floor", n: 3, reqs: [{ stat: "skillsUsed", n: 800, text: "스킬 800번" }], text: "스토리 3장 도달 + 스킬 800번 사용" }, col: "#e8e3f5", hp: 195, atk: 19, spd: 255, range: "원거리",
+  { id: "yinyang", name: "백야", job: "음양사", unlock: { type: "floor", n: 3, reqs: [{ stat: "skillsUsed", n: 800, text: "스킬 800번" }], text: "스토리 3장 도달 + 스킬 800번 사용" }, col: "#e8e3f5", hp: 195, atk: 18, spd: 255, range: "원거리",
     basic: { name: "음양 구슬", cd: 0.48, fx: [{ t: "proj", d: 1, spd: 720, life: 0.9, r: 11, col: "#f5f2ff", alt: "#2a2440" }] },
     sk: [
       { name: "태극 구슬", ic: "⚪", cd: 9, desc: "8초 동안 흑백 구슬 4개가 주위를 돌며 피해 (각 90%)", fx: [{ t: "orbit", n: 4, dur: 8, r: 110, d: 0.9, col: "#f5f2ff", alt: "#2a2440" }] },
@@ -87,7 +87,7 @@ const CHARS = [
       { name: "식신 부르기", ic: "📜", cd: 13, desc: "종이 식신 3마리를 9초 동안 부름", fx: [{ t: "summon", kind: "shikigami", n: 3, dur: 9 }] },
       { name: "태극 대폭발", ic: "☯️", cd: 44, ult: true, desc: "커서에 1.2초 뒤 거대 폭발 750% + 기절", fx: [{ t: "strike", n: 1, r: 300, d: 7.5, delay: 1.2, stun: 1.5, col: "#e8e3f5", taeguk: true }] },
     ] },
-  { id: "summoner", name: "소담", job: "소환사", unlock: { type: "floor", n: 4, reqs: [{ stat: "petsOwned", n: 8, text: "펫 8종" }], text: "스토리 4장 도달 + 펫 8종 모으기" }, col: "#3fd0d8", hp: 200, atk: 19, spd: 255, range: "원거리",
+  { id: "summoner", name: "소담", job: "소환사", unlock: { type: "floor", n: 4, reqs: [{ stat: "petsOwned", n: 8, text: "펫 8종" }], text: "스토리 4장 도달 + 펫 8종 모으기" }, col: "#3fd0d8", hp: 200, atk: 17, spd: 255, range: "원거리",
     basic: { name: "영혼 화살", cd: 0.55, fx: [{ t: "proj", d: 1, spd: 760, life: 0.85, r: 10, col: "#9ff3f8" }] },
     sk: [
       { name: "영호 소환", ic: "🐯", cd: 12, desc: "영혼 호랑이를 14초 동안 부름 (강함)", fx: [{ t: "summon", kind: "tiger", n: 1, dur: 14 }] },
@@ -103,7 +103,7 @@ const CHARS = [
       { name: "광폭화", ic: "😤", cd: 15, desc: "6초 동안 공격력 +50%, 공격 속도 +50%, 피해 흡혈 10%", fx: [{ t: "buff", dur: 6, atk: 0.5, as: 0.5, ls: 0.1, col: "#ff5a3d" }] },
       { name: "피의 회오리", ic: "🌪️", cd: 40, ult: true, desc: "3초 동안 회전하며 12번 각 150% 피해, 받는 피해 -40%", fx: [{ t: "buff", dur: 3, dr: 0.4, col: "#ff5a3d" }, { t: "repeat", n: 12, gap: 0.25, fx: { t: "nova", r: 190, d: 1.5, col: "#ff6b3d", follow: true } }] },
     ] },
-  { id: "moon", name: "월영", job: "월하검희", unlock: { type: "gacha" }, col: "#c9b8ff", hp: 215, atk: 25, spd: 280, range: "근접", rare: 4,
+  { id: "moon", name: "월영", job: "월하검희", unlock: { type: "gacha" }, col: "#c9b8ff", hp: 215, atk: 27, spd: 280, range: "근접", rare: 4,
     basic: { name: "쌍월도", cd: 0.36, fx: [{ t: "arc", d: 0.95, r: 115, ang: 2.2, col: "#e6dcff" }] },
     sk: [
       { name: "초승달 검기", ic: "🌙", cd: 4, desc: "꿰뚫는 초승달 검기 190% 피해", fx: [{ t: "proj", d: 1.9, spd: 900, life: 0.7, r: 26, col: "#e6dcff", shape: "crescent", pierce: 99 }] },
@@ -127,7 +127,7 @@ const CHARS = [
       { name: "꼬리 감추기", ic: "🦊", cd: 8, desc: "커서로 순간이동, 1초 무적, 자리에 여우불 폭발 120%", fx: [{ t: "nova", r: 120, d: 1.2, col: "#7fd8ff" }, { t: "blink", dist: 300 }, { t: "buff", dur: 1, inv: true, col: "#ff8a3d" }] },
       { name: "구미 여우불", ic: "🌟", cd: 40, ult: true, desc: "10초 동안 여우불 9개가 돌다가 가까운 적을 쫓아감", fx: [{ t: "orbit", n: 9, dur: 10, r: 120, d: 1.2, col: "#7fd8ff", seek: true }] },
     ] },
-  { id: "reaper", name: "명부", job: "저승차사", unlock: { type: "gacha" }, col: "#b06bff", hp: 240, atk: 24, spd: 260, range: "근접(긴)", rare: 4,
+  { id: "reaper", name: "명부", job: "저승차사", unlock: { type: "gacha" }, col: "#b06bff", hp: 240, atk: 28, spd: 260, range: "근접(긴)", rare: 4,
     basic: { name: "저승 사슬", cd: 0.55, fx: [{ t: "arc", d: 1.05, r: 150, ang: 1.0, col: "#d2a8ff" }] },
     sk: [
       { name: "사슬 당기기", ic: "⛓️", cd: 6, desc: "사슬을 던져 맞은 적을 끌어오고 160% 피해", fx: [{ t: "proj", d: 1.6, spd: 1000, life: 0.6, r: 16, col: "#d2a8ff", shape: "chain", pull: true, pierce: 3 }] },
@@ -227,7 +227,7 @@ const CHARS = [
       { name: "풍월 검기", ic: "🌙", cd: 8, desc: "꿰뚫는 검기 3발 각 150%", fx: [{ t: "proj", n: 3, spread: 0.35, d: 1.5, spd: 900, life: 0.6, r: 14, col: "#ffe0a0", pierce: 4 }] },
       { name: "신라의 별", ic: "⭐", cd: 44, ult: true, desc: "별빛 낙하 7번 각 300%", fx: [{ t: "strike", n: 7, scatter: 260, r: 120, d: 3, delay: 0.6, stagger: 0.15, col: "#ffd27a" }] },
     ] },
-  { id: "eosa", name: "이몽룡", job: "암행어사", unlock: { type: "gacha" }, col: "#8ab4ff", hp: 230, atk: 25, spd: 270, range: "근접",
+  { id: "eosa", name: "이몽룡", job: "암행어사", unlock: { type: "gacha" }, col: "#8ab4ff", hp: 230, atk: 28, spd: 270, range: "근접",
     basic: { name: "마패 치기", cd: 0.45, fx: [{ t: "arc", d: 1.05, r: 125, ang: 1.7, col: "#c0d8ff" }] },
     sk: [
       { name: "암행어사 출두야!", ic: "📯", cd: 11, desc: "주변 적 1.5초 기절 + 160%", fx: [{ t: "nova", r: 230, d: 1.6, stun: 1.5, col: "#ffd84a" }] },
@@ -243,7 +243,7 @@ const CHARS = [
       { name: "얼씨구!", ic: "👏", cd: 13, desc: "6초 동안 공격 속도 +35%, 체력 15% 회복", fx: [{ t: "buff", dur: 6, as: 0.35, col: "#ffd0a0" }, { t: "heal", pct: 0.15 }] },
       { name: "한바탕 판소리", ic: "🎤", cd: 44, ult: true, desc: "온 방에 울리는 소리 400% + 1.5초 기절", fx: [{ t: "nova", r: 9999, d: 4, stun: 1.5, col: "#ff9a6a" }] },
     ] },
-  { id: "eulji", name: "을지문덕", job: "고구려 대장군", unlock: { type: "gacha" }, col: "#5ab0ff", hp: 285, atk: 27, spd: 260, range: "근접(긴)",
+  { id: "eulji", name: "을지문덕", job: "고구려 대장군", unlock: { type: "gacha" }, col: "#5ab0ff", hp: 285, atk: 24, spd: 260, range: "근접(긴)",
     basic: { name: "대장군 창", cd: 0.48, fx: [{ t: "arc", d: 1.1, r: 160, ang: 1.3, col: "#a0d0ff" }] },
     sk: [
       { name: "살수 대첩", ic: "🌊", cd: 10, desc: "물살 장판 5초 (초당 150%, 느려짐) + 밀쳐냄", fx: [{ t: "zone", r: 230, dur: 5, dps: 1.5, slow: 0.45, col: "#5ab0ff" }, { t: "nova", r: 230, d: 1, knock: 160, col: "#5ab0ff" }] },
@@ -267,7 +267,7 @@ const CHARS = [
       { name: "백 번 쓰러져도", ic: "💪", cd: 18, desc: "체력 35% 회복 + 5초 받는 피해 -40%", fx: [{ t: "heal", pct: 0.35 }, { t: "buff", dur: 5, dr: 0.4, col: "#d8b870" }] },
       { name: "허수아비 군단", ic: "🎎", cd: 44, ult: true, desc: "허수아비 병사 5명 14초", fx: [{ t: "summon", kind: "scarecrow", n: 5, dur: 14 }] },
     ] },
-  { id: "bong", name: "봉냥이", job: "수인", unlock: { type: "special", reqs: [{ stat: "storyClear", n: 1, text: "스토리 전체 완료" }, { stat: "endlessBest", n: 30, text: "무한의 방 30번째 방" }, { stat: "raidClear", n: 1, text: "보스 레이드 완료" }], text: "스토리 전체 완료 + 무한의 방 30번째 방 + 보스 레이드 완료" }, col: "#ffb36b", hp: 235, atk: 23, spd: 275, range: "근접/원거리",
+  { id: "bong", name: "봉냥이", job: "수인", unlock: { type: "special", reqs: [{ stat: "storyClear", n: 1, text: "스토리 전체 완료" }, { stat: "endlessBest", n: 30, text: "무한의 방 30번째 방" }, { stat: "raidClear", n: 1, text: "보스 레이드 완료" }], text: "스토리 전체 완료 + 무한의 방 30번째 방 + 보스 레이드 완료" }, col: "#ffb36b", hp: 235, atk: 21, spd: 275, range: "근접/원거리",
     forms: {
       wolf: { formName: "늑대인간", art: "bong_wolf", hp: 265, atk: 25, spd: 265, range: "근접",
         basic: { name: "늑대 발톱", cd: 0.38, fx: [{ t: "arc", d: 1.0, r: 110, ang: 2.0, col: "#e3e7f0" }] } },

@@ -70,7 +70,8 @@ const NET = {
     else if (m.t === "s") { this.applySnap(m); }
     else if (m.t === "lv") { UI.guestLevelUp(m.opts, m.lvl); }
     else if (m.t === "job") { UI.jobPick(m.tier, m.cid, (i) => this.send({ t: "jobpick", tier: m.tier, i })); }
-    else if (m.t === "rw") { if (m.gold) SAVE.gold += m.gold; if (m.coin) { SAVE.coins += m.coin; UI.toast("🪙 코인 +" + m.coin); } saveGame(); }
+    else if (m.t === "rw") { // 11-26 방장이 보낸 값을 그대로 믿지 않는다: 코인은 한 번에 1개, 한 판에 20개까지만(변조한 방장이 코인을 찍어 주거나 숫자가 아닌 값으로 저장을 깨는 것 막기)
+      const c = Math.floor(+m.coin) >= 1 ? 1 : 0; this._rwN = this._rwN || 0; if (c && this._rwN < 20 && Number.isFinite(SAVE.coins)) { this._rwN++; SAVE.coins += c; UI.toast("🪙 코인 +" + c); saveGame(); } }
     else if (m.t === "end") { this.clientEnd(m); }
     else if (m.t === "toast") UI.toast(m.s);
   },
@@ -218,7 +219,10 @@ const NET = {
     this.send({ t: "end", r: { coinRw: G.mode === "duel" ? (!r.win ? 2 : 0) : r.coinRw, mode: r.mode, win: G.mode === "duel" ? !r.win : r.win, storyDone: r.storyDone, kills: r.kills, rooms: r.rooms, floor: r.floor, stage: r.stage, endless: r.endless, lvl: h ? h.lvl : 1, duel: G.duel ? { wins: [G.duel.wins[1], G.duel.wins[0]] } : null, bosses: G.bossKills || 0 } });
   },
   clientEnd(m) {
-    const r = m.r, S = SAVE.stats;
+    const r = m.r && typeof m.r === "object" ? m.r : {}, S = SAVE.stats; this._rwN = 0;
+    { const num = (v, hi) => { v = Math.floor(+v); return Number.isFinite(v) && v > 0 ? Math.min(v, hi) : 0; }; // 11-26 방장이 보낸 결과 값 범위 확인
+      r.kills = num(r.kills, 5000); r.rooms = num(r.rooms, 400); r.bosses = num(r.bosses, 60); r.lvl = num(r.lvl, 99) || 1; r.endless = num(r.endless, 999); r.coinRw = num(r.coinRw, 12);
+      r.floor = Math.max(1, Math.min(num(r.floor, FLOORS.length), (SAVE.story.maxFloor || 1) + 1)); r.win = !!r.win; r.storyDone = !!r.storyDone && r.mode === "story"; }
     S.kills = (S.kills || 0) + r.kills; S.rooms = (S.rooms || 0) + r.rooms; S.bosses = (S.bosses || 0) + (r.bosses || 0); S.maxLevel = Math.max(S.maxLevel || 0, r.lvl);
     if (r.mode === "story") { SAVE.story.maxFloor = Math.max(SAVE.story.maxFloor || 1, r.floor); if (r.storyDone) S.storyClear = (S.storyClear || 0) + 1; }
     if (r.mode === "endless") S.endlessBest = Math.max(S.endlessBest || 0, r.endless);
