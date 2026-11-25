@@ -1096,7 +1096,7 @@ function heroDown(u) {
   if (G.mode === "duel") { if (G.duel.state === "fight") { G.duel.state = "roundEnd"; G.duel.t = 2.2; G.duel.wins[u === G.p ? 1 : 0]++; G.banner = { text: u === G.p ? "패배" : "승리!", sub: `${G.duel.wins[0]} : ${G.duel.wins[1]}`, t: 2, boss: u === G.p }; } return; }
   if (u === G.p) SAVE.stats.deaths = (SAVE.stats.deaths || 0) + 1;
   if (u.team === 0) { addText(u.x, u.y - 90, u === G.p ? "쓰러졌다…" : "동료가 쓰러졌다", "#ff8a8a", 22);
-    if (!heroesOf(0).some((h) => h.alive)) { G.over = true; G.overT = 1.6; sfx("dead"); if (G.mode === "story" && SAVE.resume) { delete SAVE.resume; saveGame(); } } }
+    if (!heroesOf(0).some((h) => h.alive)) { if (u === G.p && typeof adReviveAsk === "function" && adReviveAsk(u)) return; G.over = true; G.overT = 1.6; sfx("dead"); if (G.mode === "story" && SAVE.resume) { delete SAVE.resume; saveGame(); } } }
 }
 function bossVoice(b, tag) { const k = b.type + "_" + tag; if (ASSETS.voice && ASSETS.voice[k] && !b.mini) setTimeout(() => voice(k), tag === "intro" ? 450 : 200); else if (tag === "intro") sfx("roar"); } // 11-16 보스 음성
 function bossDown(b) {

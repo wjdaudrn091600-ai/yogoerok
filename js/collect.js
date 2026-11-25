@@ -2613,14 +2613,30 @@ const CONCEPT_TEXT = {
 
 // 11-21 출시 설정 한곳 (사용자: 정식 출시 때 ① 보상형 광고만 — 광고 보면 30분간 혼불 획득량 증가 ② 영웅은 처음 10명 정도만 공개)
 // CBT 동안에는 둘 다 꺼 둠(on/limit: false). 정식 출시 때 켜고, 광고 업체 연결은 ADS.show 안에서.
-const ADS = {
-  on: false,            // 보상형 광고 버튼 보이기 (광고 업체 연결 뒤 true)
-  buffMin: 30,          // 버프 시간(분)
-  soulMul: 1.5,         // 버프 동안 판에서 얻는 혼불 ×1.5
+const ADS = { // 11-25 사용자: "광고를 넣을 만한 적절한 보상 광고" — AdMob 보상형만(사용자가 스스로 누를 때만), 끼어드는 광고 없음
+  on: false,            // 정식 출시 때 true (AdMob 계정·광고 단위 ID 를 앱에 넣은 뒤). 꺼져 있으면 버튼이 하나도 안 보임
+  buffMin: 30,          // 등불 축복 시간(분)
+  soulMul: 1.5,         // 등불 축복 동안 판에서 얻는 혼불 ×1.5
+  caps: { bless: 3, revive: 3, double: 5, pull: 1 }, // 하루 횟수 — bless 등불 축복 · revive 쓰러지면 다시 일어나기(판당 1번) · double 판 끝 혼불 두 배 · pull 무료 뽑기 한 번 더
+  names: { bless: "등불 축복", revive: "다시 일어나기", double: "혼불 두 배", pull: "무료 뽑기 한 번 더" },
   active() { return !!(typeof SAVE !== "undefined" && SAVE && SAVE.adBuffUntil && Date.now() < SAVE.adBuffUntil); },
   leftMin() { return this.active() ? Math.ceil((SAVE.adBuffUntil - Date.now()) / 60000) : 0; },
-  // 광고를 끝까지 보면 done(true). 지금은 업체 연결 전이라 아무것도 하지 않음(on:false 라 버튼도 안 보임)
-  show(done) { done(false); },
+  app() { try { return !!(typeof window !== "undefined" && window.YogoApp && YogoApp.showRewarded && (!YogoApp.adsOn || YogoApp.adsOn())); } catch (e) { return false; } }, // 광고 없는 앱(plain 판)은 adsOn() false
+  day() { const d = new Date().toDateString(); if (!SAVE.adDay || SAVE.adDay.d !== d) SAVE.adDay = { d }; return SAVE.adDay; },
+  left(k) { if (typeof SAVE === "undefined" || !SAVE) return 0; return Math.max(0, (this.caps[k] || 0) - (this.day()[k] || 0)); },
+  // 이 자리에 버튼을 보일지: 광고가 켜져 있고(앱 안이거나 '광고 없이 보상'을 샀고) 오늘 횟수가 남았을 때
+  can(k) { return this.on && (this.app() || !!(SAVE && SAVE.noAds)) && this.left(k) > 0; },
+  // 광고를 끝까지 보면 done(true). '광고 없이 보상'을 산 사람은 광고 없이 바로 true
+  show(k, done) {
+    if (typeof k === "function") { done = k; k = "bless"; }
+    if (!this.can(k)) { done(false); return; }
+    const fin = (ok) => { if (ok) { this.day()[k] = (this.day()[k] || 0) + 1; if (typeof saveGame === "function") saveGame(); } try { if (typeof track === "function") track(ok ? "ad_reward" : "ad_skip", { k, noAds: !!SAVE.noAds }); } catch (e) { } done(!!ok); };
+    if (SAVE.noAds) { fin(true); return; }
+    let ended = false; window.adDone = (ok) => { if (ended) return; ended = true; window.adDone = null; if (typeof G !== "undefined" && G && G._adHold) G._adHold = false; fin(ok === true || ok === "true"); };
+    window.adFail = (why) => { if (ended) return; ended = true; window.adDone = null; if (typeof UI !== "undefined") UI.toast(why === "noFill" ? "지금은 볼 수 있는 광고가 없어요 — 잠시 뒤에 다시 해 주세요" : "광고를 불러오지 못했어요 — 잠시 뒤에 다시 해 주세요", 2800); done(false); };
+    try { if (typeof music === "function" && typeof AC !== "undefined" && AC && AC.state === "running") AC.suspend(); } catch (e) { }
+    try { YogoApp.showRewarded(k); } catch (e) { window.adFail("err"); }
+  },
   grant() { SAVE.adBuffUntil = Date.now() + this.buffMin * 60000; if (typeof saveGame === "function") saveGame(); },
 };
 // 영웅 순차 공개는 data.js 의 LAUNCH(출시일) · LAUNCH_FIRST(첫날 10명) · LAUNCH_LATER(2주마다 2명) — LAUNCH 를 넣으면 켜짐(CBT 동안 null = 모두 공개)
@@ -2637,7 +2653,7 @@ const CBT = { on: true, days: 14,
 // kind: "once" 한 번만 사는 것(광고 없이 축복 등 — 다시 깔아도 '구매 복원'으로 되찾음) / "pack" 여러 번 사는 것(코인 묶음 등)
 // give: { coins, gold(엽전), soul(혼불), noAds: true, title: "t_…", chars: ["…"] }  · img: 그림 키 · 후보 목록은 바탕화면 요괴록_출시준비\과금_후보.txt
 const IAP = { on: false, items: [ // 11-22 사용자: 후보 모두 넣고 가격은 '광고 없이 축복'만 4,400원으로 조정. 값은 Play Console 인앱 상품(같은 id)에서 정함
-  { sku: "no_ads_bless", kind: "once", price: "4,400원", name: "광고 없이 축복", desc: "광고를 보지 않고 바로 등불 축복(30분 동안 혼불 ×1.5)을 받아요. 한 번 사면 계속.", img: "ui_soul", give: { noAds: true } },
+  { sku: "no_ads_bless", kind: "once", price: "4,400원", name: "광고 없이 보상", desc: "광고를 보지 않고 바로 보상을 받아요 — 등불 축복 · 다시 일어나기 · 혼불 두 배 · 무료 뽑기 한 번 더 (하루 횟수는 같아요). 한 번 사면 계속.", img: "ui_soul", give: { noAds: true } },
   { sku: "starter_pack", kind: "once", price: "5,900원", days7: true, name: "시작 꾸러미", desc: "처음 7일만 — 코인 60 · 엽전 3,000 · 혼불 300", img: "cur_coin", give: { coins: 60, gold: 3000, soul: 300 } },
   { sku: "tavern_pass_30", kind: "pack", price: "4,900원", name: "주막 단골패 (30일)", desc: "30일 동안 매일 코인 5 · 주막 창고 혼불 +50%. 다시 사면 30일 늘어나요.", img: "ui_store_jar", give: { pass30: true } },
   { sku: "season_plus", kind: "pack", price: "9,900원", season: true, name: "토벌 시즌 상급 보상", desc: "이번 달 시즌 모든 단계에 상급 보상(코인·혼불)을 더해요. 이미 받은 단계도 바로 더해 줘요.", img: "ui_soul", give: { seasonPlus: true } },

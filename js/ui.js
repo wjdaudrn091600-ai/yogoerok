@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.3";
+const GAME_VERSION = "3.4.4";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -353,7 +353,8 @@ function pullCost(kind, n, slot) { const g = kind === "skill" ? null : GACHA[kin
 const freeToday = () => !!SAVE && SAVE.freePull !== new Date().toDateString();
 function doPull(kind, n, slot, useYeop, free) {
   const cost = pullCost(kind, n, slot);
-  if (free) { if (!freeToday() || n !== 1) return; SAVE.freePull = new Date().toDateString(); }
+  if (free === "ad") { if (n !== 1) return; } // 11-25 보상형 광고로 한 번 더 (ADS.show 가 끝난 뒤에만 부름)
+  else if (free) { if (!freeToday() || n !== 1) return; SAVE.freePull = new Date().toDateString(); }
   else if (useYeop) { if (SAVE.gold < cost * COIN_YEOP) { UI.toast("엽전이 모자라요"); return; } SAVE.gold -= cost * COIN_YEOP; }
   else { if (SAVE.coins < cost) { UI.toast("코인이 모자라요 — 엽전으로도 뽑을 수 있어요"); return; } SAVE.coins -= cost; }
   const res = []; for (let i = 0; i < n; i++) res.push(pullOne(kind, slot, n === 10 && i === 9 && ["art", "pet", "title"].includes(kind) && !res.some((r) => r.rar >= 2)));
@@ -678,7 +679,7 @@ const UI = {
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
     if ($("#pcinst")) $("#pcinst").onclick = installPc;
     $("#noticeb").onclick = () => UI.notice();
-    if (typeof ADS !== "undefined" && (ADS.on || ADS.active())) { const hb = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const el = document.createElement("button"); el.className = "adbless"; el.innerHTML = ADS.active() ? `<b>등불 축복</b> 혼불 ×${ADS.soulMul} · ${ADS.leftMin()}분 남음` : `<b>등불 축복 받기</b> 짧은 광고를 보면 ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`; el.disabled = ADS.active(); el.onclick = () => (SAVE.noAds ? (f) => f(true) : ADS.show.bind(ADS))((ok) => { if (ok) { ADS.grant(); UI.toast(`등불 축복 — ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`, 2600); UI.menu(); } }); if (hb) hb.prepend(el); }
+    if (typeof ADS !== "undefined" && (ADS.can("bless") || ADS.active())) { const hb = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const el = document.createElement("button"); el.className = "adbless"; el.innerHTML = ADS.active() ? `<b>등불 축복</b> 혼불 ×${ADS.soulMul} · ${ADS.leftMin()}분 남음` : `<b>등불 축복 받기</b> ${SAVE.noAds ? "" : "광고 보고 "}${ADS.buffMin}분 혼불 ×${ADS.soulMul} <small>· 오늘 ${ADS.left("bless")}번</small>`; el.disabled = ADS.active(); el.onclick = () => ADS.show("bless", (ok) => { if (ok) { ADS.grant(); UI.toast(`등불 축복 — ${ADS.buffMin}분 동안 혼불 ×${ADS.soulMul}`, 2600); UI.menu(); } }); if (hb) hb.prepend(el); }
     if (iapOn()) { const hb2 = document.querySelector(".hub .hubl, .hub .hubcol") || document.querySelector("#menu"); const sb = document.createElement("button"); sb.className = "adbless iapb"; sb.innerHTML = "<b>등불 상점</b> 코인·꾸밈·편의 상품"; sb.onclick = () => UI.cashShop(); if (hb2) hb2.prepend(sb); } // 11-22 유료 상품(정식 출시 때만)
     if (!UI._noticeAuto && noticeAutoOk()) { UI._noticeAuto = 1; let n = 0; const tryN = () => { if (G) return; if (UI.modalOpen() || document.querySelector("#tutor, #langpick")) { if (++n < 60) setTimeout(tryN, 700); return; } UI.notice(true); }; setTimeout(tryN, 700); } // 출석 등 다른 창을 닫으면 이어서
     $("#logout").onclick = () => { saveGame(); CLOUD.push(true); CLOUD.off(); ls.set("ygr_auto", ""); ACCOUNT = null; SAVE = null; music(null); $("#bgm").pause(); UI.login(); };
@@ -830,7 +831,8 @@ const UI = {
     document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => UI.gacha({ tab: b.dataset.t, slot })));
     document.querySelectorAll("[data-sl]").forEach((b) => (b.onclick = () => UI.gacha({ tab: "skill", slot: b.dataset.sl })));
     document.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.p, slot)));
-    document.querySelectorAll(".row").forEach((rw) => { if (freeToday() && rw.querySelector('[data-p="1"]') && !rw.querySelector(".freeb")) { const fb = document.createElement("button"); fb.className = "btn freeb"; fb.innerHTML = "오늘 무료 1회"; fb.onclick = () => doPull(tab === "skill" ? "skill" : tab, 1, slot, false, true); rw.prepend(fb); } });
+    document.querySelectorAll(".row").forEach((rw) => { if (freeToday() && rw.querySelector('[data-p="1"]') && !rw.querySelector(".freeb")) { const fb = document.createElement("button"); fb.className = "btn freeb"; fb.innerHTML = "오늘 무료 1회"; fb.onclick = () => doPull(tab === "skill" ? "skill" : tab, 1, slot, false, true); rw.prepend(fb); }
+      else if (!freeToday() && typeof ADS !== "undefined" && ADS.can("pull") && rw.querySelector('[data-p="1"]') && !rw.querySelector(".freeb")) { const ab = document.createElement("button"); ab.className = "btn freeb adpull"; ab.innerHTML = SAVE.noAds ? "무료 1회 더" : "광고 보고 무료 1회 더"; ab.onclick = () => ADS.show("pull", (ok) => { if (ok) doPull(tab === "skill" ? "skill" : tab, 1, slot, false, "ad"); }); rw.prepend(ab); } });
     document.querySelectorAll("[data-py]").forEach((b) => (b.onclick = () => doPull(tab === "skill" ? "skill" : tab, +b.dataset.py, slot, true)));
   },
   showPulls(res, after, revealed) {
@@ -1370,6 +1372,7 @@ const UI = {
       ${unclaimed() ? '<p style="text-align:center;color:var(--gold2)">🎯 받을 수 있는 임무 보상이 있어요!</p>' : ""}
       <div class="center"><button class="btn gold" id="again">다시 도전</button><button class="btn" id="fbres">의견 보내기</button><button class="btn" id="home">처음 화면</button>${["story", "endless", "raid"].includes(r.mode) ? '<button class="btn" id="sharec">📸 기록 카드</button>' : ""}</div>`);
     const opt = G.opt, multi = opt.multi || NET.client;
+    adDoubleBtn(r, multi); // 11-25 보상형 광고: 판 끝 혼불 두 배
     if (multi) $("#again").textContent = "대기실로 (다시 함께)";
     $("#again").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; G = null; NET.roomSent = null; UI.multi(); return; } if (opt.mode === "story") { opt.floor = Math.min(opt.floor, SAVE.story.maxFloor); delete opt.resume; delete opt._newOk; } UI.startRun(opt); };
     if ($("#fbres")) $("#fbres").onclick = () => UI.feedback({ from: "result" }); $("#home").onclick = () => { UI.closeModal(); if (multi) { NET.client = false; NET.leave(); } UI.menu(); };
@@ -1466,7 +1469,7 @@ const SUPPORT = { mail: "jmg98916@gmail.com", company: "요괴록 개발팀" }; 
 const pct = (v) => { const p = v * 100; return (p >= 1 ? p.toFixed(2) : p >= 0.01 ? p.toFixed(3) : p.toFixed(4)).replace(/\.?0+$/, "") + "%"; };
 function probTables() {
   const T = (rows, head) => `<table class="ptab"><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
-  let h = `<p class="muted">아래 확률은 게임이 실제로 뽑을 때 쓰는 값에서 자동으로 만든 표예요. 뽑기는 게임 안 재화(코인·엽전)로만 하며, 현재 현금 결제는 없어요.</p>`;
+  let h = `<p class="muted">아래 확률은 게임이 실제로 뽑을 때 쓰는 값에서 자동으로 만든 표예요. ${typeof iapOn === "function" && iapOn() ? "뽑기는 코인·엽전으로 해요. 코인은 등불 상점에서 돈을 내고도 살 수 있어, 뽑기는 유료 확률형 아이템에 해당해요(게임산업법 확률 공개)." : "뽑기는 게임 안 재화(코인·엽전)로만 하며, 현재 현금 결제는 없어요."}</p>`;
   // 캐릭터 뽑기
   const heroes = CHARS.filter((c) => c.unlock.type === "gacha"), GR = ["SS", "S", "A", "B", "C"];
   let sum = 0; const rows = [];
@@ -1501,11 +1504,17 @@ const TERMS = `<h3>이용약관 (요약)</h3><ol class="muted" style="line-heigh
 <li>버그·해킹 도구·자동 프로그램으로 얻은 재화나 기록은 회수하거나 계정 이용을 제한할 수 있어요.</li>
 <li>멀티플레이에서 욕설·괴롭힘·부적절한 닉네임은 금지이며, 닉네임은 바꾸도록 요청하거나 제한할 수 있어요.</li>
 <li>게임은 업데이트로 내용·밸런스·확률이 바뀔 수 있고, 확률이 바뀌면 이 화면의 확률표가 함께 바뀌어요.</li>
-<li>서비스를 끝낼 때는 최소 30일 전에 게임 안에서 알려요.</li>
+<li>서비스를 끝낼 때는 최소 30일 전에 게임 안에서 알려요. 그때 남아 있는 유료 코인은 관련 법에 따라 환불해요.</li>
+<li><b>유료 상품</b>: Google Play 결제로 사요. 산 지 7일이 지나지 않았고 쓰지 않은 상품은 청약을 철회할 수 있어요. 받자마자 쓰는 코인·꾸러미를 일부 썼거나 기간이 시작된 상품(주막 단골패 등)은 철회가 제한될 수 있으며, 사기 전에 상점에 알려요.</li>
+<li>유료로 산 코인은 산 날부터 5년 동안 쓸 수 있어요. 환불된 결제로 받은 재화는 회수할 수 있어요.</li>
+<li>미성년자가 법정대리인 동의 없이 결제했다면 본인이나 법정대리인이 취소할 수 있어요.</li>
+<li><b>보상형 광고</b>: 원할 때만 광고를 보고 보상을 받아요(하루 횟수 제한). 판 도중에 저절로 나오는 광고는 없어요.</li>
 <li>문의: ${"${mail}"}</li></ol>`;
 const PRIVACY = `<h3>개인정보 처리방침</h3><ol class="muted" style="line-height:1.8">
 <li><b>모으는 정보</b>: 아이디(로그인용 — 이메일 모양 번호로 바꿔 저장), 비밀번호(암호화되어 저장, 개발자도 볼 수 없음), 닉네임, 게임 진행 저장 데이터. 실명·전화번호·실제 이메일은 받지 않아요.</li>
 <li><b>쓰는 곳</b>: 로그인, 여러 기기에서 이어 하기(클라우드 저장), 멀티플레이 상대에게 닉네임 표시.</li>
+<li><b>광고(앱)</b>: 보상형 광고는 Google AdMob 이 보여 주며, 광고를 위해 기기의 광고 ID·대략적인 위치(IP 기준)·기기 정보를 Google 이 처리해요(미국). 폰 설정 → 개인정보 보호 → 광고에서 광고 ID 를 지우거나 맞춤 광고를 끌 수 있어요.</li>
+<li><b>결제(앱)</b>: 결제는 Google Play 가 처리하며, 게임은 주문 번호와 산 상품만 계정에 저장해요. 카드 정보는 받지 않아요.</li>
 <li><b>맡기는 곳</b>: Google Firebase(로그인·저장, 미국 등 Google 서버). 멀티플레이는 PeerJS 연결 서버를 거쳐 기기끼리 직접 연결돼 상대에게 IP 주소가 보일 수 있어요. 글꼴은 Google Fonts 에서 받아요.</li>
 <li><b>통계·오류 보고</b>: 켜져 있어요. 오류 보고(Sentry)는 오류가 난 때의 오류 내용·게임 버전·기기와 브라우저 종류·지금 모드를, 사용 통계(PostHog)는 판 시작·끝 같은 게임 안 행동을 <b>무작위 기기 번호로만</b> 모아요. 아이디·닉네임·IP 주소는 저장하지 않아요. 설정 → 「익명 통계·오류 보내기」에서 끌 수 있어요. 보관: 오류 보고 약 30일, 사용 통계 약 1년.</li>
 <li><b>나라 밖으로 옮겨지는 정보</b>: 게임을 하는 동안 인터넷으로 수시로 보내져요. Google LLC(미국, Firebase — 로그인·저장, 계정 삭제 때까지) · Functional Software, Inc.(미국, Sentry — 오류 보고, 약 30일) · PostHog, Inc.(미국, 사용 통계, 약 1년). 원하지 않으면 통계·오류 보고를 끄거나 계정을 지우면 돼요.</li>
@@ -2523,6 +2532,39 @@ function heroSex(id, form) { id = id || (G && G.p && G.p.id) || UI._runChar || (
 })();
 // 11-20 2.7.11: 화면 글 안의 그림(<img>)도 받기 실패면 두 번까지 다시 받음 (자동 플레이 화면에서 엽전·혼불 아이콘이 깨진 채 남음)
 document.addEventListener("error", (e) => { const im = e.target; if (!im || im.tagName !== "IMG") return; const src = im.getAttribute("src") || ""; if (!src || src.startsWith("data:")) return; const n = +(im.dataset.rt || 0); if (n >= 2) return; im.dataset.rt = n + 1; setTimeout(() => { im.src = src.replace(/[?&]r=\d+$/, "") + (src.includes("?") ? "&" : "?") + "r=" + (n + 1); }, 1500 * (n + 1)); }, true);
+// ===================== 11-25 보상형 광고 (release.js ADS) — 사용자가 스스로 누를 때만, 판 도중 끼어드는 광고 없음 =====================
+// 판 끝 혼불 두 배: 이번 판 혼불만큼 한 번 더(판당 1번, 하루 ADS.caps.double 번)
+function adDoubleBtn(r, multi) {
+  try {
+    const e = r && r.soulInfo; if (!e || !(e.total > 0) || multi || typeof ADS === "undefined" || !ADS.can("double")) return;
+    const box = document.querySelector("#mbox .soulbox"); if (!box) return;
+    const b = document.createElement("button"); b.className = "btn adbtn"; b.id = "addbl";
+    b.innerHTML = `${SAVE.noAds ? "" : "광고 보고 "}혼불 두 배 <b>+${e.total}</b> <small>(오늘 ${ADS.left("double")}번)</small>`;
+    b.onclick = () => { b.disabled = true; ADS.show("double", (ok) => { if (!ok) { b.disabled = false; return; } SAVE.soul = (SAVE.soul || 0) + e.total; SAVE.soulTotal = (SAVE.soulTotal || 0) + e.total; saveGame(); try { CLOUD.push(); } catch (x) { } sfx("coin"); b.innerHTML = `혼불 <b>+${e.total}</b> 더 받았어요`; const g = box.querySelector(".soulgain b"); if (g) g.textContent = "+" + e.total * 2; }); };
+    (box.querySelector(".soulgain") || box).appendChild(b);
+  } catch (x) { }
+}
+// 쓰러졌을 때 다시 일어나기: 혼자 하는 스토리·무한의 방에서 판당 1번. engine.js heroDown 이 부름 — true 면 결과 화면 대신 묻는 창
+function adReviveAsk(u) {
+  try {
+    if (typeof ADS === "undefined" || !G || u !== G.p || G.adRevived || !ADS.can("revive")) return false;
+    if (!["story", "endless"].includes(G.mode) || G.opt.multi || NET.client || G.opt.daily || G.opt.dev) return false;
+    G.adRevived = 1; G.paused = true; G.adAsk = true;
+    const finish = (rise) => {
+      if (!G || !G.adAsk) return; G.adAsk = false; UI.closeModal();
+      if (rise) { const p = G.p; p.alive = true; p.hp = p.maxHp * 0.5; p.invT = 3; p.getupT = 0.8; sfx("revive"); addText(p.x, p.y - 90, "다시 일어남!", "#ffb547", 26); G.fx.push({ k: "ring", x: p.x, y: p.y, r: 260, t: 0, max: 0.7, col: "#ffb547" }); G.paused = false; track("ad_revive"); }
+      else { G.paused = false; G.over = true; G.overT = 0.3; sfx("dead"); if (G.mode === "story" && SAVE.resume) { delete SAVE.resume; saveGame(); } }
+    };
+    setTimeout(() => {
+      UI.modal(`<h2>다시 일어나시겠어요?</h2><p style="text-align:center;line-height:1.8">저승 문턱에서 등불 하나가 손짓해요.<br>${SAVE.noAds ? "" : "짧은 광고를 보면 "}체력 절반으로 이 자리에서 다시 일어나요. <span class="muted">(이번 판 1번 · 오늘 ${ADS.left("revive")}번)</span></p><div class="center"><button class="btn gold" id="adrv">${SAVE.noAds ? "다시 일어나기" : "광고 보고 다시 일어나기"}</button><button class="btn" id="adrvno">그만두고 결과 보기</button></div>`);
+      $("#adrv").onclick = () => { $("#adrv").disabled = true; ADS.show("revive", (ok) => finish(ok)); };
+      $("#adrvno").onclick = () => finish(false);
+      const watch = () => { if (!G || !G.adAsk) return; if (!UI.modalOpen()) { finish(false); return; } setTimeout(watch, 500); }; setTimeout(watch, 800); // 창이 다른 길로 닫히면 그대로 결과로
+    }, 0);
+    return true;
+  } catch (x) { return false; }
+}
+
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
@@ -2666,7 +2708,7 @@ window.iapGot = (sku, token, order) => {
     if (g.coins) { SAVE.coins += g.coins; got.push(["cur_coin", "코인", g.coins]); }
     if (g.gold) { SAVE.gold += g.gold; got.push(["cur_yeop", "엽전", g.gold]); }
     if (g.soul) { SAVE.soul = (SAVE.soul || 0) + g.soul; got.push(["ui_soul", "혼불", g.soul]); }
-    if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 축복", 1]); }
+    if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 보상", 1]); }
     if (g.pass30) { SAVE.passUntil = Math.max(Date.now(), SAVE.passUntil || 0) + 30 * 864e5; got.push(["ui_store_jar", "주막 단골패 30일", 1]); }
     if (g.seasonPlus) { const S = seasonState(); S.plus = 1; S.pclaimed = S.pclaimed || {}; let c = 0, so = 0; for (const n in S.claimed) if (!S.pclaimed[n]) { const P = seasonPlusRw(+n); S.pclaimed[n] = 1; c += P.coin; so += P.soul; } SAVE.coins += c; SAVE.soul = (SAVE.soul || 0) + so; got.push(["ui_soul", "시즌 상급 보상", 1]); if (c) got.push(["cur_coin", "코인", c]); }
     if (g.title && TITLES[g.title]) { SAVE.titles[g.title] = 1; got.push(["ic_" + g.title, TITLES[g.title].name, 1]); }
@@ -2684,7 +2726,7 @@ function iapHtml() {
   const list = IAP.items.filter((it) => !it.days7 || (fresh && !bought(it.sku)) );
   return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - Date.now()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && bought(it.sku)) || (it.season && seasonState().plus);
     return `<div class="card iapc">${it.img && imgSrc(it.img) ? `<img src="${imgSrc(it.img)}" alt="">` : ""}<h3>${esc(it.name)}</h3><p class="muted">${esc(it.desc || "")}</p><button class="btn gold" data-iap="${it.sku}" ${owned ? "disabled" : ""}>${owned ? "가지고 있어요" : IAP_PRICE[it.sku] || "값 불러오는 중"}</button></div>`; }).join("")}</div>
-    <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
+    <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. 코인·꾸러미는 사면 바로 들어와 일부를 쓰면, 단골패는 기간이 시작되면 청약철회가 제한될 수 있어요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
 }
 function iapBind() {
   if (!iapOn() || !iapApp()) return;
