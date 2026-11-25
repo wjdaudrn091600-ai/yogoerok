@@ -1,13 +1,16 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.4";
+const GAME_VERSION = "3.4.5";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
 // PC 앱 설치 (11-12): 웹에서 들어오면 '앱으로 설치' — 브라우저 설치 창, 안 되면 바로가기 만드는 파일 내려받기
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
-if (window.isSecureContext && /^https?:/.test(location.protocol) && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(() => { if (navigator.serviceWorker.controller || !window.caches) return; const cu = [...document.scripts].map((s) => (s.textContent.match(/core\.json\?h=[0-9a-f]+/) || [])[0]).find(Boolean); if (cu) setTimeout(() => caches.open("yogoerok-1").then((c) => c.add(cu)).catch(() => { }), 8000); }).catch(() => { }); // 첫 방문 때 받은 core 도 보관 (HTTP 캐시에서 바로 옴)
+// 11-25 스토어 업데이트 방식: Play 앱은 게임 파일을 앱 안에 담아 켬(APP_BUNDLED). 게임 내용은 스토어 업데이트로만 바뀌고, 사이트에서는 ops.json(점검·필수 버전)만 읽음
+const APP_BUNDLED = (() => { try { return !!(window.YogoApp && YogoApp.bundled && YogoApp.bundled()); } catch (e) { return false; } })();
+if (APP_BUNDLED && "serviceWorker" in navigator) { try { navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => { }); if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => { }); } catch (e) { } } // 예전 '바로 적용' 판이 남긴 보관본 지우기
+if (!APP_BUNDLED && window.isSecureContext && /^https?:/.test(location.protocol) && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(() => { if (navigator.serviceWorker.controller || !window.caches) return; const cu = [...document.scripts].map((s) => (s.textContent.match(/core\.json\?h=[0-9a-f]+/) || [])[0]).find(Boolean); if (cu) setTimeout(() => caches.open("yogoerok-1").then((c) => c.add(cu)).catch(() => { }), 8000); }).catch(() => { }); // 첫 방문 때 받은 core 도 보관 (HTTP 캐시에서 바로 옴)
 const isWebPlay = () => location.protocol.startsWith("http") && !matchMedia("(display-mode: standalone)").matches && !/; wv\)|Android.*Version\/[\d.]+ Chrome/.test(navigator.userAgent) && !/Android|iPhone|iPad/i.test(navigator.userAgent);
 function installPc() {
   if (installEvt) { installEvt.prompt(); installEvt.userChoice.then(() => { installEvt = null; }); return; }
@@ -21,6 +24,7 @@ function installPc() {
 // 화면이 다시 보일 때마다·10분마다 확인한다. 판 도중이면 알림만 띄우고 판이 끝나 처음 화면에 오면 새로 읽는다.
 let _updPending = null;
 function applyUpdate(ver, note) {
+  if (APP_BUNDLED) { storeAsk(); return; } // 앱 안 판은 스토어 업데이트로만
   if (typeof OPS !== "undefined" && OPS.update === "batch" && !applyUpdate.go) { opsUpdateGate(ver, note); return; }
   if (G) { if (_updPending !== ver) { _updPending = ver; UI.toast(`🆕 새 버전 v${ver} — 이번 판이 끝나면 자동으로 바뀌어요`, 5000); } return; }
   const k = "dbm_reload_" + ver; let n = 0; try { n = +(sessionStorage.getItem(k) || 0); if (n >= 2) return; sessionStorage.setItem(k, n + 1); } catch (e) { }
@@ -31,6 +35,7 @@ setInterval(() => { if (_updPending && !G) applyUpdate(_updPending); }, 3000);
 setInterval(() => checkUpdate(), 10 * 60 * 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkUpdate(); });
 function checkUpdate() {
+  if (APP_BUNDLED) { try { YogoApp.storeCheck && YogoApp.storeCheck(); } catch (e) { } return; } // 스토어에 새 판이 있는지만 확인 -> storeUpd
   // 온라인판(앱 포함)이 예전 캐시면 새 버전으로 다시 읽기 (11-12: 업데이트 즉시 반영)
   if (UPDATE_URL && location.href.startsWith(UPDATE_URL)) {
     fetch(UPDATE_URL + "version.json?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json()).then((j) => {
@@ -2532,6 +2537,24 @@ function heroSex(id, form) { id = id || (G && G.p && G.p.id) || UI._runChar || (
 })();
 // 11-20 2.7.11: 화면 글 안의 그림(<img>)도 받기 실패면 두 번까지 다시 받음 (자동 플레이 화면에서 엽전·혼불 아이콘이 깨진 채 남음)
 document.addEventListener("error", (e) => { const im = e.target; if (!im || im.tagName !== "IMG") return; const src = im.getAttribute("src") || ""; if (!src || src.startsWith("data:")) return; const n = +(im.dataset.rt || 0); if (n >= 2) return; im.dataset.rt = n + 1; setTimeout(() => { im.src = src.replace(/[?&]r=\d+$/, "") + (src.includes("?") ? "&" : "?") + "r=" + (n + 1); }, 1500 * (n + 1)); }, true);
+// ===================== 11-25 스토어 업데이트 안내 (앱 안 판) =====================
+// 상업 게임 방식: 스토어에 새 판이 올라오면 '업데이트 받기' 권장 창(나중에 가능), ops.json minApp 보다 낮으면 닫을 수 없는 필수 창(opsAppCheck).
+var STORE_UPD = null;
+window.storeUpd = (code, immediate) => { STORE_UPD = { code: +code || 0, immediate: !!immediate }; storeAsk(); };
+function storeAsk() {
+  try {
+    if (!APP_BUNDLED || !STORE_UPD || document.getElementById("storeupd") || document.getElementById("opsapp")) return;
+    if (G) { setTimeout(storeAsk, 5000); return; } // 판 도중엔 끝난 뒤
+    const k = "ygr_storeask_" + STORE_UPD.code; if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1");
+    const d = document.createElement("div"); d.id = "storeupd"; d.className = "opsscr";
+    d.innerHTML = `<div class="opsbox"><h2>새 업데이트가 나왔어요</h2><p>Play 스토어에서 요괴록을 업데이트하면 새 내용을 즐길 수 있어요. 진행은 그대로 남아 있어요.</p><button class="btn gold" id="storego">지금 업데이트</button> <button class="btn" id="storelater">나중에</button></div>`;
+    document.body.appendChild(d);
+    $("#storego").onclick = () => { try { YogoApp.storeUpdate(); } catch (e) { } d.remove(); };
+    $("#storelater").onclick = () => d.remove();
+    track("store_upd_ask", { code: STORE_UPD.code });
+  } catch (e) { }
+}
+
 // ===================== 11-25 보상형 광고 (release.js ADS) — 사용자가 스스로 누를 때만, 판 도중 끼어드는 광고 없음 =====================
 // 판 끝 혼불 두 배: 이번 판 혼불만큼 한 번 더(판당 1번, 하루 ADS.caps.double 번)
 function adDoubleBtn(r, multi) {
@@ -2765,8 +2788,8 @@ function opsMaintScreen() {
 function opsAppCheck(minApp) {
   try { if (!minApp || !window.YogoApp) return; const v = YogoApp.appVer ? +YogoApp.appVer() : 0; if (v >= minApp || document.getElementById("opsapp")) return;
     const d = document.createElement("div"); d.id = "opsapp"; d.className = "opsscr";
-    d.innerHTML = `<div class="opsbox"><h2>앱 업데이트가 필요해요</h2><p>Play 스토어에서 요괴록 앱을 업데이트해 주세요. 진행은 그대로 남아 있어요.</p><a class="btn gold" href="https://play.google.com/store/apps/details?id=com.yogoerok.game">Play 스토어 열기</a></div>`;
-    document.body.appendChild(d); } catch (e) { }
+    d.innerHTML = `<div class="opsbox"><h2>앱 업데이트가 필요해요</h2><p>Play 스토어에서 요괴록 앱을 업데이트해 주세요. 진행은 그대로 남아 있어요.</p><a class="btn gold" id="opsappgo" href="https://play.google.com/store/apps/details?id=com.yogoerok.game">지금 업데이트</a></div>`;
+    document.body.appendChild(d); const g = document.getElementById("opsappgo"); if (g && YogoApp.storeUpdate) g.onclick = (e) => { e.preventDefault(); YogoApp.storeUpdate(); }; } catch (e) { }
 }
 function opsPoll(manual) {
   if (!UPDATE_URL || !/^https?:/.test(location.protocol)) return;
@@ -2785,7 +2808,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) opsP
 // 판이 끝나 메뉴로 오면 미뤄 둔 업데이트·점검 창
 setInterval(() => { if (!G && OPS_ST.upd && !document.getElementById("opsup")) opsUpdateGate(OPS_ST.upd.ver, OPS_ST.upd.note); if (!G && OPS_ST.maint && OPS_ST.maint.on) opsMaintScreen(); }, 3000);
 // 업데이트를 받은 뒤 처음 접속하면 새 내용 안내 (한 번)
-setTimeout(() => { try { const k = "ygr_seen_ver", was = ls.get(k); if (was && was !== GAME_VERSION && typeof OPS !== "undefined" && OPS.update === "batch") UI.toast(`v${GAME_VERSION} 업데이트 완료 — 새 내용은 처음 화면 '공지'에서 볼 수 있어요`, 5000); ls.set(k, GAME_VERSION); } catch (e) { } }, 4000);
+setTimeout(() => { try { const k = "ygr_seen_ver", was = ls.get(k); if (was && was !== GAME_VERSION && (APP_BUNDLED || (typeof OPS !== "undefined" && OPS.update === "batch"))) UI.toast(`v${GAME_VERSION} 업데이트 완료 — 새 내용은 처음 화면 '공지'에서 볼 수 있어요`, 5000); ls.set(k, GAME_VERSION); } catch (e) { } }, 4000);
 
 // ===================== 11-22 알림 (앱에서만, 폰 안에서 예약 — 서버비 0) =====================
 // 사용자: "알림기능 만들어주고 게임내에서 변경가능하게". 밤(21시~9시)에는 보내지 않고 다음 날 아침 9시로 미룬다.
