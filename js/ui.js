@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.5";
+const GAME_VERSION = "3.4.6";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1470,7 +1470,7 @@ loadImages(); initEngine(); if (/autotest/.test(location.hash) || ls.get("ygr_la
 if (!/autotest/.test(location.hash) && ls.get("ygr_auto")) { if ($("#lerr")) $("#lerr").textContent = "☁️ 자동 로그인 중…"; autoLogin().then((ok) => { if (ok && !G) afterLogin(); else if ($("#lerr")) $("#lerr").textContent = ""; }).catch(() => { if ($("#lerr")) $("#lerr").textContent = ""; }); }
 // ===================== 11-18 출시 준비: 정보 화면 (확률 공개 · 이용약관 · 개인정보 · 크레딧 · 버그 신고 · 계정 삭제) =====================
 // 사용자: "게임 출시를 위해 필요한 요소들 정리해서 적용". 확률표는 손으로 적지 않고 실제 뽑기 코드가 쓰는 값(GACHA·SK_GRADE·SHARD…)에서 바로 만든다 → 숫자가 어긋날 일이 없음.
-const SUPPORT = { mail: "jmg98916@gmail.com", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
+const SUPPORT = { mail: "wjdaudrn091600@gmail.com", company: "요괴록 개발팀" }; // 출시 전에 문의 메일·사업자 이름을 넣기 (요괴록_출시준비 체크리스트)
 const pct = (v) => { const p = v * 100; return (p >= 1 ? p.toFixed(2) : p >= 0.01 ? p.toFixed(3) : p.toFixed(4)).replace(/\.?0+$/, "") + "%"; };
 function probTables() {
   const T = (rows, head) => `<table class="ptab"><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
