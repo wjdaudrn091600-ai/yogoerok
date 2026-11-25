@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.8";
+const GAME_VERSION = "3.4.9";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2842,8 +2842,9 @@ function iapHtml() {
   if (!iapOn()) return "";
   if (!iapApp()) return `<div class="card iapnote"><h3>등불 상점</h3><p class="muted">유료 상품은 Play 스토어에서 받은 앱에서 살 수 있어요.</p></div>`;
   const bought = (sku) => Object.values(SAVE.iapOrders || {}).some((o) => o.sku === sku), fresh = starterOpen();
-  const list = IAP.items.filter((it) => !it.days7 || (fresh && !bought(it.sku)) );
-  return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - NOW()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && bought(it.sku)) || (it.season && seasonState().plus);
+  const coveredBy = (sku) => IAP.items.some((x) => x.covers === sku && bought(x.sku));
+  const list = IAP.items.filter((it) => (!it.days7 || (fresh && !bought(it.sku))) && !(it.covers && bought(it.covers) && !bought(it.sku)));
+  return `<h3 class="iaph">등불 상점</h3>${passActive() ? `<p class="muted" style="text-align:center">주막 단골패 ${Math.ceil((SAVE.passUntil - NOW()) / 864e5)}일 남음</p>` : ""}<div class="grid iapgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${list.map((it) => { const owned = (it.kind === "once" && (bought(it.sku) || coveredBy(it.sku))) || (it.season && seasonState().plus);
     return `<div class="card iapc">${it.img && imgSrc(it.img) ? `<img src="${imgSrc(it.img)}" alt="">` : ""}<h3>${esc(it.name)}</h3><p class="muted">${esc(it.desc || "")}</p><button class="btn gold" data-iap="${it.sku}" ${owned ? "disabled" : ""}>${owned ? "가지고 있어요" : IAP_PRICE[it.sku] || "값 불러오는 중"}</button></div>`; }).join("")}</div>
     <p class="muted iapfoot">결제는 Google Play 로 해요. 산 상품은 계정에 저장돼요. 코인·꾸러미는 사면 바로 들어와 일부를 쓰면, 단골패는 기간이 시작되면 청약철회가 제한될 수 있어요. <a href="#" id="iaprest">구매 복원</a> · <a href="#" id="iapinfo">환불·청약철회 안내</a></p>`;
 }
