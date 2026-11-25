@@ -266,8 +266,8 @@ function diffMul() {
 const PARTY_HP = 0.7, PARTY_DMG = 0.15, PARTY_CNT = 0.3;
 function partyN() { if (!G || G.mode === "duel" || !G.opt || !G.opt.multi) return 1; return Math.max(1, G.units.filter((u) => u.kind === "hero" && u.team === 0 && !u.left && (u === G.p || u.remote)).length); }
 const diffRw = () => (G && (G.mode === "story" || G.mode === "endless") && DIFF[(G.opt && G.opt.diff) || "normal"] ? DIFF[(G.opt && G.opt.diff) || "normal"].rw : 1);
-function diffBase() {
-  if (G.mode === "endless") { const n = G.endlessN; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02), dmg: Math.pow(1.28, n / 8), spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
+function diffBase() { // 11-25 사용자: 무한의 방 처음 10방은 체력·공격 0.75배에서 시작해 10방째에 원래대로(원거리 영웅이 첫 방에서 쓰러지던 문제)
+  if (G.mode === "endless") { const n = G.endlessN, ease = n < 10 ? 0.75 + n * 0.025 : 1; return { hp: Math.pow(1.5, n / 8) * (1 + n * 0.02) * ease, dmg: Math.pow(1.28, n / 8) * ease, spd: 1 + Math.min(0.25, n * 0.006), tier: Math.floor(n / 8) }; }
   const f = G.floor - 1, s = G.stage - 1;
   if (G.mode === "raid") { const n = G.raidN || 0; return { hp: 1.4 * Math.pow(1.45, n), dmg: 1.2 * Math.pow(1.22, n), spd: 1 + n * 0.04, tier: n }; } // 11-20 첫 보스에서 S급도 자주 쓰러져 1.6/1.3 → 1.4/1.2 (보스 사이 보부상이 생겨 뒤로 갈수록 정비 가능)
   const late = f >= 2 ? f - 1 : 0; // 11-19 5배속 봇: 3층부터 보스가 8~18초 만에 쓰러지고 체력 90% 유지 → 2차 측정도 2층부터 피해 0 → 층마다 체력·공격 +30% (3층부터, 초보 봇도 3~4층이 1~2층보다 쉬웠음)
