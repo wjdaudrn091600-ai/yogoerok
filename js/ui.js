@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.5.0";
+const GAME_VERSION = "3.5.1";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2707,7 +2707,7 @@ UI.friends = function () {
 function rankCard() {
   const R = rankSt(), ti = rankTier(R.rp), T = RANK.tiers[ti], N = RANK.tiers[ti + 1], pct = N ? Math.round(((R.rp - T.at) / (N.at - T.at)) * 100) : 100, left = Math.max(0, RANK.place - R.n);
   const day = new Date(NOW()).toDateString(), dw = R.day && R.day.d === day ? R.day.w : 0;
-  return `<div class="rkc"><span class="hopae" style="--hc:${T.col}"></span><div class="rkm"><b>${T.name}</b> <span class="rkp">${R.rp}점</span>${left > 0 ? ` <span class="rkt">첫 겨룸 ${R.n}/${RANK.place}</span>` : ""}${R.streak >= 2 ? ` <span class="rkt">${R.streak}연승</span>` : ""}
+  return `<div class="rkc">${ASSETS.img["ui_rk_" + T.k] ? `<img class="hopimg" src="${ASSETS.img["ui_rk_" + T.k]}" alt="">` : `<span class="hopae" style="--hc:${T.col}"></span>`}<div class="rkm"><b>${T.name}</b> <span class="rkp">${R.rp}점</span>${left > 0 ? ` <span class="rkt">첫 겨룸 ${R.n}/${RANK.place}</span>` : ""}${R.streak >= 2 ? ` <span class="rkt">${R.streak}연승</span>` : ""}
     <div class="rkbar"><i style="width:${pct}%"></i></div>
     <small>${N ? `${N.name}까지 ${N.at - R.rp}점` : "가장 높은 자리에 올랐습니다"} · 이번 달 ${R.w}승 ${R.l}패 · 오늘 코인 받는 승리 ${dw}/${RANK.dayWins}</small>
     <details class="rkh"><summary>등급전 규칙</summary><p>다른 토벌꾼의 그림자와 세 판을 겨뤄 두 판을 먼저 이기면 승리. 서로 레벨 10, 제단·숙련·펫 없이 같은 조건입니다.</p><p>이기면 점수를 얻고 지면 잃습니다. 센 상대를 이길수록 많이 얻고, 세 번 내리 이기면 덤이 붙습니다. 처음 다섯 판은 '첫 겨룸' — 얻는 점수가 두 배이고 져도 잃지 않습니다.</p><p>호패가 오른 뒤 세 판은 져도 내려가지 않고, 나무·회양목 호패는 내려가는 일이 없습니다.</p><p>달마다 새로 시작합니다. 점수의 여섯 할을 잇고, 그 달 가장 높았던 호패만큼 코인과 혼불을 받습니다. 겨루다 나가면 진 것으로 적습니다.</p></details></div></div>`;
@@ -2715,7 +2715,7 @@ function rankCard() {
 function rankResHtml(k) {
   const T = RANK.tiers[k.t1], N = RANK.tiers[k.t1 + 1], pct = N ? Math.round(((k.rp - T.at) / (N.at - T.at)) * 100) : 100;
   const notes = [k.placing ? `첫 겨룸 ${Math.min(k.n, RANK.place)}/${RANK.place}${k.win ? " — 점수 두 배" : " — 져도 잃지 않음"}` : "", k.bonus ? `${k.streak}연승 덤 +${k.bonus}` : "", k.guarded ? "강등 보호로 호패를 지켰습니다" : "", k.win && !k.coin ? "오늘 코인 받는 승리는 다 채웠습니다" : ""].filter(Boolean).join(" · ");
-  return `<div class="rkc rkres"><span class="hopae" style="--hc:${T.col}"></span><div class="rkm"><b>${T.name}</b> <span class="rkp">${k.rp}점</span> <span class="rkd ${k.d > 0 ? "up" : k.d < 0 ? "dn" : ""}">${k.d > 0 ? "+" : ""}${k.d}</span>
+  return `<div class="rkc rkres">${ASSETS.img["ui_rk_" + T.k] ? `<img class="hopimg" src="${ASSETS.img["ui_rk_" + T.k]}" alt="">` : `<span class="hopae" style="--hc:${T.col}"></span>`}<div class="rkm"><b>${T.name}</b> <span class="rkp">${k.rp}점</span> <span class="rkd ${k.d > 0 ? "up" : k.d < 0 ? "dn" : ""}">${k.d > 0 ? "+" : ""}${k.d}</span>
     <div class="rkbar"><i style="width:${pct}%"></i></div>${k.up ? `<p class="rkup">호패가 올랐습니다 — ${T.name}</p>` : k.down ? `<p class="rkdn">호패가 내려갔습니다 — ${T.name}</p>` : ""}<small>${notes || (N ? `${N.name}까지 ${N.at - k.rp}점` : "가장 높은 자리")}</small></div></div>`;
 }
 function rankPend() { // 지난 등급전을 끝내지 않고 앱을 닫았으면 패배로 적고, 지난 달 보상이 있으면 알림
