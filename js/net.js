@@ -37,23 +37,29 @@ const NET = {
     this.lobby = { onUpdate, host: null };
     const peer = (this.peer = new Peer(this.peerOpts()));
     peer.on("error", (e) => { UI.toast(e.type === "peer-unavailable" ? "그 코드의 방이 없어요" : "연결 오류: " + e.type); onUpdate && onUpdate("fail"); });
-    peer.on("open", () => {
+    peer.on("open", () => this.joinConn(peer, onUpdate, 0));
+  },
+  // 11-27 방에 붙기: 공용 연결 서버를 거쳐 잇는 게 가끔 늦어 그대로 멈춰 있던 것 → 9초 안에 안 열리면 한 번 더
+  joinConn(peer, onUpdate, n) {
+    {
+      if (this.peer !== peer || this.role !== "guest") return;
       const c = (this.conn = peer.connect(this.idFor(this.code), { reliable: true }));
       this.slowHint(c);
+      if (n < 1) setTimeout(() => { if (this.peer === peer && this.conn === c && !c.open) { try { c.close(); } catch (e) { } this.joinConn(peer, onUpdate, n + 1); } }, 9000);
       c.on("open", () => { c.send({ t: "hello", ver: GAME_VERSION, name: nick(), load: this.myLoad(), fc: typeof FR !== "undefined" ? FR.code() : "" }); onUpdate && onUpdate(); });
       c.on("data", (m) => this.onGuest(m));
-      c.on("close", () => { if (NET.client) { UI.toast("방장과 연결이 끊어졌어요"); NET.client = false; G = null; UI.menu(); } this.conn = null; });
-    });
+      c.on("close", () => { if (NET.client) { UI.toast("방장과 연결이 끊어졌어요"); NET.client = false; G = null; UI.menu(); } if (this.conn === c) this.conn = null; });
+    }
   },
   // 11-27 아무나와 함께: 모드마다 공개 자리 1~8. 자리에 방이 있으면 들어가고(가득 찼으면 다음 자리), 없으면 내가 그 자리의 방장이 되어 기다린다. 판 번호가 같은 사람끼리만 만남
   pubCode(mode, k) { return "pub" + GAME_VERSION.replace(/\D/g, "") + mode + k; },
-  quick(mode, onUpdate, k) {
+  quick(mode, onUpdate, k, again) {
     k = k || 1;
     if (k > 8) { this.leave(); UI.toast("지금은 빈 자리가 없어요 — 잠시 뒤에 다시 찾아 주세요", 3500); onUpdate && onUpdate("fail"); return; }
     this.leave(); const code = this.pubCode(mode, k); this.role = "guest"; this.code = code; this.pub = mode; this.lobby = { onUpdate, host: null };
     const peer = (this.peer = new Peer(this.peerOpts())); let done = false;
-    const next = () => { if (done || this.peer !== peer) return; done = true; clearTimeout(tm); this.quick(mode, onUpdate, k + 1); };
-    const tm = setTimeout(next, 7000);
+    const next = (slow) => { if (done || this.peer !== peer) return; done = true; clearTimeout(tm); if (slow && !again) this.quick(mode, onUpdate, k, true); else this.quick(mode, onUpdate, k + 1); };
+    const tm = setTimeout(() => next(true), 7000);
     peer.on("error", (e) => { if (done || this.peer !== peer) return; if (e.type === "peer-unavailable") { done = true; clearTimeout(tm); this.host(mode, onUpdate, code); this.pub = mode; onUpdate && onUpdate(); } else next(); });
     peer.on("open", () => {
       const c = (this.conn = peer.connect(this.idFor(code), { reliable: true }));
@@ -283,13 +289,14 @@ const FR = {
     p.on("disconnected", () => { try { if (this.peer === p && !p.destroyed) p.reconnect(); } catch (e) { } });
   },
   off() { try { this.peer && this.peer.destroy(); } catch (e) { } this.peer = null; },
-  async send(code, msg) {
+  async send(code, msg) { const r = await this.send1(code, msg); if (r === "off") return null; if (r) return r; return (await this.send1(code, msg)) || null; },
+  async send1(code, msg) {
     this.on(); const p = this.peer; if (!p) return null;
     if (!p.open) await new Promise((r) => { const t = setTimeout(r, 5000); p.on("open", () => { clearTimeout(t); r(); }); });
     if (!this.ready() || this.peer !== p) return null;
     return new Promise((res) => { const pid = this.id(code), c = p.connect(pid, { reliable: true }); let fin = false;
       const end = (v) => { if (fin) return; fin = true; clearTimeout(tm); delete this.wait[pid]; setTimeout(() => { try { c.close(); } catch (e) { } }, 500); res(v); };
-      const tm = setTimeout(() => end(null), 7000); this.wait[pid] = end;
+      const tm = setTimeout(() => end(null), 6500); this.wait[pid] = () => end("off");
       c.on("open", () => { try { c.send(Object.assign({ from: this.code(), nick: nick() }, msg)); } catch (e) { end(null); } }); c.on("data", (m) => end(m)); c.on("error", () => end(null)); });
   },
   onMsg(m, c) {

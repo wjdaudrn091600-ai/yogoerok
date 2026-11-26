@@ -167,7 +167,7 @@ function recalc(u) {
 }
 const atkOf = (u) => (u.kind === "hero" ? u.atkBase * (1 + buffSum(u, "atk")) : u.owner ? atkOf(u.owner) : u.dmg);
 const spdOf = (u) => (u.kind === "hero" ? u.spdBase * (1 + buffSum(u, "spd")) : u.spd * (curseOn("haste") && u.team === 1 ? 1.2 : 1)) * (u.slowT > 0 ? 1 - u.slow : 1);
-function drMul(u) { let r = 1 - (u.drBase || 0); for (const b of u.buffs) if (b.dr) r *= 1 - b.dr; for (const z of G.zones) if (z.guard && z.team === u.team && Math.hypot(u.x - z.x, u.y - z.y) < z.r) r *= 1 - z.guard; return r; }
+function drMul(u) { let r = 1 - (u.drBase || 0); for (const b of u.buffs) if (b.dr) r *= 1 - b.dr; for (const z of G.zones) if (z.guard && z.team === u.team && Math.hypot(u.x - z.x, u.y - z.y) < z.r) r *= 1 - z.guard; return Math.max(0.15, r); } // 11-27 함께하기에서 "공격이 안 들어간다": 내 감소·버프·친구의 수호 장판이 곱해져 피해가 5% 아래로 떨어지던 것 → 모두 합쳐 최대 85%까지만
 
 // ---------- 유닛 만들기 ----------
 function makeHero(cid, o) {

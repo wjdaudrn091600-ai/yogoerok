@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.5.1";
+const GAME_VERSION = "3.5.2";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -1034,7 +1034,7 @@ const UI = {
       <p class="tg"><label><input type="checkbox" id="anly" ${s.analytics === false ? "" : "checked"}> <span class="sl">익명 통계·오류 보내기<small>게임 개선용 · 아이디·닉네임은 보내지 않아요</small></span></label></p>
       </div>
       ${ASSETS.packs && !APP_BUNDLED ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
-      <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button> <button class="btn gold" id="fbbtn">의견 보내기</button></p>
+      <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button>${typeof ADS !== "undefined" && ADS.privacyOn() ? ' <button class="btn" id="adpriv">광고 개인정보 설정</button>' : ""} <button class="btn gold" id="fbbtn">의견 보내기</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } if (!ACCOUNT || ACCOUNT === DEV_ID) return ""; const isG = !!(g && g.id === ACCOUNT); if (SAVE.google) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>구글 계정에 연동됨</b><p class="muted" style="margin:4px 0">기기를 바꾸거나 앱을 지워도, 로그인 화면에서 구글 계정으로 시작을 누르면 이어서 해요.</p></div>`; if (gAuthOn()) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>${isG ? "게스트로 하는 중" : "구글 계정 연동"}</b><p class="muted" style="margin:4px 0">구글 계정에 연동하면 기기를 바꾸거나 앱을 지워도 진행이 남아요.</p><button class="btn gold sm" id="glink" type="button">구글 계정 연동</button></div>`; return isG ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b class="gpw" data-pw="${esc(g.pw)}">••••••</b> <button class="btn sm" id="gpwshow" type="button">보기</button><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
       <p class="muted">게임 판: v${GAME_VERSION}</p></div>`);
@@ -1045,7 +1045,7 @@ const UI = {
     if ($("#telebold")) $("#telebold").onchange = (e) => { s.teleBold = e.target.checked; saveGame(); };
     if ($("#assist")) $("#assist").onchange = (e) => { s.assist = e.target.checked; saveGame(); UI.toast(s.assist ? "도움 모드 켬 — 쓰러질수록 조금씩 단단해져요" : "도움 모드 끔", 2500); };
     if ($("#autoatk")) $("#autoatk").onchange = (e) => { s.autoAtk = e.target.checked; saveGame(); };
-    $("#infobtn").onclick = () => UI.info("prob");
+    $("#infobtn").onclick = () => UI.info("prob"); if ($("#adpriv")) $("#adpriv").onclick = () => { try { YogoApp.adPrivacy(); } catch (e) { } };
     $("#fbbtn").onclick = () => UI.feedback();
     if ($("#glink")) $("#glink").onclick = async () => { const b = $("#glink"); b.disabled = true; const r = await googleLink(); if ($("#glink")) $("#glink").disabled = false;
       if (r && r.used) { UI.modal('<h2>이미 쓰고 있는 구글 계정이에요</h2><p style="text-align:center;line-height:1.8">이 구글 계정에는 다른 진행이 저장돼 있어요.<br>그 진행으로 바꿔서 이어 할까요?<br><span class="muted">지금 하던 진행은 이 기기에 남고, 그 구글 계정과 합쳐지지는 않아요.</span></p><div class="center"><button class="btn gold" id="gsw">그 진행으로 바꾸기</button><button class="btn" id="gno">그만두기</button></div>');
