@@ -141,7 +141,8 @@ function loadImages() { } // 11-20 2.3: IMG 가 필요할 때 만듦 (위 Proxy)
 let G = null;           // 현재 원정 상태
 let cv, ctx, lightCv, lctx, view = { s: 1, ox: 0, oy: 0 };
 // 조작: WASD 이동, 왼쪽 클릭 공격(커서 조준), 1~4 스킬, 스페이스 액티브
-const IS_TOUCH = (() => { try { return matchMedia("(pointer: coarse)").matches || "ontouchstart" in window; } catch (e) { return false; } })(); // 11-19
+const MOBILE_ONLY = !(location.protocol === "file:" || /^(localhost|127.0.0.1|[::1])$/.test(location.hostname)); // 11-27 모바일로만 출시: 실제 주소에서는 언제나 휴대폰 화면
+const IS_TOUCH = MOBILE_ONLY || (() => { try { return matchMedia("(pointer: coarse)").matches || "ontouchstart" in window; } catch (e) { return false; } })(); // 11-19
 const input = { mx: RW / 2, my: RH / 2, mouseT: -1e9, moveHeld: false, atkHeld: false, touch: false, kx: 0, ky: 0, keys: {} };
 const ctrlOf = (u) => u.ctrl || (u === G.p ? input : null);
 
@@ -433,19 +434,21 @@ function startDuel() {
   }
   const opp = G.opt.opp || pick(CHARS.map((c) => c.id));
   const form = CHAR[opp].forms ? pick(Object.keys(CHAR[opp].forms)) : null;
-  const lvMul = { easy: 0.75, normal: 1, hard: 1.25 }[G.opt.diff || "normal"];
-  const eq = {}; ["Q", "W", "E", "R"].forEach((s) => { if (Math.random() < 0.35) { const pool = SKILL_KEYS.filter((k) => SKILLS[k].slot === s && (!SKILLS[k].owner || SKILLS[k].owner === opp)); eq[s] = pick(pool); } });
+  const RK = G.opt.ranked && typeof rankOpp === "function" ? rankOpp() : null; // 11-27 등급전: 내 점수 가까이의 그림자 상대
+  const lvMul = RK ? RK.mul : { easy: 0.75, normal: 1, hard: 1.25 }[G.opt.diff || "normal"];
+  const eq = {}; ["Q", "W", "E", "R"].forEach((s) => { if (Math.random() < (RK ? RK.eq : 0.35)) { const pool = SKILL_KEYS.filter((k) => SKILLS[k].slot === s && (!SKILLS[k].owner || SKILLS[k].owner === opp)); eq[s] = pick(pool); } });
   needPack(charPack(opp));
   G.mirror = opp === G.p.id; // 이스터 에그: 같은 영웅끼리 만나면 거울 대결
   const b = makeHero(opp, { team: 1, form, lvl: 10, bot: true, atkMul: lvMul, hpMul: lvMul, equip: eq, x: RW / 2, y: BT + 170 });
   G.bot = b; G.units.push(b);
-  G.duel = { round: 1, wins: [0, 0], state: "ready", t: 3, react: { easy: 0.55, normal: 0.32, hard: 0.16 }[G.opt.diff || "normal"] };
+  G.duel = { round: 1, wins: [0, 0], state: "ready", t: 3, react: RK ? RK.react : { easy: 0.55, normal: 0.32, hard: 0.16 }[G.opt.diff || "normal"], rk: RK };
+  if (RK) rankBegin(RK.rp);
   const r = newRoom(0, 0, "arena"); r.cleared = true; G.rooms.set("0,0", r);
   G.floor = rint(1, 5);
   enterRoom("0,0", null);
   G.p.x = RW / 2; G.p.y = BB - 140;
   UI.music("duel");
-  G.banner = { text: G.mirror ? "🪞 거울 대결!" : "1대1 대전", sub: `${G.mirror ? "자기 자신과의 싸움 · 이기면 엽전 2배 · " : ""}${G.p.def.name} VS ${b.def.name}${b.formName ? "(" + b.formName + ")" : ""} · 3판 2선승`, t: 3 };
+  G.banner = { text: RK ? "결투 등급전" : G.mirror ? "🪞 거울 대결!" : "1대1 대전", sub: `${RK ? RK.name + " · " + RK.rp + "점 · " : ""}${G.mirror ? "자기 자신과의 싸움 · 이기면 엽전 2배 · " : ""}${G.p.def.name} VS ${b.def.name}${b.formName ? "(" + b.formName + ")" : ""} · 3판 2선승`, t: 3 };
 }
 function duelRoundReset() {
   for (const u of [G.p, G.bot]) { u.hp = u.maxHp; u.shield = 0; u.buffs = []; u.alive = true; for (const k in u.cd) u.cd[k] = 0; u.stunT = 0; u.slowT = 0; u.dash = null; u.tx = null; }
@@ -516,7 +519,7 @@ function populate(r) {
     G.drops.push({ type: "act", k: a1, x: RW / 2 - 220, y: RH / 2 + 40, grp: 1 }, { type: "act", k: a2, x: RW / 2 + 220, y: RH / 2 + 40, grp: 1 });
   } else if (r.type === "shop" && !r.cleared) {
     r.cleared = true;
-    if (shopNpc()) { r.reN = 0; r.stock = makeStock(); G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true }); }
+    if (shopNpc() && !(G.opt && G.opt.multi)) { r.reN = 0; r.stock = makeStock(); G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true }); }
     else { stockShop(); G.drops.push({ type: "shopre", x: RW / 2 + 430, y: RH / 2 - 170, n: 0, price: 40 }); }
   } else if (r.type === "shop" && r.stock && shopNpc()) {
     G.drops.push({ type: "merchant", x: RW / 2, y: RH / 2 - 40, away: true });
@@ -1387,19 +1390,23 @@ function pickups(u, dt = 1 / 60) {
       else if (Math.random() < COIN_DROP.chest * (1 + (u.m.coinLuck || 0))) { G.drops.push({ type: "coin", x: d.x, y: d.y + 50 }); loot.push(["cur_coin", "코인", 1]); }
       if (Math.random() < 0.5) { G.drops.push({ type: "herb", x: d.x - 60, y: d.y + 50 }); loot.push(["obj_shop_herb", "회복 약초", 1]); }
       if (u === G.p && UI.loot) UI.loot(d.secret ? "옛 토벌꾼이 남긴 상자" : "보물상자", loot);
-    } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !(G.opt && G.opt.multi) && !UI.modalOpen()) { d.used = true; UI.event(d.k); }
+    } else if (d.type === "evt" && !d.used && dd < 85 && u === G.p && !UI.modalOpen()) { d.used = true; UI.event(d.k); if (G.opt && G.opt.multi && NET.guestHero && NET.guestHero.alive && G.mode !== "duel") { NET.guestLevelUp(NET.guestHero); NET.send({ t: "toast", s: "방장이 괴이한 방을 살피는 동안 강화 하나를 골라요" }); } } // 11-27 함께하기에서는 아무도 못 쓰던 것
     else if (d.type === "spring" && !d.used && dd < 70) { d.used = true; d.away = false; healUnit(u, u.maxHp); sfx("heal"); }
+    else if (d.type === "forge" && u.remote) { // 11-27 손님: 창 없이 가진 강화 하나를 벼림(한 번)
+      if (dd > 140) d.awayR = true; else if (dd < 90 && d.awayR !== false && !d.usedR && !(d.coolR > G.time)) { d.coolR = G.time + 1.2; d.awayR = false;
+        if ((u.gold || 0) < d.price) addText(d.x, d.y - 110, "엽전이 모자라요", "#ff8a8a", 18); else if (!u.boons.length) addText(d.x, d.y - 110, "벼릴 강화가 아직 없어요", "#ffd0a0", 18);
+        else { const k = pick(u.boons.filter((x) => BOONS[x])); if (k) { u.gold -= d.price; d.usedR = true; takeBoon(u, k); sfx("level"); addText(d.x, d.y - 110, BOONS[k].name + " — 한 번 더 벼렸다", "#ffe08a", 20); for (let i = 0; i < 10; i++) spark(d.x + rnd(-50, 50), d.y + rnd(-60, 10), "#ffb060", 4); } } } }
     else if (d.type === "forge" && !d.used && u === G.p) {
       if (dd > 140) d.away = true; else if (dd < 90 && d.away !== false && !d.cool && !UI.modalOpen()) { d.cool = 1.2; d.away = false;
         if ((u.gold || 0) < d.price) { addText(d.x, d.y - 110, "엽전이 모자라요", "#ff8a8a", 18); continue; }
         if (!u.boons.length) { addText(d.x, d.y - 110, "벼릴 강화가 아직 없어요", "#ffd0a0", 18); continue; }
         UI.forge(d); } }
-    else if (d.type === "spring" && d.used && !d.wish && u === G.p && d.price) { // 11-21 소원 엽전: 마른 우물에 엽전을 던지면 강화 하나 (판 안 엽전 쓸 곳)
+    else if (d.type === "spring" && d.used && !d.wish && (u === G.p || u.remote) && d.price) { // 11-21 소원 엽전: 마른 우물에 엽전을 던지면 강화 하나 (판 안 엽전 쓸 곳)
       if (dd > 110) d.away = true; else if (dd < 70 && d.away && !d.cool) { d.cool = 1.2; d.away = false;
         if ((u.gold || 0) < d.price) { addText(d.x, d.y - 90, "엽전이 모자라요", "#ff8a8a", 18); continue; }
-        u.gold -= d.price; d.wish = 1; sfx("coin"); G.levelQueue = (G.levelQueue || 0) + 1; addText(d.x, d.y - 100, "엽전이 바닥에 닿자 우물이 답했다", "#ffe08a", 22); for (let i = 0; i < 10; i++) spark(d.x + rnd(-60, 60), d.y + rnd(-60, 20), "#ffe6b0", 4); } }
+        u.gold -= d.price; d.wish = 1; sfx("coin"); if (u.remote) NET.guestLevelUp(u); else G.levelQueue = (G.levelQueue || 0) + 1; addText(d.x, d.y - 100, "엽전이 바닥에 닿자 우물이 답했다", "#ffe08a", 22); for (let i = 0; i < 10; i++) spark(d.x + rnd(-60, 60), d.y + rnd(-60, 20), "#ffe6b0", 4); } }
     else if (d.type === "merchant" && u === G.p) { if (dd > 170) d.away = true; else if (dd < 95 && d.away && !UI.modalOpen() && !G.over) { d.away = false; UI.shop(G.cur); } }
-    else if (d.type === "shopre" && dd < 50 && !d.cool && u === G.p && d.away !== false) {
+    else if (d.type === "shopre" && dd < 50 && !d.cool && (u === G.p || u.remote) && d.away !== false) {
       d.cool = 1.2; d.away = false; if ((u.gold || 0) < d.price) { addText(d.x, d.y - 70, "엽전이 모자라요", "#ff8a8a", 18); continue; }
       u.gold -= d.price; d.n++; d.price = 40 + d.n * 35; sfx("coin"); for (let i = G.drops.length - 1; i >= 0; i--) if (G.drops[i].type === "shop" && !G.drops[i].sold) G.drops.splice(i, 1);
       stockShop(); addText(d.x, d.y - 80, "보부상이 새 물건을 꺼냈다!", "#ffe08a", 22); for (let i = 0; i < 10; i++) spark(RW / 2 + rnd(-300, 300), RH / 2 + rnd(-100, 150), "#ffe6b0", 4); continue;
@@ -1770,7 +1777,7 @@ function stageClear() {
 }
 // 원정 보상 엽전: 처치·방·보스·진행도 + 남은 금화의 절반 (엽전 보너스 아티팩트·칭호 적용)
 function runReward(r) {
-  if (r.mode === "duel") return r.win ? (G.mirror ? 4 : 2) : 0;
+  if (r.mode === "duel") return r.rank ? r.rank.coin : r.win ? (G.mirror ? 4 : 2) : 0;
   if (r.mode === "dev" || r.mode === "practice") return 0;
   if (r.mode === "raid") { if (G.raidDone) SAVE.stats.raidClear = (SAVE.stats.raidClear || 0) + 1; return (G.raidN || 0) + (G.raidDone ? 5 : 0); } // 보스마다 1개는 이미 받음 + 완주 보너스
   const prog = r.mode === "story" ? ((r.floor - 1) * STAGES_PER_FLOOR + r.stage) * 20 + (r.storyDone ? 600 : 0) : r.endless * 12;
@@ -1789,6 +1796,7 @@ function endRun(win, storyDone) {
   if (window._rndOrig) { Math.random = window._rndOrig; window._rndOrig = null; }
   if (G.mode === "story" && !G.opt.daily) delete SAVE.resume;
   const r = { mode: G.mode, win, kills: G.kills, rooms: G.roomsCleared, gold: 0, coin: G.coinGot, lvl: G.p.lvl, floor: G.floor, stage: G.stage, endless: G.endlessN, storyDone, duel: G.duel, goldRun: G.p.gold || 0 };
+  if (G.mode === "duel" && G.opt.ranked && G.duel && G.duel.rk && typeof rankApply === "function") r.rank = rankApply(win, G.duel.rk.rp); // 11-27 등급전 점수(도중에 그만두면 패배)
   r.coinRw = runReward(r); SAVE.coins += r.coinRw;
   r.soulInfo = typeof altarEarn === "function" ? altarEarn(r) : null; // 11-18 혼불
   r.daily = typeof dailyEnd === "function" ? dailyEnd(r) : null;
@@ -2166,7 +2174,7 @@ function drawItemInfo(g) {
   const d = best; let title = "", col = "#ffe08a", lines = [];
   if (d.type === "act" || (d.type === "shop" && d.what === "act")) {
     const A = ACTIVES[d.k]; title = `[${ACT_TIER[A.rar].name}] ${A.name}${d.lv > 1 ? " Lv." + d.lv : ""}`; col = ACT_TIER[A.rar].col;
-    lines = [A.desc, `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`, p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : p.actLock ? `🔒 잠금 중이라 줍지 않아요 (${IS_TOUCH ? "자물쇠를 눌러 풀기" : keyLabel(keyMap().lock) + " 키로 풀기"})` : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
+    lines = [A.desc, (IS_TOUCH ? `액티브 버튼으로 써요 · 대기 ${A.cd}초` : `액티브 · ${keyLabel(keyMap().act)} 키 · 대기 ${A.cd}초`), p.active ? (p.active.k === d.k ? "같은 것을 주우면 레벨 업" : p.actLock ? `🔒 잠금 중이라 줍지 않아요 (${IS_TOUCH ? "자물쇠를 눌러 풀기" : keyLabel(keyMap().lock) + " 키로 풀기"})` : `주우면 들고 있던 「${ACTIVES[p.active.k].name}」은 바닥에 놓여요`) : "밟으면 주워요"];
   } else if (d.type === "shop" && d.what === "boon") { const B = BOONS[d.k]; title = B.name; col = RARITY[B.rar].col; lines = [B.desc, `강화 (${RARITY[B.rar].name}) · 이번 원정 동안 계속 적용`]; }
   else if (d.type === "shop" && d.what === "herb") { title = "회복 약초"; col = "#7fe08a"; lines = ["체력 40% 회복"]; }
   else if (d.type === "shop" && d.what === "item") { const I = SHOP_ITEMS[d.k]; title = I.name; lines = [I.desc]; }
@@ -2265,7 +2273,8 @@ function spriteFor(u) {
     else if (u.celebT > 0 && A.m.victory && !mv) { m = "victory"; f = Math.floor((1 - u.celebT / 0.9) * A.m.victory); } // 레벨업·방 정복 — 환호
     else if ((u.dash || u.st === "charge") && A.m.run) { m = vw("run"); f = Math.floor((G.time * 16 + (u.ph || 0) * 3) * R(m)); } // 대시·돌진 — 달리기
     else if ((mv || u.st === "charge") && A.m.walk) { m = vw("walk"); f = Math.floor((G.time * (u.dash || u.st === "charge" ? 18 : 11) + (u.ph || 0) * 3) * R(m)); }
-    const im = IMG[base + "_a_" + m];
+    let im = IMG[base + "_a_" + m];
+    if (!(im && im.naturalWidth)) { for (const alt of ["idle", "walk"]) { const i2 = IMG[base + "_a_" + alt]; if (A.m[alt] && i2 && i2.naturalWidth) { im = i2; m = alt; f = Math.floor((G.time * 7 + (u.ph || 0) * 3) * R(alt)); break; } } }
     if (im && im.naturalWidth) {
       const n = A.m[m]; f = ((f % n) + n) % n;
       return { key: base + "_a_" + m, base, H, M: { s: A.s * ((A.ms && A.ms[m]) || 1), fx: A.fx, fy: A.fy }, cell: { sx: f * A.cw, sw: A.cw, sh: A.ch }, anim: true, sh: !!A.sh };
@@ -2284,7 +2293,7 @@ function spriteFor(u) {
   } else if ((u.kind === "boss" || u.kind === "mob") && u.hurtT > 0 && fr.includes("hurt")) key = base + "_hurt";
   else if (u.kind === "boss" && u.castT > 0 && fr.includes("skill")) key = base + "_skill";
   else if (u.kind === "boss" && fr.includes("attack") && (u.st === "charge" || u.atkT > 0 || u.flash > 0)) key = base + "_attack";
-  return { key, base, H, M };
+  return { key, base, H, M: A && A.k0 && M ? { s: M.s * A.k0, fx: M.fx, fy: M.fy } : M };
 }
 const FLOOR_TINT = ["none", "hue-rotate(160deg) saturate(1.2)", "hue-rotate(-30deg) saturate(1.5)", "hue-rotate(80deg)", "hue-rotate(230deg) saturate(1.3)"];
 function drawUnit(g, u) {
@@ -2320,6 +2329,7 @@ function drawUnit(g, u) {
   if (u.hurtT > 0) { const k = Math.sin((u.hurtT / 0.28) * Math.PI); if (sp.anim) lunge = -4 * k; else { lean = -0.1 * k; lunge = -8 * k; sq = 1 - 0.04 * k; } }
   if (u.spawnT > 0) { g.save(); g.globalAlpha = 1 - u.spawnT / 0.6; glowDot(g, u.x, u.y, 60, "#a070ff"); }
   if (u.kind === "hero" && u.skillAnim > 0) { g.save(); g.globalAlpha = 0.45 * Math.sin((u.skillAnim / 0.4) * Math.PI); glowDot(g, u.x, u.y - h * 0.45, h * 0.75, u.def.col || "#ffd27a"); g.restore(); }
+  if (u.shield > 1) drawWardRing(g, u);
   g.save();
   g.translate(u.x, u.y + u.r * 0.6 + bob);
   if (u.flip) g.scale(-1, 1);
@@ -3032,8 +3042,14 @@ function drawWard(g, u) {
   g.save();
   const bub = g.createRadialGradient(u.x, u.y - 40, 10, u.x, u.y - 40, 58); bub.addColorStop(0, "rgba(160,220,255,0)"); bub.addColorStop(0.75, `rgba(150,210,255,${0.10 + 0.12 * k})`); bub.addColorStop(1, "rgba(150,210,255,0)");
   g.fillStyle = bub; g.beginPath(); g.arc(u.x, u.y - 40, 58, 0, 7); g.fill();
-  if (im && im.naturalWidth) { g.translate(u.x, u.y + 4); g.scale(1, 0.45); g.rotate(t * 0.6); g.globalCompositeOperation = "lighter"; g.globalAlpha = (0.35 + 0.4 * k) * pul; const R = 62; g.drawImage(im, -R, -R, R * 2, R * 2); }
-  else { g.strokeStyle = `rgba(150,210,255,${0.3 + 0.3 * k})`; g.lineWidth = 2; g.beginPath(); g.arc(u.x, u.y - 40, 46, 0, 7); g.stroke(); }
+  g.restore();
+}
+// 11-27 발밑 결계 고리 — 캐릭터를 그리기 전에 그려 발 아래 깔림 (서 있을 때 고리가 몸 위에 얹혀 보이던 것)
+function drawWardRing(g, u) {
+  const k = Math.min(1, u.shield / Math.max(1, u.maxHp * 0.35)), t = G.time, pul = 0.75 + Math.sin(t * 3) * 0.12, im = IMG.fx_ward;
+  g.save(); g.translate(u.x, u.y + u.r * 0.6); g.scale(1, 0.42);
+  if (im && im.naturalWidth) { g.rotate(t * 0.6); g.globalCompositeOperation = "lighter"; g.globalAlpha = (0.4 + 0.4 * k) * pul; const R = 66; g.drawImage(im, -R, -R, R * 2, R * 2); }
+  else { g.strokeStyle = `rgba(150,210,255,${0.3 + 0.3 * k})`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 54, 0, 7); g.stroke(); }
   g.restore();
 }
 function drawShopRe(g, d) {

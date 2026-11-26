@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.4.9";
+const GAME_VERSION = "3.5.0";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -582,8 +582,8 @@ const UI = {
   frame(title, body, onBack) {
     const old = $("#screens .screen .body"), keep = old && UI._frameTitle === title ? old.scrollTop : 0; UI._frameTitle = title;
     $("#screens").innerHTML = `<div class="screen"><div class="top"><button class="back" id="bk">← 뒤로</button><h2>${title}</h2>
-      <div class="money">${SAVE ? `<span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span>` : ""}</div></div><div class="body">${(() => { const bk = /제단/.test(title) ? "altar" : /시즌/.test(title) ? "season" : /기록/.test(title) ? "history" : /임무/.test(title) ? "bounty" : ""; return bk && ASSETS.img["ui_c_" + bk] ? `<div class="frbanner" style="background-image:url(${ASSETS.img["ui_c_" + bk]})"></div>` : ""; })()}${body}</div></div>`;
-    $("#bk").onclick = onBack || (() => UI.menu());
+      <div class="money">${SAVE ? `<span class="pill coin">${curIc("coin")} 코인 <b>${SAVE.coins}</b></span>` : ""}</div><button class="mclose" id="fxc" aria-label="닫기"></button></div><div class="body">${(() => { const bk = /제단/.test(title) ? "altar" : /시즌/.test(title) ? "season" : /기록/.test(title) ? "history" : /임무/.test(title) ? "bounty" : ""; return bk && ASSETS.img["ui_c_" + bk] ? `<div class="frbanner" style="background-image:url(${ASSETS.img["ui_c_" + bk]})"></div>` : ""; })()}${body}</div></div>`;
+    $("#bk").onclick = onBack || (() => UI.menu()); if ($("#fxc")) $("#fxc").onclick = $("#bk").onclick;
     if (keep) $("#screens .screen .body").scrollTop = keep;
   },
   open(name, opt) { UI[name](opt || {}); },
@@ -687,7 +687,7 @@ const UI = {
   },
 
   // ----- 메인 메뉴 -----
-  menu() { if (!G && typeof unBitmap === "function" && WARMED.size) { for (const k of [...WARMED]) unBitmap(k); WARM_P = null; } // 11-21 메인으로 오면 지난 판에 풀어 둔 그림을 내려놓음(폰 메모리)
+  menu() { if (typeof rankPend === "function") rankPend(); try { if (typeof FR !== "undefined" && SAVE && (Object.keys(SAVE.friends || {}).length || Object.keys(SAVE.freq || {}).length)) FR.on(); } catch (e) { } if (!G && typeof unBitmap === "function" && WARMED.size) { for (const k of [...WARMED]) unBitmap(k); WARM_P = null; } // 11-21 메인으로 오면 지난 판에 풀어 둔 그림을 내려놓음(폰 메모리)
     if (window._rndOrig) { Math.random = window._rndOrig; window._rndOrig = null; }
     G = null; $("#hud").hidden = true; UI.closeModal(); music("menu"); if (typeof analyticsInit === "function") analyticsInit(); // 11-19 메인 화면부터 통계
     const cur = CHAR[SAVE.sel] && SAVE.chars[SAVE.sel] ? SAVE.sel : "musa"; SAVE.sel = cur;
@@ -716,7 +716,7 @@ const UI = {
             ${modeRow("story", "스토리", `다섯 장의 이야기 · 도달 ${SAVE.story.maxFloor}장`)}
             ${modeRow("endless", "무한의 방", (SAVE.stats.endlessBest ? `끝없는 방 · 최고 ${SAVE.stats.endlessBest}번째` : "끝없이 내려가는 방"))}
             ${modeRow("raid", "보스 레이드", "장 보스 다섯 연속")}
-            ${modeRow("duel", "1대1 대전", `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
+            ${modeRow("duel", "1대1 대전", typeof rankOn === "function" && rankOn() ? `등급전 · ${RANK.tiers[rankTier(rankSt().rp)].name} ${rankSt().rp}점` : `3판 2선승 · ${SAVE.stats.duelWins || 0}승`)}
             ${modeRow("practice", "연습장", "모든 영웅 체험 · 허수아비")}
             ${ACCOUNT === DEV_ID ? modeRow("dev", "개발자 맵", "보스·상점·스킬 확인") : ""}
           </div>
@@ -746,7 +746,7 @@ const UI = {
     if (!isNew && SAVE.daily && SAVE.daily.day !== new Date(NOW()).toDateString()) setTimeout(() => { if (!G && !UI.modalOpen()) UI.daily(); }, 500);
     if (SAVE.bounty && !isNew) setTimeout(() => { if (!G) UI.tip("bounty"); }, 1200);
     if ((SAVE.soul || 0) >= 20) setTimeout(() => { if (!G) UI.tip("altar"); }, 2600); // 11-18 첫 혼불
-    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash)) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen() && (SAVE.stats.rooms || 0) >= 10) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
+    if (ASSETS.packs) setTimeout(() => { if (!SAVE) return; needPack(charPack(SAVE.sel), LATER); needPack("mob3d", LATER); needPack("f1", LATER); needPack("g", LATER); if (!/autotest/.test(location.hash) && !APP_BUNDLED) { if (!ls.get("ygr_dl")) { if (!G && !UI.modalOpen() && (SAVE.stats.rooms || 0) >= 10) UI.dlAsk(); } else if (ls.get("ygr_dl") === "all") dlAll(); } }, 1500);
     dlPill(); // 11-15: 1.5초 안에 로그아웃하면 SAVE가 비어 'reading sel' 오류
     document.querySelectorAll(".tdi[data-go]").forEach((b) => (b.onclick = () => { const g = b.dataset.go; if (g === "daily") { if (typeof dailyStart === "function") dailyStart(); } else if (g === "store") { if (typeof storeClaim === "function") storeClaim(); } else if (g === "bounty") UI.chars({ mode: "endless" }); else UI.open(g); }));
     document.querySelectorAll(".sub").forEach((b) => (b.onclick = () => GATE[b.dataset.s] ? UI.toast("🔒 " + GATE[b.dataset.s], 2500) : UI.open(b.dataset.s)));
@@ -789,7 +789,7 @@ const UI = {
         const dbtn = (keys) => `<p>난이도: <span id="dsel">${keys.map((k) => `<button class="btn sm ${k === "normal" ? "gold" : ""}" data-d="${k}" style="color:${DIFF[k].col}">${DIFF[k].name}</button>`).join(" ")}</span> <span class="muted" style="font-size:.78rem">보상(엽전·경험·혼불) ${keys.map((k) => DIFF[k].name + " ×" + DIFF[k].rw).join(" · ")}</span>${typeof recDiff === "function" ? recDiff(id, keys) : ""}</p>`;
         if (mode === "story") start += dbtn(["easy", "normal", "hard", "hell"]);
         if (mode === "endless") start += dbtn(["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]) + (!SAVE.endlessHard ? `<p class="muted" style="font-size:.78rem">🔒 어려움: 보통 이상으로 무한의 방 5층 보스(1회차)를 토벌하면 열려요 (보상 ×1.5)</p>` : !SAVE.endlessHell ? `<p class="muted" style="font-size:.78rem">🔒 매우 어려움: 어려움으로 5층 보스까지 토벌하면 열려요 (보상 ×2)</p>` : "");
-        if (mode === "duel") start = `<p>상대 강함: <span id="dsel">${[["easy", "쉬움"], ["normal", "보통"], ["hard", "어려움"]].map(([k, n], i) => `<button class="btn sm ${i === 1 ? "gold" : ""}" data-d="${k}">${n}</button>`).join(" ")}</span></p>`;
+        if (mode === "duel") { const rk = own && typeof rankOn === "function" && rankOn(); start = `${rk ? rankCard() : ""}<p>${rk ? "겨루기" : "상대 강함"}: <span id="dsel">${[...(rk ? [["rank", "등급전"]] : []), ["easy", rk ? "연습 · 쉬움" : "쉬움"], ["normal", rk ? "연습 · 보통" : "보통"], ["hard", rk ? "연습 · 어려움" : "어려움"]].map(([k, n], i) => `<button class="btn sm ${(rk ? k === "rank" : i === 1) ? "gold" : ""}" data-d="${k}">${n}</button>`).join(" ")}</span></p>`; }
         if ((mode === "story" || mode === "endless") && ((SAVE.stats.storyClear || 0) > 0 || ACCOUNT === DEV_ID)) start += `<div class="taboo"><b>금기 계약</b> <span class="muted">저주를 걸고 내려가면 하나마다 혼불 +20%</span><div class="tbl">${Object.entries(CURSES).map(([k, c]) => `<button class="tbc ${(SAVE.taboo || []).includes(k) ? "on" : ""}" data-tb="${k}" title="${esc(c.desc)}">${esc(c.name.replace("의 저주", ""))}<small>${esc(c.desc)}</small></button>`).join("")}</div><p class="muted" id="tbsum"></p></div>`;
         start += `<button class="btn gold" id="go" style="width:100%;font-size:1.3rem">${!own ? "🎯 체험해 보기 ▶" : "이 영웅으로 출발 ▶"}</button>`;
       }
@@ -815,9 +815,10 @@ const UI = {
       let floor = Math.min(opt.floor || 1, SAVE.story.maxFloor || 1), diff = "normal";
       document.querySelectorAll("#fsel button").forEach((b) => (b.onclick = () => { floor = +b.dataset.f; document.querySelectorAll("#fsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
       document.querySelectorAll("#dsel button").forEach((b) => (b.onclick = () => { diff = b.dataset.d; document.querySelectorAll("#dsel button").forEach((x) => x.classList.toggle("gold", x === b)); }));
+      if (document.querySelector('#dsel [data-d="rank"]')) diff = "rank";
       const tbSum = () => { const n = (SAVE.taboo || []).length; if ($("#tbsum")) $("#tbsum").textContent = n ? `금기 ${n}개 · 혼불 +${n * 20}%` : "고르지 않으면 평소처럼"; };
       document.querySelectorAll(".tbc").forEach((b) => (b.onclick = () => { const k = b.dataset.tb, T = (SAVE.taboo = SAVE.taboo || []); const i = T.indexOf(k); if (i >= 0) T.splice(i, 1); else T.push(k); b.classList.toggle("on", i < 0); saveGame(); tbSum(); })); tbSum();
-      if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff, taboo: (mode === "story" || mode === "endless") && $(".tbc") ? (SAVE.taboo || []).slice() : [] }); };
+      if ($("#go")) $("#go").onclick = () => { if (own) { SAVE.sel = id; saveGame(); } UI.startRun({ mode, char: id, floor, diff: diff === "rank" ? "normal" : diff, ranked: mode === "duel" && diff === "rank", taboo: (mode === "story" || mode === "endless") && $(".tbc") ? (SAVE.taboo || []).slice() : [] }); };
       if ($("#toSk")) $("#toSk").onclick = () => UI.skills({ char: id });
       document.querySelectorAll("[data-ct]").forEach((b) => (b.onclick = () => { UI._ctab = b.dataset.ct; for (const k of ["sk", "job", "info"]) $("#ct" + k).hidden = k !== UI._ctab; document.querySelectorAll("[data-ct]").forEach((x) => x.classList.toggle("on", x === b)); }));
       if ($("#enhbtn")) $("#enhbtn").onclick = () => { SAVE.enh = SAVE.enh || {}; const lv = SAVE.enh[id] || 0, cost = SHARD.enhCost(lv); if ((SAVE.shards[id] || 0) < cost || lv >= SHARD.maxEnh) return; SAVE.shards[id] -= cost; if (Math.random() < SHARD.enhRate(lv)) { SAVE.enh[id] = lv + 1; UI.toast(`⬆️ ${CHAR[id].name} 강화 성공! +${lv + 1}`); } else { UI.toast(`💥 강화 실패 (+${lv} 유지)`); } saveGame(); show(id); };
@@ -1018,11 +1019,11 @@ const UI = {
       </div>
       ${notifSetHtml(s)}
       <div class="setg"><h4>조작 · 도움</h4>
-      <p class="tg"><label><input type="checkbox" id="guide" ${s.guide ? "checked" : ""}> <span class="sl">안내 화살표<small>보스·출구가 바로 옆 방일 때와 홍살문이 열렸을 때만 길을 가리켜요</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="guide" ${s.guide ? "checked" : ""}> <span class="sl">길 안내 화살표<small>방을 정리하면 다음에 갈 곳을 화살표로 가리켜요 — 보스·출구가 옆 방일 때와 홍살문이 열렸을 때. 멈춤 화면에서도 켜고 끌 수 있어요</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="autoatk" ${s.autoAtk === true ? "checked" : ""}> <span class="sl">자동 공격<small>켜면 근처 요괴를 기본 공격으로 알아서 공격 — 스킬·구르기는 직접</small></span></label></p>
       <p class="tg"><label><input type="checkbox" id="assist" ${s.assist ? "checked" : ""}> <span class="sl">도움 모드<small>쓰러질 때마다 받는 피해 -2%, 최대 -40% · 스토리·무한의 방, 지금 -${Math.round(Math.min(0.4, 0.02 * ((SAVE.assistN || 0) + 1)) * 100)}%</small></span></label></p>
       <p class="rg"><span class="rl">엽전·코인 줍기 범위</span><input type="range" id="pkr" min="0.6" max="2" step="0.1" value="${s.pickR || 1}"> <span class="muted" id="pkrv">×${s.pickR || 1}</span></p>
-      <p class="tg"><label><input type="checkbox" id="hapt" ${s.haptic === false ? "" : "checked"}> <span class="sl">진동<small>앱·게임패드: 크게 맞거나 보스를 쓰러뜨릴 때</small></span></label></p>
+      <p class="tg"><label><input type="checkbox" id="hapt" ${s.haptic === false ? "" : "checked"}> <span class="sl">진동<small>크게 맞거나 보스를 쓰러뜨릴 때</small></span></label></p>
       </div>
       <div class="setg"><h4>그래픽 · 성능</h4>
       <p class="tg"><label><input type="checkbox" id="hqfx" ${s.hq !== false ? "checked" : ""}> <span class="sl">고급 그래픽<small>실시간 조명·빛 번짐·색 보정 — 끊기면 끄세요</small></span></label></p>
@@ -1032,7 +1033,7 @@ const UI = {
       <div class="setg"><h4>정보 보내기</h4>
       <p class="tg"><label><input type="checkbox" id="anly" ${s.analytics === false ? "" : "checked"}> <span class="sl">익명 통계·오류 보내기<small>게임 개선용 · 아이디·닉네임은 보내지 않아요</small></span></label></p>
       </div>
-      ${ASSETS.packs ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
+      ${ASSETS.packs && !APP_BUNDLED ? `<div class="card dlset"><h3>그림 내려받기</h3><p id="dlst" class="muted"></p><p><button class="btn sm gold" id="dlmore">남은 그림 모두 받기 (약 ${DL_MB()}MB)</button> <button class="btn sm" id="dlless">필요한 것만 받기</button></p></div>` : ""}
       <p><button class="btn" id="keysbtn">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button> <button class="btn" id="infobtn">📜 정보 · 확률 · 약관 · 계정</button> <button class="btn gold" id="fbbtn">의견 보내기</button></p>
       <p class="muted">음악: 한입 미스터리 채널 국악 · 장별 음악·효과음·보스 음성</p>
       ${(() => { let g = null; try { g = JSON.parse(ls.get("ygr_guest") || "null"); } catch (e) { } if (!ACCOUNT || ACCOUNT === DEV_ID) return ""; const isG = !!(g && g.id === ACCOUNT); if (SAVE.google) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>구글 계정에 연동됨</b><p class="muted" style="margin:4px 0">기기를 바꾸거나 앱을 지워도, 로그인 화면에서 구글 계정으로 시작을 누르면 이어서 해요.</p></div>`; if (gAuthOn()) return `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>${isG ? "게스트로 하는 중" : "구글 계정 연동"}</b><p class="muted" style="margin:4px 0">구글 계정에 연동하면 기기를 바꾸거나 앱을 지워도 진행이 남아요.</p><button class="btn gold sm" id="glink" type="button">구글 계정 연동</button></div>`; return isG ? `<div class="card" style="margin-top:8px;border-color:#b8864b"><b>게스트 계정</b><p class="muted" style="margin:4px 0">아이디 <b>${esc(g.id)}</b> · 비밀번호 <b class="gpw" data-pw="${esc(g.pw)}">••••••</b> <button class="btn sm" id="gpwshow" type="button">보기</button><br>적어 두면 다른 기기에서도 이 아이디로 로그인해 이어서 할 수 있어요.</p></div>` : ""; })()}
@@ -1120,14 +1121,14 @@ const UI = {
     if (!NET.available()) { UI.frame("함께하기", `<div class="card"><h3>인터넷 연결이 필요해요</h3><p class="muted">온라인 연결 도구(PeerJS)를 불러오지 못했어요. 인터넷에 연결한 뒤 게임을 다시 열어 주세요.</p></div>`, back); return; }
     const owned = Object.keys(SAVE.chars);
     // 싱글 모드처럼 카드로 보여 주기: 큰 움직이는 카드 + 능력치 + 스킬
-    const panel = (title, cid, who, col) => {
-      if (!cid || !CHAR[cid]) return `<div class="card" style="flex:1;min-width:260px;display:flex;align-items:center;justify-content:center;min-height:300px"><p class="muted" style="font-size:1.2rem">${title}<br>기다리는 중…</p></div>`;
+    const panel = (title, cid, who, col, fc) => {
+      if (!cid || !CHAR[cid]) return `<div class="card lbwait" style="flex:1;min-width:260px;display:flex;align-items:center;justify-content:center"><p class="muted" style="font-size:1.2rem;text-align:center">${title}<br>기다리는 중…</p></div>`;
       const c = CHAR[cid], def = charDef(cid, c.forms ? "wolf" : null), art = charArt(cid, c.forms ? "wolf" : null);
-      return `<div class="card" style="flex:1;min-width:260px;border-color:${col}"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0">${title}</h3><span class="muted">${esc(who || "")}</span></div>
-        <div class="big anim-card" style="max-height:300px;aspect-ratio:4/3;margin:8px 0;border-radius:12px">${animCard(art, true)}</div>
+      return `<div class="card" style="flex:1;min-width:260px;border-color:${col}"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="margin:0">${title}</h3><span class="muted">${esc(who || "")}${fc && typeof FR !== "undefined" && FR.canAdd(fc) ? ` <button class="btn sm" data-fadd="${esc(fc)}">친구 맺기</button>` : ""}</span></div>
+        <div class="lbrow"><div class="big anim-card lbimg">${animCard(art, true)}</div><div class="lbinfo">
         <b style="font-family:var(--display);font-size:1.4rem;color:var(--gold2)">${c.name} · ${c.job}</b>${c.forms ? ' <span class="muted">(늑대인간/구미호 랜덤)</span>' : ""}
         <p class="muted" style="margin:4px 0">체력 ${def.hp} · 공격 ${def.atk} · 이동 ${def.spd} · ${def.range}</p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">${c.sk.map((k, i) => `<span class="pill" title="${k.desc}">${i + 1} ${abIc("sk_" + c.id + "_" + i, k.ic, 22)} ${k.name}</span>`).join("")}</div></div>`;
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${c.sk.map((k, i) => `<span class="pill" title="${k.desc}">${i + 1} ${abIc("sk_" + c.id + "_" + i, k.ic, 22)} ${k.name}</span>`).join("")}</div></div></div></div>`;
     };
     const myPick = `<h3 style="margin-top:16px">내 영웅 고르기 <span class="muted">(눌러서 바꾸기 · 보물·펫·칭호·스킬 장착도 그대로 가져가요)</span></h3>
       <div class="chars">${["SS", "S", "A", "B", "C"].map((g) => { const ids = owned.filter((id) => CHAR[id] && (CHAR_GRADE[id] || "C") === g); if (!ids.length) return "";
@@ -1137,32 +1138,38 @@ const UI = {
     let body = "";
     if (NET.role === "host") {
       const L = NET.lobby, g = L.guest, duel = L.mode === "duel";
-      body = `<div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div><h3 style="margin:0">방장 · ${MODE[L.mode]}</h3><p class="muted" style="margin:4px 0">친구에게 이 코드를 알려 주세요</p></div>
-          <div style="font-family:var(--display);font-size:3rem;letter-spacing:.3em;color:var(--gold)">${NET.peer && NET.peer.open ? NET.code : "…"}</div>
+      body = `<div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div><h3 style="margin:0">방장 · ${MODE[L.mode]}</h3><p class="muted" style="margin:4px 0">${NET.pub ? (g ? "짝을 찾았어요 — 준비되면 출발하세요" : "같은 모드를 찾는 토벌꾼을 기다리고 있어요") : "친구에게 이 코드를 알려 주거나 아래에서 친구를 불러요"}</p></div>
+          <div style="font-family:var(--display);font-size:3rem;letter-spacing:.3em;color:var(--gold)">${NET.pub ? (g ? "" : '<span class="mpfind">짝 찾는 중</span>') : NET.peer && NET.peer.open ? NET.code : "…"}</div>
           ${L.mode === "story" ? `<div>시작 장: ${FLOORS.map((f, i) => `<button class="btn sm ${L.floor === i + 1 ? "gold" : ""}" data-f="${i + 1}" ${i + 1 > SAVE.story.maxFloor ? "disabled" : ""}>${i + 1}장</button>`).join(" ")}</div>` : ""}
           ${L.mode === "story" || L.mode === "endless" ? `<div>난이도: ${(L.mode === "story" ? ["easy", "normal", "hard", "hell"] : ["easy", "normal", ...(SAVE.endlessHard ? ["hard"] : []), ...(SAVE.endlessHell ? ["hell"] : [])]).map((k) => `<button class="btn sm ${(L.diff || "normal") === k ? "gold" : ""}" data-md="${k}" style="color:${DIFF[k].col}">${DIFF[k].name}</button>`).join(" ")} <span class="muted" style="font-size:.78rem">보상 ×${DIFF[L.diff || "normal"].rw}</span></div>` : ""}
           <button class="btn gold" id="mgo" ${g ? "" : "disabled"} style="font-size:1.3rem;margin-left:auto">함께 출발 ▶</button></div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:stretch">${panel("나 (방장)", SAVE.sel, nick(), "var(--gold)")}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel("친구", g && g.load.char, g && g.name, duel ? "#ff6a5a" : "#7fe08a")}</div>
-        ${g && g.ver !== GAME_VERSION ? '<p style="color:#ff8a8a">⚠️ 친구와 게임 판이 달라요</p>' : ""}${myPick}`;
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:stretch">${panel("나 (방장)", SAVE.sel, nick(), "var(--gold)")}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel(NET.pub ? "함께할 토벌꾼" : "친구", g && g.load.char, g && g.name, duel ? "#ff6a5a" : "#7fe08a", g && g.fc)}</div>
+        ${!NET.pub && !g ? frInviteRow() : ""}${g && g.ver !== GAME_VERSION ? '<p style="color:#ff8a8a">⚠️ 친구와 게임 판이 달라요</p>' : ""}${myPick}`;
     } else if (NET.role === "guest") {
       const h = NET.lobby.host, duel = h && h.mode === "duel";
-      body = `<div class="card"><h3 style="margin:0">참가 · 코드 ${esc(NET.code)} ${h ? "· " + MODE[h.mode] : ""}</h3><p class="muted" style="margin:4px 0">${h ? `방장이 '함께 출발'을 누르면 시작돼요${h.diff && h.mode !== "duel" && h.mode !== "raid" ? ` · 난이도 <b style="color:${DIFF[h.diff].col}">${DIFF[h.diff].name}</b> (보상 ×${DIFF[h.diff].rw})` : ""}` : "연결하는 중…"}</p></div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">${panel("방장", h && h.char, h && h.name, duel ? "#ff6a5a" : "#7fe08a")}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel("나", SAVE.sel, nick(), "var(--gold)")}</div>${myPick}`;
+      body = `<div class="card"><h3 style="margin:0">참가 · ${NET.pub ? "아무나와" : "코드 " + esc(NET.code)} ${h ? "· " + MODE[h.mode] : ""}</h3><p class="muted" style="margin:4px 0">${h ? `방장이 '함께 출발'을 누르면 시작돼요${h.diff && h.mode !== "duel" && h.mode !== "raid" ? ` · 난이도 <b style="color:${DIFF[h.diff].col}">${DIFF[h.diff].name}</b> (보상 ×${DIFF[h.diff].rw})` : ""}` : NET.pub ? "같은 모드를 찾는 토벌꾼을 찾고 있어요…" : "연결하는 중…"}</p></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">${panel("방장", h && h.char, h && h.name, duel ? "#ff6a5a" : "#7fe08a", h && h.fc)}<div style="align-self:center;font-family:var(--display);font-size:2.4rem;color:${duel ? "#ff6a5a" : "#7fe08a"}">${duel ? "VS" : "＋"}</div>${panel("나", SAVE.sel, nick(), "var(--gold)")}</div>${myPick}`;
     } else {
       body = `<div class="grid mpgrid">
-        <div class="card"><h3>방 만들기 (방장)</h3><p class="muted">모드를 고르면 방 코드가 나와요 · 친구에게 코드를 알려 주세요</p>
+        <div class="card"><h3>누구와 함께할까요</h3><div class="mpsw" id="mpsw"><button data-pw="code"><b>친구와</b><small>방 코드나 초대로</small></button><button data-pw="pub"><b>아무나와</b><small>같은 모드를 찾는 토벌꾼과 바로</small></button></div><p class="muted" id="mpswt"></p>
           <div class="mphost">${[["story", "스토리 협동", "둘이서 다섯 장의 이야기를"], ["endless", "무한의 방 협동", "끝없이 내려가는 방"], ["raid", "보스 레이드 협동", "장 보스 다섯 연속"], ["duel", "1대1 대전", "레벨 10 · 3판 2선승"]].map(([k, n, d]) => `<button class="mpc" data-host="${k}"><span class="img" style="background-image:url(${imgSrc("ui_mode_" + k)})"></span><b>${n}</b><small>${d}</small></button>`).join("")}</div></div>
         <div class="card mpjoin"><h3>코드로 참가</h3><p class="muted">친구가 알려 준 방 코드 5자리를 넣어요</p><div class="field"><input id="mcode" maxlength="5" placeholder="ABCDE" aria-label="방 코드 5자리" autocomplete="off"></div>
-          <button class="btn gold" id="mjoin" style="margin-top:10px;width:100%">참가</button></div></div>
+          <button class="btn gold" id="mjoin" style="margin-top:10px;width:100%">참가</button><button class="btn" id="mfr" style="margin-top:14px;width:100%">친구 목록${(() => { const a = Object.keys(SAVE.freq || {}).length, n = Object.keys(SAVE.friends || {}).length; return a ? ` · 새 신청 ${a}` : n ? ` · ${n}명` : ""; })()}</button></div></div>
         <div class="card" style="margin-top:12px"><h3>안내</h3><ul class="muted">
           <li>인터넷이 필요해요. 둘 다 같은 버전(오른쪽 아래 숫자)이어야 해요.</li>
+          <li>아무나와: 같은 모드를 고른 다른 토벌꾼과 바로 이어 줘요. 기다리는 사람이 없으면 내가 방을 열고 기다려요. 함께한 뒤 대기방에서 '친구 맺기'를 누를 수 있어요.</li>
           <li>협동: 두 사람이 같은 방에서 함께 싸워요. 둘이면 요괴가 조금 더 많고 튼튼해져요. 한 명이 쓰러지면 다음 스테이지에서 체력 30%로 일어나요.</li>
           <li>경험치는 둘 다 받고, 엽전·코인은 주운 사람이 가져요. 상인은 방장만 이용해요.</li>
           <li>1대1 대전: 친구와 레벨 10으로 맞춰 3판 2선승 (보물·펫·칭호 빠짐).</li></ul></div>`;
     }
-    UI.frame("함께하기 · 친구와 함께", body, back);
+    UI.frame("함께하기", body, back);
     const refresh = (st) => { if (st === "fail") { NET.leave(); } if ($("#screens .screen") && !G) UI.multi(); };
-    document.querySelectorAll("[data-host]").forEach((b) => (b.onclick = () => { NET.host(b.dataset.host, refresh); UI.multi(); }));
+    document.querySelectorAll("[data-host]").forEach((b) => (b.onclick = () => { if (UI._mpPub) NET.quick(b.dataset.host, refresh); else NET.host(b.dataset.host, refresh); UI.multi(); }));
+    if ($("#mpsw")) { const sw = () => { document.querySelectorAll("#mpsw button").forEach((x) => x.classList.toggle("on", (x.dataset.pw === "pub") === !!UI._mpPub)); $("#mpswt").textContent = UI._mpPub ? "모드를 고르면 같은 모드를 찾는 토벌꾼과 이어 줘요" : "모드를 고르면 방 코드가 나와요 — 코드를 알려 주거나 친구를 불러요"; }; document.querySelectorAll("#mpsw button").forEach((x) => (x.onclick = () => { UI._mpPub = x.dataset.pw === "pub"; sw(); })); sw(); }
+    if ($("#mfr")) $("#mfr").onclick = () => UI.friends();
+    document.querySelectorAll("[data-finv]").forEach((x) => (x.onclick = async () => { x.disabled = true; const r = await FR.inviteTo(x.dataset.finv); UI.toast(r.replace(/^ok:/, ""), 3200); x.disabled = false; }));
+    document.querySelectorAll("[data-fadd]").forEach((x) => (x.onclick = async () => { x.disabled = true; const r = await FR.request(x.dataset.fadd); UI.toast(r.replace(/^ok:/, ""), 3200); if (/^ok:/.test(r)) x.remove(); else x.disabled = false; }));
+    if (typeof FR !== "undefined") FR.on();
     if ($("#mjoin")) $("#mjoin").onclick = () => { const c = $("#mcode").value.trim(); if (c.length < 5) { UI.toast("코드 5자리를 넣어 주세요"); return; } NET.join(c, refresh); UI.multi(); };
     document.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { NET.lobby.floor = +b.dataset.f; UI.multi(); }));
     document.querySelectorAll("[data-mc]").forEach((el) => (el.onclick = () => { SAVE.sel = el.dataset.mc; saveGame(); if (NET.role === "guest") NET.send({ t: "load", load: NET.myLoad() }); if (NET.role === "host") NET.send({ t: "lobby", mode: NET.lobby.mode, host: nick(), ver: GAME_VERSION, char: SAVE.sel }); UI.multi(); }));
@@ -1172,7 +1179,7 @@ const UI = {
   guestLevelUp(opts, lvl) {
     if (!opts || !opts.length) return;
     if (UI.modalOpen()) { setTimeout(() => UI.guestLevelUp(opts, lvl), 600); return; }
-    UI.modal(`<h2>레벨 업! Lv.${lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요 (1~${opts.length} 키) — 게임은 계속 진행돼요</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b>${(() => { const n = ((G.p && G.p.boons) || []).filter((x) => x === k).length; return n ? `<div class="muted"><b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b></div>` + boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>`);
+    UI.modal(`<h2>레벨 업! Lv.${lvl}</h2><p class="muted" style="text-align:center">강화를 하나 골라요${IS_TOUCH ? "" : ` (1~${opts.length} 키)`} — 게임은 계속 진행돼요</p><div class="picks">${opts.map((k, i) => { const b = BOONS[k]; return `<button class="pk" data-k="${k}" style="border-color:${RARITY[b.rar].col}"><div class="ico">${abIc("bn_" + k, b.ic, 72)}</div><b style="color:${RARITY[b.rar].col}">${b.name}</b>${(() => { const n = ((G.p && G.p.boons) || []).filter((x) => x === k).length; return n ? `<div class="muted"><b style="color:#7fe08a">Lv.${n} → Lv.${n + 1}</b></div>` + boonChange(k, n) : `<p>${b.desc}</p>`; })()}<span class="kbd">${i + 1}</span></button>`; }).join("")}</div>`);
     const armT = UI.arm();
     const choose = (k) => { if (performance.now() < armT) return; window.removeEventListener("keydown", kh); NET.send({ t: "boon", k }); if (G && G.p) (G.p.boons = G.p.boons || []).push(k); UI.closeModal(); };
     const kh = (e) => { const i = ["Digit1", "Digit2", "Digit3"].indexOf(e.code); if (i >= 0 && opts[i]) choose(opts[i]); };
@@ -1208,7 +1215,7 @@ const UI = {
     $("#dok").onclick = () => { UI.closeModal(); UI.menu(); };
   },
   buildHud() {
-    const p = G.p, touch = matchMedia("(pointer: coarse)").matches;
+    const p = G.p, touch = MOBILE_ONLY || matchMedia("(pointer: coarse)").matches;
     input.touch = touch;
     const slot = (s, key) => `<div class="sk ${s === "R" ? "ult" : ""}" data-s="${s}"><span class="key${String(key).length > 2 ? " long" : ""}">${key}</span><span class="ic"></span><div class="cdv"></div><span class="cdt"></span><span class="lv"></span>${s === "A" ? `<button class="alock" id="alock" title="액티브 잠금 (${keyLabel(keyMap().lock)})">🔓</button>` : ""}<span class="jtag"></span></div>`;
     $("#hud").innerHTML = `<div class="hp-box"><div class="face" style="background-image:url(${imgSrc("card_" + p.art)})"></div><div class="meta">
@@ -1217,7 +1224,7 @@ const UI = {
       <div class="boonlist" id="boons"></div>
       <div class="stage" id="hstage"></div><div class="bossbar" id="hboss" hidden><div id="hbn"></div><div class="bar"><b class="lag" id="hbhpl"></b><i id="hbhp"></i><span class="rage50" title="50% 아래로 내려가면 분노">분노</span></div></div>
       <div class="tr"><canvas id="mini" width="340" height="240"></canvas><div class="hudbtns"><span class="pill coin">${curIc("coin")} <b id="hc"></b></span><span class="pill" title="엽전 — 원정 중 상점에서 써요">${curIc("yeop")} 엽전 <b id="hg"></b></span><button class="btn sm" id="hp" title="${IS_TOUCH ? "멈춤 · 소리" : "멈춤 · 소리 · 키 설정 (Esc)"}">${uiIc("pause", "⏸")}</button></div></div>
-      ${touch ? `<div class="joyz" id="joyz"></div><div class="joy" id="joy"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">⚔️</div>${slot("E", "3")}${slot("R", "4")}</div>`
+      ${touch ? `<div class="joyz" id="joyz"></div><div class="joy" id="joy" style="--jw:${imgSrc("fx_ward") ? `url(${imgSrc("fx_ward")})` : "none"}"><i></i></div><div class="touch">${slot("A", "액티브")}${slot("D", "구르기")}${slot("Q", "1")}${slot("W", "2")}<div class="sk atk" data-s="B">${ASSETS.img["sk_" + G.p.id + "_b"] ? `<img src="${ASSETS.img["sk_" + G.p.id + "_b"]}" alt="">` : ""}</div>${slot("E", "3")}${slot("R", "4")}</div>`
         : (() => { const K = keyMap(); return `<div class="skills"><div class="sk basic" data-s="B"><span class="key${String(keyLabel(K.atk)).length > 2 ? " long" : ""}">${keyLabel(K.atk)}</span>${abIc("sk_" + G.p.id + "_b", "⚔️", 46)}</div>${slot("D", keyLabel(K.dodge))}${slot("A", keyLabel(K.act))}${slot("Q", keyLabel(K.s1))}${slot("W", keyLabel(K.s2))}${slot("E", keyLabel(K.s3))}${slot("R", keyLabel(K.s4))}</div>`; })()}
       <div class="tip" id="tip" hidden></div>`;
     $("#hp").onclick = () => UI.togglePause();
@@ -1330,6 +1337,8 @@ const UI = {
     document.querySelectorAll(".pzb[data-k]").forEach((t) => (t.onclick = () => { const on = t.classList.contains("on"); document.querySelectorAll(".pzb").forEach((x) => x.classList.remove("on")); const d = $("#pzdet"); if (on) { d.innerHTML = '<span class="muted">강화를 누르면 설명이 나와요</span>'; return; } t.classList.add("on"); const k = t.dataset.k, B = BOONS[k], n = +t.dataset.n; d.innerHTML = `<b style="color:${RARITY[B.rar].col}">${esc(B.name)}</b> <small>${RARITY[B.rar].name} · Lv.${n}</small>${B.lore ? `<p class="lore">${esc(B.lore)}</p>` : ""}<p>${esc(B.desc)}${n > 1 ? ` <span class="muted">(×${n})</span>` : ""}</p>`; }));
     $("#pkeys").onclick = () => UI.keys(() => { UI._paused = false; UI.closeModal(); UI.buildHud(); UI.togglePause(); });
     $("#pr").onclick = () => UI.togglePause();
+    if ($("#pzx")) $("#pzx").onclick = () => UI.togglePause();
+    if ($("#pvce")) { const st = SAVE.settings; $("#pvce").onchange = (e) => { st.voice = e.target.checked; saveGame(); }; $("#pguide").onchange = (e) => { st.guide = e.target.checked; saveGame(); }; $("#pauto").onchange = (e) => { st.autoAtk = e.target.checked; saveGame(); }; }
     $("#pq").onclick = () => { UI._paused = false; UI.closeModal(); endRun(false); };
     if ($("#psave")) $("#psave").onclick = () => { SAVE.resume = storySnap(); saveGame(); CLOUD.push(); UI._paused = false; UI.toast(`저장했어요 · ${G.floor}장 ${G.stage}스테이지`, 3000); UI.menu(); };
   },
@@ -1340,8 +1349,8 @@ const UI = {
     const rows = KEY_ACTIONS.map(([a, n]) => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)"><span style="flex:1">${n}</span><span class="kbd" style="min-width:90px;text-align:center" id="kv_${a}">${keyLabel(K[a])}</span><button class="btn sm" data-ka="${a}">바꾸기</button></div>`).join("");
     UI.modal(`<h2>${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</h2>${IS_TOUCH ? "" : `<p class="muted" style="text-align:center">'바꾸기'를 누른 뒤 원하는 키나 마우스 버튼을 누르세요. 다른 동작과 겹치면 서로 바뀌어요. (방향키는 언제나 이동으로도 쓸 수 있어요)</p>`}
       <div class="card btnset" style="max-width:520px;margin:0 auto 12px"><h3>화면 버튼</h3>
-        <p>스킬 버튼 크기 <input type="range" id="bsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.btnScale || 1}"> <b id="bszv">${Math.round((SAVE.settings.btnScale || 1) * 100)}%</b></p>
-        <p>조이스틱 크기 <input type="range" id="jsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.joyScale || 1}"> <b id="jszv">${Math.round((SAVE.settings.joyScale || 1) * 100)}%</b> <span class="muted">(폰)</span></p>
+        <p>기술 버튼 크기 <input type="range" id="bsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.btnScale || 1}"> <b id="bszv">${Math.round((SAVE.settings.btnScale || 1) * 100)}%</b></p>
+        <p>이동 패드 크기 <input type="range" id="jsz" min="0.7" max="1.5" step="0.05" value="${SAVE.settings.joyScale || 1}"> <b id="jszv">${Math.round((SAVE.settings.joyScale || 1) * 100)}%</b></p>
         <p>버튼 투명도 <input type="range" id="bal" min="0.3" max="1" step="0.05" value="${SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1}"> <b id="balv">${Math.round((SAVE.settings.btnAlpha != null ? SAVE.settings.btnAlpha : 1) * 100)}%</b> <span class="muted">(낮을수록 투명)</span></p>
         <div class="center"><button class="btn sm" id="bsreset">버튼 기본값</button></div></div>
       ${IS_TOUCH ? `<details class="kbdet" style="max-width:520px;margin:0 auto"><summary>키보드를 연결했다면: 키 설정</summary>` : ""}<div style="max-width:520px;margin:0 auto">${rows}</div>${IS_TOUCH ? "</details>" : ""}<div class="center">${IS_TOUCH ? "" : `<button class="btn" id="kreset">기본값으로</button>`}<button class="btn gold" id="kdone">완료</button></div>`);
@@ -1447,7 +1456,7 @@ const UI = {
     const title = r.mode === "practice" ? "🎯 연습 끝" : r.mode === "dev" ? "🛠 개발자 맵 끝" : r.mode === "raid" ? (r.win ? "🐉 보스 레이드 완료!" : "레이드 실패") : r.mode === "duel" ? (r.win ? "🏆 대전 승리!" : "대전 패배") : r.storyDone ? "🌅 스토리 완료!" : r.win ? "원정 성공" : "쓰러졌습니다";
     const newChars = Object.keys(SAVE.chars).length - (G.unlocksAtStart || 0);
     const talk = typeof talkPick === "function" && !isClient && !(G.opt && G.opt.multi) ? talkPick(r) : null;
-    UI.modal(`<h2>${title}</h2>${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
+    UI.modal(`<h2>${title}</h2>${r.rank && typeof rankResHtml === "function" ? rankResHtml(r.rank) : ""}${typeof talkHtml === "function" ? talkHtml(talk) : ""}${typeof dailyHtml === "function" ? dailyHtml(r.daily) : ""}${typeof mastHtml === "function" ? mastHtml(r.mast) : ""}${typeof seasonHtml === "function" ? seasonHtml(r.season) : ""}${typeof meterHtml === "function" ? meterHtml(!r.win && !r.storyDone) : ""}<div class="res">
       ${r.mode === "raid" ? `<div><b>${G.raidN || 0} / ${RAID_ORDER.length}</b>보스 처치</div>` : r.mode === "story" ? `<div><b>${r.floor}장 ${r.stage}스테이지</b>도달</div>` : r.mode === "endless" ? `<div><b>${r.endless}</b>번째 방</div>` : r.duel ? `<div><b>${r.duel.wins[0]} : ${r.duel.wins[1]}</b>점수</div>` : `<div><b>${r.mode === "dev" ? "🛠" : "🎯"}</b>${r.mode === "dev" ? "개발자 맵" : "연습장"} 종료</div>`}
       <div><b>${r.kills}</b>처치</div>${r.comboMax >= 10 ? `<div><b>${r.comboMax}</b>최대 연격</div>` : ""}<div><b>Lv.${r.lvl}</b>레벨</div><div><b>${curIc("coin")} +${r.coinRw || 0}</b>코인 보상</div>${r.coin > 0 ? `<div><b>${r.coin}</b>판에서 주운 코인</div>` : ""}${newChars > 0 ? `<div><b>${newChars}</b>새 영웅</div>` : ""}</div>
       ${(G.newMobs && G.newMobs.length) || (G.p && G.p.boons && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo)) ? `<p style="text-align:center" class="muted">이번 판: ${G.newMobs && G.newMobs.length ? "📖 새 요괴: " + G.newMobs.map((k) => ENEMIES[k].name).join("·") : ""}${G.p && G.p.boons.some((k) => BOONS[k] && BOONS[k].duo) ? " ⚔️ 조합 " + [...new Set(G.p.boons.filter((k) => BOONS[k] && BOONS[k].duo))].map((k) => BOONS[k].name).join("·") : ""}</p>` : ""}
@@ -2481,13 +2490,13 @@ function pauseHtml(canSave) {
     return `<button class="pzb" data-k="${k}" data-n="${cnt[k]}" style="--rc:${col}">${abIc("bn_" + k, B.ic, 60)}<span class="pzn">${esc(B.name)}</span>${cnt[k] > 1 ? `<b class="pzlv">${cnt[k]}</b>` : ""}</button>`; }).join("");
   const A = p.active && ACTIVES[p.active.k];
   const act = A ? `<div class="pzact" style="--rc:${ACT_TIER[A.rar].col}">${abIc("ic_" + p.active.k, A.ic, 54)}<div><small>액티브 · ${ACT_TIER[A.rar].name} · Lv.${p.active.lv}</small><b>${esc(A.name)}</b>${A.lore ? `<p class="lore">${esc(A.lore)}</p>` : ""}<p>${esc(A.desc)}</p></div></div>` : `<div class="pzact none"><span class="muted">액티브 없음 — 요괴·상자·보부상에게서 얻어요</span></div>`;
-  return `<div class="pzw"><div class="pzl"><div class="pzhero" style="background-image:url(${imgSrc("card_" + art)})"></div><div class="pzid"><small>${esc(where)}</small><h2>${esc(C.name)}</h2><span>${esc(C.job || "")} · Lv.${p.lvl}</span></div>
+  return `<div class="pzw"><button class="mclose" id="pzx" aria-label="닫기"></button><div class="pzl"><div class="pzhero" style="background-image:url(${imgSrc("card_" + art)})"></div><div class="pzid"><small>${esc(where)}</small><h2>${esc(C.name)}</h2><span>${esc(C.job || "")} · Lv.${p.lvl}</span></div>
       <dl class="pzst">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
     <div class="pzr"><h3>이번 판 강화 <small>${p.boons.length}개</small></h3><div class="pzgrid">${tiles || '<p class="muted" style="grid-column:1/-1;white-space:nowrap">아직 고른 강화가 없어요</p>'}</div><div class="pzdet" id="pzdet"><span class="muted">강화를 누르면 설명이 나와요</span></div>
       <h3>액티브</h3>${act}
       <div class="pzbtns"><button class="btn gold" id="pr">계속하기</button>${canSave ? '<button class="btn blue" id="psave">저장 후 나가기</button>' : ""}<button class="btn" id="pq">원정 그만두기</button></div>
       <p class="muted pzhint">${canSave ? `저장하면 <b>${G.floor}장 ${G.stage}스테이지</b>부터 레벨·물건 그대로 이어서 해요` : "그만두면 성적만큼 코인을 받아요"}</p>
-      <details class="pzsnd"><summary>소리 · ${IS_TOUCH ? "화면 버튼" : "키"} 설정</summary><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p><button class="btn sm" id="pkeys">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button></details></div></div>`;
+      <details class="pzsnd" open><summary>설정 — 소리 · 길 안내 · ${IS_TOUCH ? "화면 버튼" : "키"}</summary><p><label><input type="checkbox" id="smus" ${SAVE.settings.music ? "checked" : ""}> 배경 음악</label></p><p>음악 크기 <input type="range" id="svol" min="0" max="1" step="0.05" value="${SAVE.settings.vol}"></p><p>효과음 크기 <input type="range" id="ssfx" min="0" max="1" step="0.05" value="${SAVE.settings.sfx}"></p><p><label><input type="checkbox" id="pvce" ${SAVE.settings.voice === false ? "" : "checked"}> 음성 (보스·이야기)</label></p><p><label><input type="checkbox" id="pguide" ${SAVE.settings.guide ? "checked" : ""}> 길 안내 화살표</label></p><p><label><input type="checkbox" id="pauto" ${SAVE.settings.autoAtk === true ? "checked" : ""}> 자동 공격</label></p><button class="btn sm" id="pkeys">${IS_TOUCH ? "화면 버튼 설정" : "키 설정"}</button></details></div></div>`;
 }
 // ===================== 11-20 그림 내려받기 방식 고르기 =====================
 // 사용자: "전체 다운, 필요 파일 우선 다운을 선택할 수 있게, 차후에 추가 다운". 처음 한 번 묻고(ygr_dl), 설정에서 언제든 바꿈.
@@ -2667,6 +2676,54 @@ function adReviveAsk(u) {
   } catch (x) { return false; }
 }
 
+// ===================== 11-27 친구 목록 · 친구 부르기 (연결은 net.js FR) =====================
+function frInviteRow() {
+  const L = FR.list(), ks = Object.keys(L);
+  return `<div class="card frinv"><h3>친구 부르기</h3>${ks.length ? `<div class="frchips">${ks.map((c) => `<button class="btn sm" data-finv="${c}">${esc(L[c].n)} 부르기</button>`).join("")}</div><p class="muted">친구가 게임을 켜 두고 처음 화면에 있으면 부름이 바로 떠요.</p>` : '<p class="muted">아직 친구가 없어요 — 함께하기 첫 화면의 친구 목록에서 코드를 주고받아 맺어요.</p>'}</div>`;
+}
+UI.friends = function () {
+  const L = FR.list(), A = FR.asks(), ks = Object.keys(L).sort((a, b) => (L[b].t || 0) - (L[a].t || 0)), as = Object.keys(A);
+  const ST = { menu: ["접속 중", "on"], lobby: ["대기방에 있음", "busy"], run: ["원정 중", "busy"], off: ["쉬는 중", ""] };
+  const row = (c) => { const s = ST[FR.st[c]] || ["확인 중…", ""]; return `<div class="frr" data-fc="${c}"><i class="frdot ${s[1]}"></i><div class="frn"><b>${esc(L[c].n)}</b><small>${s[0]}</small></div><button class="btn sm gold" data-fcall="${c}">부르기</button><button class="btn sm" data-fdel="${c}">지우기</button></div>`; };
+  UI.frame("친구", `<div class="frw"><div class="card frme"><h3>내 친구 코드</h3><div class="frcode" id="frcode">${FR.code()}</div><button class="btn sm" id="frcopy">코드 복사</button><p class="muted">이 코드를 알려 주면 친구가 신청을 보낼 수 있어요.</p>
+      <h3 style="margin-top:14px">친구 맺기</h3><div class="field"><input id="frin" maxlength="7" placeholder="코드 일곱 자리" autocomplete="off" aria-label="친구 코드 일곱 자리"></div><button class="btn gold" id="fradd" style="width:100%;margin-top:8px">신청 보내기</button><p class="muted">신청은 둘 다 게임을 켜 둔 때에 전해져요. 모르는 사람과 함께한 뒤에는 대기방에서 '친구 맺기'를 누르면 돼요.</p></div>
+    <div class="card frlist">${as.length ? `<h3>받은 신청 <small>${as.length}</small></h3>${as.map((c) => `<div class="frr"><i class="frdot on"></i><div class="frn"><b>${esc(A[c])}</b><small>친구 신청</small></div><button class="btn sm gold" data-fok="${c}">받기</button><button class="btn sm" data-fno="${c}">거절</button></div>`).join("")}` : ""}
+      <h3>친구 <small>${ks.length} / 50</small></h3>${ks.length ? ks.map(row).join("") : '<p class="muted" style="padding:18px 0;text-align:center">아직 친구가 없어요.<br>왼쪽에서 코드를 넣어 신청을 보내거나, 내 코드를 알려 주세요.</p>'}</div></div>`, () => UI.multi());
+  $("#frcopy").onclick = async () => { try { await navigator.clipboard.writeText(FR.code()); UI.toast("친구 코드를 복사했어요"); } catch (e) { UI.toast("코드: " + FR.code(), 4000); } };
+  $("#fradd").onclick = async () => { const b = $("#fradd"); b.disabled = true; const r = await FR.request($("#frin").value); UI.toast(r.replace(/^ok:/, ""), 3600); if ($("#fradd")) { $("#fradd").disabled = false; if (/^ok:/.test(r)) $("#frin").value = ""; } };
+  document.querySelectorAll("[data-fok]").forEach((b) => (b.onclick = async () => { b.disabled = true; const r = await FR.accept(b.dataset.fok); UI.toast(r.replace(/^ok:/, ""), 3000); }));
+  document.querySelectorAll("[data-fno]").forEach((b) => (b.onclick = () => FR.deny(b.dataset.fno)));
+  document.querySelectorAll("[data-fdel]").forEach((b) => (b.onclick = () => { if (b.dataset.sure) { FR.remove(b.dataset.fdel); return; } b.dataset.sure = "1"; b.textContent = "한 번 더 누르면 지워요"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "지우기"; } }, 3000); }));
+  // 부르기: 방이 없으면 모드를 고르게 한 뒤 방을 만들고 부름
+  document.querySelectorAll("[data-fcall]").forEach((b) => (b.onclick = () => { const c = b.dataset.fcall;
+    UI.modal(`<h2>${esc(L[c].n)} 님 부르기</h2><p class="muted" style="text-align:center">함께할 모드를 고르면 방을 만들고 부름을 보내요</p><div class="mphost">${[["story", "스토리 협동"], ["endless", "무한의 방 협동"], ["raid", "보스 레이드 협동"], ["duel", "1대1 대전"]].map(([k, n]) => `<button class="mpc" data-cm="${k}"><span class="img" style="background-image:url(${imgSrc("ui_mode_" + k)})"></span><b>${n}</b></button>`).join("")}</div><div class="center" style="margin-top:12px"><button class="btn" id="cmx">그만두기</button></div>`);
+    $("#cmx").onclick = () => UI.closeModal();
+    document.querySelectorAll("[data-cm]").forEach((m) => (m.onclick = () => { UI.closeModal(); const rf = (st) => { if (st === "fail") NET.leave(); if ($("#screens .screen") && !G) UI.multi(); }; NET.host(m.dataset.cm, rf); UI.multi();
+      let n = 0; const go = async () => { if (NET.role !== "host") return; if (!(NET.peer && NET.peer.open)) { if (++n < 30) setTimeout(go, 250); return; } const r = await FR.inviteTo(c); UI.toast(r.replace(/^ok:/, ""), 3400); }; go(); })); }));
+  // 접속 확인: 화면을 다시 그리지 않고 점과 글만 바꿈
+  FR.on(); ks.forEach(async (c) => { const s = await FR.status(c), el = document.querySelector('.frr[data-fc="' + c + '"]'); if (!el) return; const v = ST[s] || ST.off; el.querySelector(".frdot").className = "frdot " + v[1]; el.querySelector("small").textContent = v[0]; el.querySelector("b").textContent = (FR.list()[c] || {}).n || ""; });
+};
+// ===================== 11-27 결투 등급전 화면 (규칙·계산은 release.js RANK) =====================
+function rankCard() {
+  const R = rankSt(), ti = rankTier(R.rp), T = RANK.tiers[ti], N = RANK.tiers[ti + 1], pct = N ? Math.round(((R.rp - T.at) / (N.at - T.at)) * 100) : 100, left = Math.max(0, RANK.place - R.n);
+  const day = new Date(NOW()).toDateString(), dw = R.day && R.day.d === day ? R.day.w : 0;
+  return `<div class="rkc"><span class="hopae" style="--hc:${T.col}"></span><div class="rkm"><b>${T.name}</b> <span class="rkp">${R.rp}점</span>${left > 0 ? ` <span class="rkt">첫 겨룸 ${R.n}/${RANK.place}</span>` : ""}${R.streak >= 2 ? ` <span class="rkt">${R.streak}연승</span>` : ""}
+    <div class="rkbar"><i style="width:${pct}%"></i></div>
+    <small>${N ? `${N.name}까지 ${N.at - R.rp}점` : "가장 높은 자리에 올랐습니다"} · 이번 달 ${R.w}승 ${R.l}패 · 오늘 코인 받는 승리 ${dw}/${RANK.dayWins}</small>
+    <details class="rkh"><summary>등급전 규칙</summary><p>다른 토벌꾼의 그림자와 세 판을 겨뤄 두 판을 먼저 이기면 승리. 서로 레벨 10, 제단·숙련·펫 없이 같은 조건입니다.</p><p>이기면 점수를 얻고 지면 잃습니다. 센 상대를 이길수록 많이 얻고, 세 번 내리 이기면 덤이 붙습니다. 처음 다섯 판은 '첫 겨룸' — 얻는 점수가 두 배이고 져도 잃지 않습니다.</p><p>호패가 오른 뒤 세 판은 져도 내려가지 않고, 나무·회양목 호패는 내려가는 일이 없습니다.</p><p>달마다 새로 시작합니다. 점수의 여섯 할을 잇고, 그 달 가장 높았던 호패만큼 코인과 혼불을 받습니다. 겨루다 나가면 진 것으로 적습니다.</p></details></div></div>`;
+}
+function rankResHtml(k) {
+  const T = RANK.tiers[k.t1], N = RANK.tiers[k.t1 + 1], pct = N ? Math.round(((k.rp - T.at) / (N.at - T.at)) * 100) : 100;
+  const notes = [k.placing ? `첫 겨룸 ${Math.min(k.n, RANK.place)}/${RANK.place}${k.win ? " — 점수 두 배" : " — 져도 잃지 않음"}` : "", k.bonus ? `${k.streak}연승 덤 +${k.bonus}` : "", k.guarded ? "강등 보호로 호패를 지켰습니다" : "", k.win && !k.coin ? "오늘 코인 받는 승리는 다 채웠습니다" : ""].filter(Boolean).join(" · ");
+  return `<div class="rkc rkres"><span class="hopae" style="--hc:${T.col}"></span><div class="rkm"><b>${T.name}</b> <span class="rkp">${k.rp}점</span> <span class="rkd ${k.d > 0 ? "up" : k.d < 0 ? "dn" : ""}">${k.d > 0 ? "+" : ""}${k.d}</span>
+    <div class="rkbar"><i style="width:${pct}%"></i></div>${k.up ? `<p class="rkup">호패가 올랐습니다 — ${T.name}</p>` : k.down ? `<p class="rkdn">호패가 내려갔습니다 — ${T.name}</p>` : ""}<small>${notes || (N ? `${N.name}까지 ${N.at - k.rp}점` : "가장 높은 자리")}</small></div></div>`;
+}
+function rankPend() { // 지난 등급전을 끝내지 않고 앱을 닫았으면 패배로 적고, 지난 달 보상이 있으면 알림
+  try { if (typeof SAVE === "undefined" || !SAVE || G || typeof rankOn !== "function" || !rankOn()) return; const R = rankSt();
+    if (R.pend != null) { const k = rankApply(false, R.pend); UI.toast(`지난 등급전을 끝내지 않고 나가 진 것으로 적었습니다 (${k.d}점)`, 4200); }
+    if (R.last && !R.last.seen) { R.last.seen = true; saveGame(); const L = R.last; setTimeout(() => UI.loot(`지난 달 등급전 — ${RANK.tiers[L.tier].name}`, [["cur_coin", "코인", L.coin], ["ui_soul", "혼불", L.soul]]), 600); }
+  } catch (e) { }
+}
 // 자동 시험 (주소 끝에 #autotest=모드 를 붙였을 때만): 개발자 계정으로 들어가 몇 초 싸워 본다
 if (/autotest=net/.test(location.hash)) {
   const code = (location.hash.match(/code=(\w+)/) || [])[1], mm = (location.hash.match(/mode=(\w+)/) || [])[1] || "story";
