@@ -1,6 +1,6 @@
 // ===== 요괴록 — 조선 요괴 토벌기 · 화면·계정·가챠 =====
 "use strict";
-const GAME_VERSION = "3.5.2";
+const GAME_VERSION = "3.5.3";
 // 자동 업데이트: 게임이 올라가 있는 주소 (빌드 때 채움). 더 새 판이 있으면 알려 줌
 const UPDATE_URL = "https://wjdaudrn091600-ai.github.io/yogoerok/";
 const verNum = (v) => String(v).split(".").reduce((a, x) => a * 1000 + (+x || 0), 0);
@@ -2882,13 +2882,39 @@ function mergePaid(dst, src) {
   if (src.noAds && !dst.noAds) { dst.noAds = 1; n++; }
   return n;
 }
+// 11-27 영수증 서버 확인: IAP.verify 가 있으면 서버가 진짜 결제라고 할 때만 지급. 서버가 안 되면 소모·확인을 하지 않고 두었다가 다음 실행(restore)·1분 뒤 다시
+var IAP_BUSY = {};
+function iapVerify(sku, token) {
+  if (typeof IAP === "undefined" || !IAP.verify) return Promise.resolve({ ok: true, skip: 1 });
+  return fetch(IAP.verify, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku, token, uid: (typeof CLOUD !== "undefined" && CLOUD.uid) || (typeof ACCOUNT !== "undefined" ? ACCOUNT : "") || "" }) })
+    .then((r) => r.json()).catch(() => ({ ok: false, retry: true, why: "net" }));
+}
+var IAP_WAIT = [];
 window.iapGot = (sku, token, order) => {
-  const it = (IAP.items || []).find((x) => x.sku === sku); if (!it || !SAVE) return;
+  const it = (IAP.items || []).find((x) => x.sku === sku); if (!it) { try { track("iap_unknown_sku", { sku }); } catch (e) { } return; }
+  if (!SAVE) { if (IAP_WAIT.length < 50) IAP_WAIT.push([sku, token, order]); return; }
+  const O0 = SAVE.iapOrders || {}, key0 = order || token;
+  if (!O0[key0] && IAP.verify && !iapGot._ok) {
+    if (IAP_BUSY[key0]) return; IAP_BUSY[key0] = 1;
+    iapVerify(sku, token).then((v) => { delete IAP_BUSY[key0];
+      if (v && v.ok) { iapGot._ok = 1; try { window.iapGot(sku, token, order); } finally { iapGot._ok = 0; } return; }
+      track("iap_verify_fail", { sku, why: (v && v.why) || "?" });
+      if (v && v.pending) { window.iapPending(sku); return; }
+      if (v && v.why === "used_by_other") { const O = (SAVE.iapOrders = SAVE.iapOrders || {}); if (!O[key0]) { const g = it.give || {}, got = [];
+          if (g.noAds) { SAVE.noAds = 1; got.push([it.img || "ui_soul", "광고 없이 보상", 1]); } if (g.title && TITLES[g.title]) { SAVE.titles[g.title] = 1; got.push(["ic_" + g.title, TITLES[g.title].name, 1]); }
+          O[key0] = { sku, t: Date.now(), other: 1 }; saveGame(); try { CLOUD.push(true); } catch (e) { }
+          if (got.length) UI.loot(it.name + " (복원)", got); else UI.toast("이 결제는 다른 계정에서 이미 받았어요 — 처음 받은 계정으로 들어가 주세요", 4200); }
+        try { if (it.kind === "pack") YogoApp.consume(token); else YogoApp.ack(token); } catch (e) { } return; }
+      if (v && v.retry) { UI.toast("결제 확인이 늦어지고 있어요 — 조금 뒤 저절로 들어와요", 3200); setTimeout(() => { try { YogoApp.restore(); } catch (e) { } }, 60000); return; }
+      UI.toast("확인되지 않은 결제라 지급하지 않았어요 — 문의: " + SUPPORT.mail, 4000);
+    });
+    return;
+  }
   const O = (SAVE.iapOrders = SAVE.iapOrders || {}), key = order || token;
   if (!O[key]) {
     const got = iapGive(it);
     O[key] = { sku, t: Date.now() }; saveGame(); try { CLOUD.push(true); } catch (e) { }
-    track("iap_buy", { sku }); UI.loot(it.name, got); try { checkUnlocks(); } catch (e) { }
+    track("iap_buy", { sku }); if (typeof G !== "undefined" && G) UI.toast("등불 상점: " + it.name + " 을(를) 받았어요", 3000); else UI.loot(it.name, got); try { checkUnlocks(); } catch (e) { }
   }
   try { if (it.kind === "pack") YogoApp.consume(token); else YogoApp.ack(token); } catch (e) { }
   if (document.querySelector(".iapgrid")) UI.cashShop();
@@ -2913,7 +2939,10 @@ function iapBind() {
   if ($("#iapinfo")) $("#iapinfo").onclick = (e) => { e.preventDefault(); UI.modal(`<h2>환불·청약철회 안내</h2><div style="max-width:560px;margin:0 auto;line-height:1.8"><p>산 지 7일이 지나지 않았고 쓰지 않은 상품은 청약을 철회할 수 있어요(전자상거래법).</p><p>코인·엽전처럼 받자마자 쓸 수 있는 상품은 일부를 썼다면 철회가 어려울 수 있어요.</p><p>환불은 Google Play 주문 내역에서 신청하거나 ${SUPPORT.mail} 로 알려 주세요.</p></div><div class="center"><button class="btn" id="iapx">닫기</button></div>`); $("#iapx").onclick = () => UI.closeModal(); };
 }
 // 앱을 켤 때 한 번: 결제는 됐는데 지급을 못 받은 것 되찾기
-setTimeout(() => { try { if (iapOn() && iapApp() && SAVE) YogoApp.restore(); } catch (e) { } }, 6000);
+var IAP_REST_T = 0;
+function iapRestore() { try { if (!iapOn() || !iapApp() || !SAVE || Date.now() - IAP_REST_T < 30000) return; IAP_REST_T = Date.now(); YogoApp.restore(); } catch (e) { } }
+(function iapBoot(n) { setTimeout(() => { if (typeof SAVE !== "undefined" && SAVE) { const w = IAP_WAIT.splice(0); w.forEach((a) => window.iapGot(...a)); iapRestore(); } else if (n < 120) iapBoot(n + 1); }, n ? 5000 : 6000); })(0);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (typeof G === "undefined" || !G)) setTimeout(iapRestore, 1500); });
 UI.cashShop = function () { UI.frame("등불 상점", iapHtml() || `<p class="muted">지금은 준비 중이에요</p>`); iapBind(); };
 
 // ===================== 11-22 운영: 일괄 업데이트 · 점검 · 앱 버전 (release.js OPS, 사이트 ops.json) =====================

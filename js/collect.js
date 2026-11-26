@@ -2657,7 +2657,8 @@ const CBT = { on: true, days: 14,
 // 정식 출시 때: ① 사용자가 고른 상품을 items 에 넣고 ② Play Console '인앱 상품'에 같은 id 로 등록 ③ on: true.
 // kind: "once" 한 번만 사는 것(광고 없이 축복 등 — 다시 깔아도 '구매 복원'으로 되찾음) / "pack" 여러 번 사는 것(코인 묶음 등)
 // give: { coins, gold(엽전), soul(혼불), noAds: true, title: "t_…", chars: ["…"] }  · img: 그림 키 · 후보 목록은 바탕화면 요괴록_출시준비\과금_후보.txt
-const IAP = { on: false, items: [ // 11-22 사용자: 후보 모두 넣고 가격은 '광고 없이 축복'만 4,400원으로 조정. 값은 Play Console 인앱 상품(같은 id)에서 정함
+// 11-27 verify: 영수증 확인 서버 주소(server/iap_verify, Cloudflare Workers). 비어 있으면 확인 없이 지급(시험용). 정식 판매 전 꼭 채우기
+const IAP = { on: false, verify: "", items: [ // 11-22 사용자: 후보 모두 넣고 가격은 '광고 없이 축복'만 4,400원으로 조정. 값은 Play Console 인앱 상품(같은 id)에서 정함
   { sku: "no_ads_bless", kind: "once", price: "5,900원", name: "광고 없이 보상", desc: "광고를 보지 않고 바로 보상을 받아요 — 등불 축복 · 다시 일어나기 · 혼불 두 배 · 무료 뽑기 한 번 더 · 강화 다시 뽑기 (하루 횟수는 같아요). 한 번 사면 계속.", img: "ui_soul", give: { noAds: true } },
   { sku: "no_ads_plus", kind: "once", price: "9,900원", covers: "no_ads_bless", name: "광고 없이 보상 플러스", desc: "'광고 없이 보상'에 코인 60 · 혼불 300 을 더한 묶음. 한 번 사면 계속.", img: "ui_soul", give: { noAds: true, coins: 60, soul: 300 } }, // covers: 이걸 사면 그 상품도 가진 것으로, 그 상품을 이미 샀으면 이 묶음은 안 보임
   { sku: "starter_pack", kind: "once", price: "5,900원", days7: true, name: "시작 꾸러미", desc: "첫 보스를 잡은 뒤 사흘 동안만 — 코인 60 · 엽전 3,000 · 혼불 300", img: "cur_coin", give: { coins: 60, gold: 3000, soul: 300 } },
